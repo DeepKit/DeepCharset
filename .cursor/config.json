@@ -1,0 +1,112 @@
+{
+  "$schema": "https://cursor.sh/schemas/cursor-config-v2.schema.json",
+  "version": "2.2",
+  "rules": {
+    "active": [
+      "rules/main_rule.mdc",
+      "rules/unified_workflow.mdc",
+      "rules/tech_stack.mdc",
+      "rules/quality_gate.mdc",
+      "rules/debug_rules.mdc",
+      "rules/ai_behavior.mdc"
+    ],
+    "validation": {
+      "strict": true,
+      "ignoreFiles": ["backup/**", "tests/**"]
+    }
+  },
+  "delphi": {
+    "compiler": {
+      "path": "dcc32",
+      "flags": ["-B", "-Q", "-NSsystem,vc1"],
+      "autoRun": true
+    },
+    "architecture": {
+      "mvc": {
+        "enabled": true,
+        "modelPrefix": "Model",
+        "viewPrefix": "View",
+        "controllerPrefix": "Controller"
+      }
+    }
+  },
+  "autonomous": {
+    "silentMode": {
+      "enabled": true,
+      "notificationLevel": "criticalOnly",
+      "maxLinesPerCommit": 500,
+      "allowedActions": {
+        "coding": true,
+        "testing": true,
+        "building": true,
+        "refactoring": false
+      }
+    },
+    "safetyChecks": {
+      "lockSharedCode": true,
+      "requireHumanReview": ["API签名变更", "新增依赖项"]
+    }
+  },
+  "documentation": {
+    "autoUpdate": {
+      "devMd": {
+        "enabled": true,
+        "updateDelay": 15
+      },
+      "progressMd": {
+        "enabled": true,
+        "trigger": "功能完成"
+      },
+      "bugfixMd": {
+        "enabled": true,
+        "minAttempts": 3
+      }
+    }
+  },
+  "libraries": {
+    "whitelist": [
+      "skia",
+      "superjson",
+      "VirtualStringTree",
+      "Jedi Code Library",
+      "Mustangpeak.Common.Lib",
+      "SVGIconImageList",
+      "QuickLogger"
+    ],
+    "blacklist": ["*Alpha*", "*Beta*"]
+  },
+  "workflow": {
+    "yoyoMode": {
+      "enabled": true,
+      "commandSeparator": ";",
+      "postSuccess": "generate_delivery_package.ps1"
+    },
+    "hooks": {
+      "preCommit": {
+        "dfmPasConsistency": true,
+        "freeNilCheck": true,
+        "logCoverage": 70
+      }
+    }
+  },
+  "editor": {
+    "delphi": {
+      "formDesigner": {
+        "preferDfm": true,
+        "dynamicCreation": false
+      },
+      "namingConvention": {
+        "prefixes": {
+          "memberVar": "F",
+          "globalVar": "G",
+          "argument": "a"
+        },
+        "types": {
+          "class": "T",
+          "interface": "I",
+          "enum": "st"
+        }
+      }
+    }
+  }
+}
