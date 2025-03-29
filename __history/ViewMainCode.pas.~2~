@@ -74,7 +74,7 @@ type
     btnToggleSelect: TButton;
     btnSelectUP: TButton;
     Label1: TLabel;
-    ComboBox1: TComboBox;
+    rglanguage: TRadioGroup;
     procedure btnCloseClick(Sender: TObject);
     procedure btnBrowseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
@@ -96,7 +96,7 @@ type
     procedure MenuItemConvertCurrentClick(Sender: TObject);
     procedure MenuItemConvertAllFilesClick(Sender: TObject);
     procedure btnSelectUPClick(Sender: TObject);
-    procedure cmbLanguageChange(Sender: TObject);
+    procedure rglanguageClick(Sender: TObject);
   private
     FSourceFileName: string;
     FTargetFileName: string;
@@ -158,6 +158,7 @@ type
     // 添加检查文件是否在不支持列表中的方法
     function IsUnsupportedFile(const Filename: string): Boolean;
     procedure OnLanguageChange(const LangCode: string);
+    procedure cmbLanguageChange(Sender: TObject);
     procedure CreateLanguageSelector;
     procedure SwitchToLanguageCode(const LangCode: string);
     procedure InitEncodingList;
@@ -2511,6 +2512,22 @@ begin
       Exit(True);
 end;
 
+procedure TForm1.rglanguageClick(Sender: TObject);
+begin
+  case rglanguage.ItemIndex of
+    0: SetLanguage(alChinese);
+    1: SetLanguage(alEnglish);
+    2: SetLanguage(alJapanese);
+    3: SetLanguage(alKorean);
+    4: SetLanguage(alSpanish);
+    5: SetLanguage(alFrench);
+    6: SetLanguage(alGerman);
+    7: SetLanguage(alItalian);
+    else SetLanguage(alChineseTraditional);
+  end;
+  
+  Log('已切换语言: ' + rglanguage.Items[rglanguage.ItemIndex]);
+end;
 
 // 初始化语言字符串
 procedure TForm1.InitLanguageStrings;
@@ -2778,8 +2795,13 @@ var
   i: Integer;
 begin
   // 创建语言选择下拉框
-  FLanguageComboBox := ComboBox1;
+  FLanguageComboBox := TComboBox.Create(Self);
+  FLanguageComboBox.Parent := Panel1;
   FLanguageComboBox.Style := csDropDownList;
+  FLanguageComboBox.Width := 150;
+  FLanguageComboBox.Height := 24;
+  FLanguageComboBox.Left := rglanguage.Left;
+  FLanguageComboBox.Top := rglanguage.Top;
   FLanguageComboBox.OnChange := cmbLanguageChange;
   
   // 填充语言列表
@@ -2800,7 +2822,9 @@ begin
       Break;
     end;
   end;
-
+  
+  // 隐藏原来的RadioGroup
+  rglanguage.Visible := False;
 end;
 
 // 语言选择器变更事件

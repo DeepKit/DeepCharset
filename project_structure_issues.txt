@@ -1,0 +1,45 @@
+TransSuccess项目问题修复指南
+======================
+
+1. 循环引用问题
+----------------
+循环依赖链：ModelLanguage -> UtilsTypes -> HelperLanguage -> ViewMainCode -> HelperLanguage
+
+解决方法：
+- ViewMainCode.pas的interface部分使用TLanguageManager的前向声明
+- ViewMainCode.pas的implementation部分引用HelperLanguage单元
+- HelperLanguage.pas只在implementation部分引用ViewMainCode单元
+
+2. 重复定义问题
+----------------
+重复定义的方法：
+- ViewMainCode.pas中有两个InitLanguageStrings方法实现（第2532行和第2874行）
+- ViewMainCode.pas中有SetLanguage方法的重复实现
+
+解决方法：
+- 保留第2532行的InitLanguageStrings实现，删除第2874行的实现
+- 给重复的方法添加{$IFDEF UNUSED_CODE}标记
+
+3. 方法声明问题
+----------------
+未声明的方法和变量：
+- SwitchToLanguageCode方法
+- FCurrentAppLanguage变量
+
+解决方法：
+- 在ViewMainCode.pas的private部分添加这些声明
+
+4. 文件编辑指导
+----------------
+在编辑器中打开文件并进行以下修改：
+
+(1) ViewMainCode.pas:
+- 确认第162行已声明SwitchToLanguageCode方法
+- 删除或注释掉第2874行开始的InitLanguageStrings重复实现
+- 删除或注释掉第2882行开始的SetLanguage重复实现，保留前一个实现
+
+(2) HelperLanguage.pas:
+- 在implementation部分而非interface部分引用ViewMainCode
+
+(3) 确保正确的单元引用顺序：
+- 在dpr文件中，顺序应为：ViewMainCode -> UtilsUTF8 -> UtilsTypes -> ModelLanguage -> HelperLanguage 

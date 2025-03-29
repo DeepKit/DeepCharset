@@ -96,7 +96,6 @@ type
     procedure MenuItemConvertCurrentClick(Sender: TObject);
     procedure MenuItemConvertAllFilesClick(Sender: TObject);
     procedure btnSelectUPClick(Sender: TObject);
-    procedure cmbLanguageChange(Sender: TObject);
   private
     FSourceFileName: string;
     FTargetFileName: string;
@@ -158,6 +157,7 @@ type
     // 添加检查文件是否在不支持列表中的方法
     function IsUnsupportedFile(const Filename: string): Boolean;
     procedure OnLanguageChange(const LangCode: string);
+    procedure cmbLanguageChange(Sender: TObject);
     procedure CreateLanguageSelector;
     procedure SwitchToLanguageCode(const LangCode: string);
     procedure InitEncodingList;
