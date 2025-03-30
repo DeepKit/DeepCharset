@@ -1,4 +1,4 @@
-unit UtilsTypes;
+﻿unit UtilsTypes;
 
 interface
 

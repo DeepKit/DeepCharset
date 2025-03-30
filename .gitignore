@@ -1,4 +1,4 @@
-# Delphi 忽略文件
+﻿# Delphi 忽略文件
 *.dsk
 *.local
 *.identcache

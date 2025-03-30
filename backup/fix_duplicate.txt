@@ -1,4 +1,4 @@
-{
+﻿{
 // 以下保留兼容旧代码的方法，但实际使用新的语言管理器
 procedure TForm1.InitLanguageStrings;
 begin

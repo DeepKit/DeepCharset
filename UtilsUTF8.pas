@@ -16,6 +16,9 @@ function DetectTextEncoding(const FileName: string): TEncoding;
 // 将文件转换为UTF-8编码
 function ConvertFileToUTF8(const FileName: string; const OutputFileName: string = ''): Boolean;
 
+// 将文件转换为GB2312编码
+function ConvertFileToGB2312(const FileName: string; const OutputFileName: string = ''): Boolean;
+
 // 将文件夹中的所有文件转换为UTF-8编码
 function ConvertFolderToUTF8(const FolderPath: string; Recursive: Boolean = True): Integer;
 
@@ -209,6 +212,69 @@ begin
         SourceEncoding.GetString(Buffer));
       if Length(UTF8Bytes) > 0 then
         DestStream.WriteBuffer(UTF8Bytes[0], Length(UTF8Bytes));
+        
+      Result := True;
+    finally
+      DestStream.Free;
+    end;
+  except
+    Result := False;
+  end;
+end;
+
+// 将文件转换为GB2312编码
+function ConvertFileToGB2312(const FileName: string; const OutputFileName: string = ''): Boolean;
+var
+  SourceStream, DestStream: TFileStream;
+  Buffer: TBytes;
+  SourceEncoding: TEncoding;
+  GB2312Encoding: TEncoding;
+  OutputPath: string;
+begin
+  Result := False;
+  
+  if not FileExists(FileName) then
+    Exit;
+    
+  // 确定输出文件名
+  if OutputFileName = '' then
+    OutputPath := FileName
+  else
+    OutputPath := OutputFileName;
+    
+  try
+    // 读取源文件
+    SourceStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+    try
+      SetLength(Buffer, SourceStream.Size);
+      if Length(Buffer) > 0 then
+        SourceStream.ReadBuffer(Buffer[0], Length(Buffer));
+    finally
+      SourceStream.Free;
+    end;
+    
+    // 检测源文件编码
+    if not DetectEncodingFromBytes(Buffer, SourceEncoding) then
+      SourceEncoding := TEncoding.Default;
+    
+    // 获取GB2312编码
+    GB2312Encoding := TEncoding.GetEncoding(936); // 936是简体中文GB2312/GBK的代码页
+    
+    // 如果已经是GB2312，且输出路径相同，则无需转换
+    if (SourceEncoding.CodePage = 936) and (OutputPath = FileName) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    
+    // 转换并写入目标文件
+    DestStream := TFileStream.Create(OutputPath, fmCreate);
+    try
+      // 转换并写入内容 - 不写入BOM
+      var GB2312Bytes := GB2312Encoding.GetBytes(
+        SourceEncoding.GetString(Buffer));
+      if Length(GB2312Bytes) > 0 then
+        DestStream.WriteBuffer(GB2312Bytes[0], Length(GB2312Bytes));
         
       Result := True;
     finally

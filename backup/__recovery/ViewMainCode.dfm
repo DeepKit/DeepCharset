@@ -101,22 +101,58 @@ object Form1: TForm1
     Align = alTop
     TabOrder = 1
     ExplicitWidth = 955
+    DesignSize = (
+      961
+      41)
     object Label1: TLabel
       Left = 520
       Top = 8
       Width = 3
       Height = 15
     end
-    object rglanguage: TRadioGroup
-      Left = 1
-      Top = 1
-      Width = 959
-      Height = 39
-      Align = alClient
-      Caption = #35328#35821#20999#25442
-      Columns = 8
+    object ComboBox1: TComboBox
+      Left = 11
+      Top = 5
+      Width = 265
+      Height = 23
       TabOrder = 0
-      ExplicitWidth = 953
+      Text = 'ComboBox1'
+      OnChange = cmbLanguageChange
+    end
+    object btnShowContent: TButton
+      Left = 439
+      Top = 4
+      Width = 98
+      Height = 25
+      Caption = #26174#31034#25991#20214#20869#23481
+      TabOrder = 1
+      OnClick = btnShowContentClick
+    end
+    object Button2: TButton
+      Left = 786
+      Top = 92
+      Width = 75
+      Height = 25
+      Caption = #36864#20986
+      TabOrder = 2
+    end
+    object btnSelectAllExt: TButton
+      Left = 296
+      Top = 4
+      Width = 129
+      Height = 25
+      Caption = #20840#36873'/'#19981#36873
+      TabOrder = 3
+    end
+    object btnClose: TButton
+      Left = 824
+      Top = 4
+      Width = 121
+      Height = 25
+      Anchors = [akTop, akRight]
+      Caption = #20851#38381
+      TabOrder = 4
+      OnClick = btnCloseClick
     end
   end
   object Panel3: TPanel
@@ -139,6 +175,7 @@ object Form1: TForm1
       Margins.Bottom = 10
       Align = alTop
       TabOrder = 0
+      OnChange = DriveComboBox1Change
     end
     object DirectoryListBox1: TDirectoryListBox
       AlignWithMargins = True
@@ -152,6 +189,7 @@ object Form1: TForm1
       Margins.Bottom = 10
       Align = alClient
       TabOrder = 1
+      OnChange = DirectoryListBox1Change
       OnMouseDown = DirectoryListBox1MouseDown
       ExplicitHeight = 345
     end
@@ -245,7 +283,7 @@ object Form1: TForm1
         Height = 70
         Align = alClient
         Columns = 5
-        ItemHeight = 15
+        ItemHeight = 17
         TabOrder = 0
         ExplicitWidth = 503
       end
@@ -258,64 +296,41 @@ object Form1: TForm1
       Align = alTop
       TabOrder = 2
       ExplicitWidth = 505
-      DesignSize = (
-        511
-        48)
       object btnConvert: TButton
-        Left = 248
+        Left = 262
         Top = 17
-        Width = 75
+        Width = 120
         Height = 25
         Caption = #20840#37096#36716#25442
         TabOrder = 0
         OnClick = btnConvertClick
       end
       object btnSingleFile: TButton
-        Left = 329
+        Left = 386
         Top = 17
-        Width = 75
+        Width = 120
         Height = 25
-        Caption = #21333#20010#25991#20214
+        Caption = #21333#20010#25991#20214#36716#25442
         TabOrder = 1
         OnClick = btnSingleFileClick
       end
       object btnRefresh: TButton
-        Left = 167
+        Left = 139
         Top = 17
-        Width = 75
+        Width = 120
         Height = 25
         Caption = #21047#26032
         TabOrder = 2
         OnClick = btnRefreshClick
       end
-      object btnClose: TButton
-        Left = 416
-        Top = 15
-        Width = 75
-        Height = 25
-        Anchors = [akTop, akRight]
-        Caption = #20851#38381
-        TabOrder = 3
-        OnClick = btnCloseClick
-        ExplicitLeft = 410
-      end
       object btnToggleSelect: TButton
-        Left = 104
+        Left = 16
         Top = 17
-        Width = 57
+        Width = 120
         Height = 25
         Caption = #20840#36873'/'#21462#28040
-        TabOrder = 4
+        TabOrder = 3
         OnClick = btnToggleSelectClick
-      end
-      object btnSelectUP: TButton
-        Left = 16
-        Top = 16
-        Width = 75
-        Height = 25
-        Caption = #20840#36873'/'#19981#36873
-        TabOrder = 5
-        OnClick = btnSelectUPClick
       end
     end
   end

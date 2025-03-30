@@ -10,8 +10,7 @@ uses
   HelperUI in 'HelperUI.pas',
   HelperFiles in 'HelperFiles.pas',
   UtilsTypes in 'UtilsTypes.pas',
-  HelperLanguage in 'HelperLanguage.pas',
-  ViewSynEdit in 'ViewSynEdit.pas' {Form2};
+  HelperLanguage in 'HelperLanguage.pas';
 
 {$R *.res}
 
@@ -21,6 +20,6 @@ begin
   
   // 创建并显示主窗体
   Application.CreateForm(TForm1, Form1);
-
+  
   Application.Run;
 end.

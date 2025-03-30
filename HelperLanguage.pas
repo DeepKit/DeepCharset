@@ -1,4 +1,4 @@
-unit HelperLanguage;
+﻿unit HelperLanguage;
 
 interface
 
@@ -506,6 +506,8 @@ begin
 end;
 
 procedure TLanguageManager.SetLanguage(const LangCode: string);
+var
+  LangStrings: TLanguageStrings;
 begin
   // 如果没有变化，直接返回
   if FCurrentLanguage = LangCode then
@@ -515,15 +517,37 @@ begin
   if not FLanguages.ContainsKey(LangCode) then
     Exit;
     
+  // 确保能获取到语言字符串
+  LangStrings := GetLanguageStrings(LangCode);
+  
   // 设置当前语言
   FCurrentLanguage := LangCode;
   
   // 保存用户偏好
   SaveUserPreference(LangCode);
   
-  // 触发语言变更事件
+  // 立即触发语言变更事件，确保UI更新
   if Assigned(FOnLanguageChange) then
-    FOnLanguageChange(LangCode);
+  begin
+    try
+      // 传递语言代码到事件处理器
+      FOnLanguageChange(LangCode);
+      
+      // 记录语言切换成功
+      OutputDebugString(PChar('语言已切换到: ' + LangCode));
+    except
+      on E: Exception do
+      begin
+        // 记录异常但不中断流程
+        OutputDebugString(PChar('语言切换异常: ' + E.Message));
+      end;
+    end;
+  end
+  else
+  begin
+    // 记录没有事件处理器的情况
+    OutputDebugString(PChar('警告：未设置OnLanguageChange事件处理器'));
+  end;
 end;
 
 procedure TLanguageManager.SaveUserPreference(const LangCode: string);

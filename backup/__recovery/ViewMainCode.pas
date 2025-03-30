@@ -1,4 +1,4 @@
-﻿unit ViewMainCode;
+unit ViewMainCode;
 
 interface
 
@@ -8,7 +8,7 @@ uses
   Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.FileCtrl, Vcl.Buttons, Vcl.ComCtrls,
   Vcl.Grids, System.Math, Vcl.CheckLst, System.Types, Vcl.Menus, System.Rtti,
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles, 
-  ControllerEncoding, HelperLanguage, Winapi.ShlObj, ViewSynEdit;
+  ControllerEncoding, HelperLanguage, Winapi.ShlObj;
 
 type
   // 语言包装器类
@@ -45,7 +45,6 @@ type
     MenuItemConvertCurrent: TMenuItem;
     MenuItemConvertAllFiles: TMenuItem;
     N1: TMenuItem;
-    MenuItemViewContent: TMenuItem;
     Panel8: TPanel;
     btnConvert: TButton;
     btnSingleFile: TButton;
@@ -79,8 +78,6 @@ type
     procedure DirectoryListBox1Change(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnShowContentClick(Sender: TObject);
-    procedure btnSelectAllExtClick(Sender: TObject);
-    procedure MenuItemViewContentClick(Sender: TObject);
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
@@ -294,7 +291,6 @@ begin
   MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
   MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile;
   MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
-  MenuItemViewContent.Caption := '查看内容';
   
   // 强制更新控件文本
   InvalidateControl(btnConvert);
@@ -389,15 +385,21 @@ begin
 end;
 
 procedure TForm1.btnRefreshClick(Sender: TObject);
-begin
-  if DirectoryExists(DirectoryListBox1.Directory) then
   begin
-    UpdateFileGrid(DirectoryListBox1.Directory);
-    Log('已刷新目录: ' + DirectoryListBox1.Directory);
+    Screen.Cursor := crHourGlass;
+    try
+      UpdateFileGrid(FSelectedFolder);
+    finally
+      Screen.Cursor := crDefault;
   end;
 end;
 
-procedure TForm1.btnSingleFileClick(Sender: TObject);
+pprocedure TForm1.btnShowContentClick(Sender: TObject);
+begin
+
+end;
+
+rocedure TForm1.btnSingleFileClick(Sender: TObject);
 var
   SelectedFiles: TArray<string>;
   TargetEncoding: TEncoding;
@@ -626,13 +628,6 @@ begin
   // 绑定事件
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
   
-  // 确保绑定弹出菜单
-  StringGrid1.PopupMenu := GridPopupMenu;
-  
-  // 确保按钮事件绑定
-  btnShowContent.OnClick := btnShowContentClick;
-  btnSelectAllExt.OnClick := btnSelectAllExtClick;
-  
   // 读取上次使用的目录
   if FConfig.LastDirectory <> '' then
   begin
@@ -697,7 +692,8 @@ procedure TForm1.Log(const Msg: string);
 end;
 
 procedure TForm1.MenuItemConvertAllFilesClick(Sender: TObject);
-begin
+          begin
+  // 转换所有文件
   btnConvertClick(Sender);
 end;
 
@@ -746,11 +742,6 @@ procedure TForm1.MenuItemToggleSelectClick(Sender: TObject);
         begin
   // 全选/取消全选
   FUIHelper.ToggleAllSelections(StringGrid1);
-end;
-
-procedure TForm1.MenuItemViewContentClick(Sender: TObject);
-begin
-  btnShowContentClick(Sender);
 end;
 
 procedure TForm1.OnLanguageChange(const LangCode: string);
@@ -838,24 +829,18 @@ begin
         
 procedure TForm1.StringGrid1ContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
 var
-  GridCoord: TGridCoord;
-begin
-  GridCoord := StringGrid1.MouseCoord(MousePos.X, MousePos.Y);
+  Grid: TStringGrid;
+  Col, Row: Integer;
+        begin
+  Grid := TStringGrid(Sender);
+  Grid.MouseToCell(MousePos.X, MousePos.Y, Col, Row);
   
-  // 确保点击的是有效的数据行
-  if (GridCoord.Y > 0) and (GridCoord.Y < StringGrid1.RowCount) then
-  begin
-    StringGrid1.Row := GridCoord.Y;
-    FSelectedRow := GridCoord.Y;
-    // 显式激活弹出菜单，而不是依赖默认行为
+  // 如果右键点击有效行
+  if Row > 0 then
+    begin
+    Grid.Row := Row;
+    FSelectedRow := Row;
     GridPopupMenu.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y);
-  end
-  else
-  begin
-    // 禁用上下文菜单
-    MenuItemConvertCurrent.Enabled := False;
-    MenuItemToggleSelect.Enabled := False;
-    MenuItemViewContent.Enabled := False;
     Handled := True;
   end;
 end;
@@ -900,7 +885,6 @@ begin
     MenuItemToggleSelect.Caption := '全选/取消全选';
     MenuItemConvertCurrent.Caption := '单个文件';
     MenuItemConvertAllFiles.Caption := '转换所有';
-    MenuItemViewContent.Caption := '查看内容';
       end
       else
       begin
@@ -1184,152 +1168,6 @@ end;
   if not Found and (FileName <> '') then
 begin
     Log('文件 ' + FileName + ' 转换完成，编码: ' + EncodingName);
-  end;
-end;
-
-procedure TForm1.btnShowContentClick(Sender: TObject);
-var
-  SelectedFile: string;
-  EncodingList: array of TEncoding;
-  DetectedEncoding: string;
-  HasBOM: Boolean;
-  i: Integer;
-begin
-  // 确保选中了有效的行
-  if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
-  begin
-    ShowMessage('请先选择一个文件');
-    Exit;
-  end;
-  
-  // 获取选中的文件路径
-  SelectedFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[1, FSelectedRow];
-  if not FileExists(SelectedFile) then
-  begin
-    ShowMessage('文件不存在: ' + SelectedFile);
-    Exit;
-  end;
-  
-  // 检测文件编码
-  DetectedEncoding := FFileHelper.DetectFileEncoding(SelectedFile, HasBOM);
-  Log('打开文件: ' + SelectedFile + ' (检测编码: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True) + ')');
-  
-  // 准备多种可能的编码尝试
-  SetLength(EncodingList, 4);
-  
-  // 根据检测到的编码选择主要编码
-  if SameText(DetectedEncoding, 'UTF-8') then
-    EncodingList[0] := TEncoding.UTF8
-  else if SameText(DetectedEncoding, 'GB2312') or SameText(DetectedEncoding, 'GBK') then
-    EncodingList[0] := TEncoding.GetEncoding(936) // GBK/GB2312
-  else if SameText(DetectedEncoding, 'ASCII') then
-    EncodingList[0] := TEncoding.ASCII
-  else
-    EncodingList[0] := TEncoding.Default;
-    
-  // 添加备选编码
-  EncodingList[1] := TEncoding.UTF8;
-  EncodingList[2] := TEncoding.GetEncoding(936); // GBK/GB2312
-  EncodingList[3] := TEncoding.Default;
-    
-  try
-    // 创建并显示Form2
-    if not Assigned(Form2) then
-      Application.CreateForm(TForm2, Form2);
-      
-    // 尝试多种编码加载文件，直到成功或全部失败
-    for i := 0 to High(EncodingList) do
-    begin
-      try
-        // 使用当前编码尝试加载文件
-        Form2.LoadFile(SelectedFile, EncodingList[i]);
-        Form2.SetFileInfo(SelectedFile, DetectedEncoding, HasBOM);
-        // 以模态窗口方式显示(不阻塞主窗口操作)
-        Form2.Show;
-        Log('成功使用编码加载文件: ' + SelectedFile);
-        Exit; // 成功加载，退出循环
-      except
-        on E: Exception do
-        begin
-          // 当前编码失败，尝试下一个
-          Log('尝试编码 #' + IntToStr(i) + ' 失败: ' + E.Message);
-          // 最后一个编码也失败
-          if i = High(EncodingList) then
-          begin
-            Log('所有编码都无法正确加载文件: ' + E.Message);
-            ShowMessage('无法正确加载文件，可能不是文本文件或编码不支持');
-          end;
-        end;
-      end;
-    end;
-  finally
-    // 释放编码对象
-    for i := 0 to High(EncodingList) do
-      if (i > 0) and (EncodingList[i] <> nil) and not (EncodingList[i] is TMBCSEncoding) then
-        EncodingList[i].Free;
-  end;
-end;
-
-procedure TForm1.btnSelectAllExtClick(Sender: TObject);
-var
-  i: Integer;
-  AllChecked, AnyChecked: Boolean;
-begin
-  // 记录操作开始
-  Log('选择/取消选择所有文件类型操作开始');
-  
-  // 检查是否所有项目都已经选中
-  AllChecked := True;
-  AnyChecked := False;
-  
-  for i := 0 to CheckListBox1.Items.Count - 1 do
-  begin
-    if CheckListBox1.Checked[i] then
-      AnyChecked := True
-    else
-      AllChecked := False;
-      
-    if AnyChecked and not AllChecked then
-      Break;
-  end;
-  
-  // 显示状态信息
-  Log('当前状态: 全部选中=' + BoolToStr(AllChecked, True) + ', 部分选中=' + BoolToStr(AnyChecked, True));
-  
-  // 如果所有都选中或部分选中，则全部取消选择
-  // 如果都没选中，则全部选择
-  if AllChecked or AnyChecked then
-  begin
-    // 全部取消选择
-    for i := 0 to CheckListBox1.Items.Count - 1 do
-    begin
-      CheckListBox1.Checked[i] := False;
-    end;
-      
-    btnSelectAllExt.Caption := '全选类型';
-    Log('已取消选择所有文件类型');
-  end
-  else
-  begin
-    // 全部选择
-    for i := 0 to CheckListBox1.Items.Count - 1 do
-    begin
-      CheckListBox1.Checked[i] := True;
-    end;
-      
-    btnSelectAllExt.Caption := '取消全选';
-    Log('已选择所有文件类型');
-  end;
-  
-  // 手动调用点击检查事件来更新显示
-  if Assigned(CheckListBox1.OnClickCheck) then
-    CheckListBox1.OnClickCheck(CheckListBox1);
-    
-  // 更新文件列表
-  if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
-  begin
-    UpdateFileGrid(DirectoryListBox1.Directory);
-    Log('文件列表已更新');
   end;
 end;
 

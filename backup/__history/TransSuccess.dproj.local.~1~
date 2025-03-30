@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2025/03/24 12:33:52.000.119,=D:\Personal\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/03/24 12:34:37.000.550,D:\SynologyDrive\Progs\_Delphi\toUft8Bom\uToUtf8Bom.pas=D:\Personal\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/03/24 12:34:37.000.550,D:\SynologyDrive\Progs\_Delphi\toUft8Bom\uToUtf8Bom.dfm=D:\Personal\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>2025/03/24 12:34:50.000.307,D:\SynologyDrive\Progs\_Delphi\toUft8Bom\ToUtf8BomPrj.dproj=D:\Personal\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>2025/03/24 12:36:52.000.909,=D:\SynologyDrive\Progs\_Delphi\toUft8Bom\UTF8Converter.pas</Transaction>
+    <Transaction>2025/03/24 12:37:21.000.308,=D:\SynologyDrive\Progs\_Delphi\ConfigEditor\UtilsUTF8.pas</Transaction>
+    <Transaction>2025/03/24 12:37:44.000.006,D:\SynologyDrive\Progs\_Delphi\toUft8Bom\uToUtf8Bom.pas=</Transaction>
+    <Transaction>2025/03/24 21:58:30.000.995,=D:\SynologyDrive\Progs\_Delphi\toUft8Bom\Unit1.pas</Transaction>
+    <Transaction>2025/03/24 22:00:10.000.439,D:\SynologyDrive\Progs\_Delphi\toUft8Bom\Unit1.dfm=D:\SynologyDrive\Progs\_Delphi\toUft8Bom\ViewMainCode.dfm</Transaction>
+    <Transaction>2025/03/24 22:00:10.000.439,D:\SynologyDrive\Progs\_Delphi\toUft8Bom\Unit1.pas=D:\SynologyDrive\Progs\_Delphi\toUft8Bom\ViewMainCode.pas</Transaction>
+    <Transaction>2025/03/24 22:20:09.000.766,D:\SynologyDrive\Progs\_Delphi\toUft8Bom\UTF8Converter.pas=</Transaction>
+    <Transaction>2025/03/28 23:00:47.000.466,D:\SynologyDrive\Progs\_Delphi\半成品备份\toUft8Bom\ToUtf8BomPrj.dproj=D:\SynologyDrive\Progs\_Delphi\半成品备份\toUft8Bom\TransSuccess.dproj</Transaction>
+  </Transactions>
+	<ProjectSortOrder AutoSort="0" SortType="0">
+    <File Path="ViewMainCode.pas"/>
+    <File Path="ViewMainCode.dfm"/>
+    <File Path="ControllerEncoding.pas"/>
+    <File Path="HelperFiles.pas"/>
+    <File Path="HelperLanguage.pas"/>
+    <File Path="HelperUI.pas"/>
+    <File Path="ModelConfig.pas"/>
+    <File Path="ModelEncoding.pas"/>
+    <File Path="ModelLanguage.pas"/>
+    <File Path="UtilsTypes.pas"/>
+    <File Path="UtilsUTF8.pas"/>
+  </ProjectSortOrder>
+</BorlandProject>
