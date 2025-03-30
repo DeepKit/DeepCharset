@@ -10,7 +10,7 @@ uses
   SynHighlighterCpp, SynHighlighterPython, SynHighlighterCS, SynHighlighterSQL,
   SynHighlighterJScript, SynHighlighterCSS, SynHighlighterJSON, SynHighlighterIni,
   SynHighlighterBat, SynHighlighterVB, SynHighlighterPerl, SynHighlighterPHP,
-  SynHighlighterTeX, SynHighlighterRuby, SynHighlighterMarkdown;
+  SynHighlighterTeX, SynHighlighterRuby;
 
 type
   TForm2 = class(TForm)
@@ -40,7 +40,6 @@ type
     FHighlighterPHP: TSynPHPSyn;
     FHighlighterTeX: TSynTeXSyn;
     FHighlighterRuby: TSynRubySyn;
-    FHighlighterMarkdown: TSynMarkdownSyn;
     procedure ApplyHighlighter(const FileName: string);
     procedure CheckHighlightersStatus;
   public
@@ -97,40 +96,6 @@ begin
     FHighlighterTeX := TSynTeXSyn.Create(Self);
     FHighlighterRuby := TSynRubySyn.Create(Self);
     
-    // 初始化Markdown高亮器
-    FHighlighterMarkdown := TSynMarkdownSyn.Create(Self);
-    if Assigned(FHighlighterMarkdown) then
-    begin
-      // 配置Markdown高亮器颜色 - 使用正确的属性名
-      with FHighlighterMarkdown do
-      begin
-        try
-          // 尝试不同的属性名，适配不同版本的SynEdit
-          // 标准方式
-          if Assigned(FHighlighterMarkdown.FindPropertyEditor('HeaderAttr')) then
-          begin
-            HeaderAttr.Foreground := clBlue;
-            HeaderAttr.Style := [fsBold];
-          end
-          // 备用方式
-          else if Assigned(FHighlighterMarkdown.FindPropertyEditor('HeadingAttribute')) then
-          begin
-            HeadingAttribute.Foreground := clBlue;
-            HeadingAttribute.Style := [fsBold];
-          end;
-          
-          // 其他属性根据实际情况设置
-          // 记录日志
-          OutputDebugString(PChar('Markdown高亮器初始化成功 - 属性已配置'));
-        except
-          on E: Exception do
-            OutputDebugString(PChar('设置Markdown高亮器属性时出错: ' + E.Message));
-        end;
-      end;
-    end
-    else
-      OutputDebugString(PChar('警告: Markdown高亮器创建失败'));
-    
     // 设置SynEdit基本属性
     SynEdit1.Gutter.ShowLineNumbers := True;
     SynEdit1.Font.Name := 'Consolas';
@@ -169,15 +134,6 @@ begin
     OutputDebugString(PChar('应用Pascal高亮器'));
     if FHighlighterPas = nil then
       OutputDebugString(PChar('警告: Pascal高亮器为nil'));
-  end
-    
-  // Markdown文件
-  else if (Ext = '.md') or (Ext = '.markdown') or (Ext = '.mdown') then
-  begin
-    SynEdit1.Highlighter := FHighlighterMarkdown;
-    OutputDebugString(PChar('应用Markdown高亮器'));
-    if FHighlighterMarkdown = nil then
-      OutputDebugString(PChar('警告: Markdown高亮器为nil'));
   end
     
   // XML相关

@@ -237,7 +237,6 @@ var
   Stream: TFileStream;
   Buffer: TBytes;
   i: Integer;
-  cd: iconv_t;
   TestBytes: Integer;
   ErrorCount: Integer;
   BestEncoding: string;
