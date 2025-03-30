@@ -11,7 +11,10 @@ uses
   HelperFiles in 'HelperFiles.pas',
   UtilsTypes in 'UtilsTypes.pas',
   HelperLanguage in 'HelperLanguage.pas',
-  ViewSynEdit in 'ViewSynEdit.pas' {Form2};
+  ViewSynEdit in 'ViewSynEdit.pas' {Form2},
+  UtilsUTF8 in 'UtilsUTF8.pas',
+  ModelLanguage in 'ModelLanguage.pas',
+  UtilsIconv in 'UtilsIconv.pas';
 
 {$R *.res}
 
@@ -21,6 +24,7 @@ begin
   
   // 创建并显示主窗体
   Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TForm2, Form2);
 
   Application.Run;
 end.
