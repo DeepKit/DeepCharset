@@ -20,6 +20,7 @@ object Form2: TForm2
     Height = 41
     Align = alTop
     TabOrder = 0
+    ExplicitWidth = 618
     DesignSize = (
       1191
       41)
@@ -41,5 +42,33 @@ object Form2: TForm2
       TabOrder = 0
       OnClick = btnCloseClick
     end
+  end
+  object SynEdit1: TSynEdit
+    Left = 0
+    Top = 41
+    Width = 1191
+    Height = 803
+    Align = alClient
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Consolas'
+    Font.Style = []
+    TabOrder = 1
+    UseCodeFolding = False
+    Gutter.Font.Charset = DEFAULT_CHARSET
+    Gutter.Font.Color = clWindowText
+    Gutter.Font.Height = -11
+    Gutter.Font.Name = 'Courier New'
+    Gutter.Font.Style = []
+    Gutter.ShowLineNumbers = True
+    Gutter.Width = 30
+    Highlighter = nil
+    Lines.Strings = (
+      '')
+    Options = [eoAutoIndent, eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
+    TabWidth = 2
+    WantTabs = False
+    ExplicitHeight = 383
   end
 end
