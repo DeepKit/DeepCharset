@@ -6,6 +6,18 @@ uses
   System.SysUtils, System.Classes;
 
 type
+  // 编码分类枚举
+  TEncodingCategory = (
+    ecUnicode,       // Unicode编码 (UTF-8, UTF-16等)
+    ecEuropean,      // 欧洲编码 (ISO-8859, Windows-125x等)
+    ecCyrillic,      // 西里尔编码 (KOI8, Windows-1251等)
+    ecMiddleEast,    // 中东编码 (阿拉伯文, 希伯来文等)
+    ecEastAsian,     // 东亚编码 (GB2312, Big5, Shift-JIS等)
+    ecSouthAsian,    // 南亚编码 (印度语系等)
+    ecSouthEastAsian,// 东南亚编码 (泰文, 越南文等)
+    ecOther          // 其他编码
+  );
+
   // 应用程序支持的语言枚举
   TAppLanguage = (
     alChinese,             // 简体中文

@@ -15,12 +15,11 @@ object Form2: TForm2
   TextHeight = 15
   object Panel1: TPanel
     Left = 0
-    Top = 0
+    Top = 803
     Width = 690
     Height = 41
-    Align = alTop
+    Align = alBottom
     TabOrder = 0
-    ExplicitWidth = 1191
     DesignSize = (
       690
       41)
@@ -41,53 +40,6 @@ object Form2: TForm2
       Caption = #20851#38381
       TabOrder = 0
       OnClick = btnCloseClick
-      ExplicitLeft = 1080
     end
-  end
-  object SynEdit1: TSynEdit
-    Left = 0
-    Top = 41
-    Width = 690
-    Height = 803
-    Align = alClient
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -13
-    Font.Name = 'Consolas'
-    Font.Style = []
-    Font.Quality = fqClearTypeNatural
-    TabOrder = 1
-    UseCodeFolding = False
-    Gutter.Font.Charset = DEFAULT_CHARSET
-    Gutter.Font.Color = clWindowText
-    Gutter.Font.Height = -11
-    Gutter.Font.Name = 'Courier New'
-    Gutter.Font.Style = []
-    Gutter.Font.Quality = fqClearTypeNatural
-    Gutter.ShowLineNumbers = True
-    Gutter.Bands = <
-      item
-        Kind = gbkMarks
-        Width = 13
-      end
-      item
-        Kind = gbkLineNumbers
-      end
-      item
-        Kind = gbkFold
-      end
-      item
-        Kind = gbkTrackChanges
-      end
-      item
-        Kind = gbkMargin
-        Width = 3
-      end>
-    Lines.Strings = (
-      '')
-    Options = [eoAutoIndent, eoDragDropEditing, eoEnhanceEndKey, eoGroupUndo, eoScrollPastEol, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
-    SelectedColor.Alpha = 0.400000005960464500
-    TabWidth = 2
-    ExplicitWidth = 1191
   end
 end

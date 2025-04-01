@@ -19,7 +19,7 @@ type
     function CheckFileAccessibility(const FileName: string; var UseTemp: Boolean): Boolean;
     procedure CreateBackupFile(const SourceFile: string; var BackupFile: string);
     procedure TryCopyTempToOriginal(const TempFile, OriginalFile: string);
-    procedure LogConversionSuccess(const SourceFile: string; SourceCodePage, TargetCodePage: Integer; AddBOM: Boolean);
+    procedure LogConversionSuccess(const SourceFile: string);
     procedure RestoreFromBackup(const OriginalFile, BackupFile: string);
     
     // 使用iconv进行编码转换
@@ -328,7 +328,7 @@ begin
           end;
           
           // 记录转换成功
-          LogConversionSuccess(SourceFile, SourceCodePage, TargetCodePage, AddBOM);
+          LogConversionSuccess(SourceFile);
           Result := crSuccess;
         end
         else
@@ -445,39 +445,11 @@ begin
   end;
 end;
 
-procedure TEncodingController.LogConversionSuccess(const SourceFile: string; SourceCodePage, TargetCodePage: Integer; AddBOM: Boolean);
-var
-  SourceEncodingName, TargetEncodingName: string;
-  BOMInfo: string;
+procedure TEncodingController.LogConversionSuccess(const SourceFile: string);
 begin
-  // 获取编码名称
-  case SourceCodePage of
-    0: SourceEncodingName := '未知';
-    65001: SourceEncodingName := 'UTF-8';
-    1200: SourceEncodingName := 'UTF-16LE';
-    1201: SourceEncodingName := 'UTF-16BE';
-    936: SourceEncodingName := 'GB2312';
-    else SourceEncodingName := 'CodePage-' + IntToStr(SourceCodePage);
-  end;
-  
-  case TargetCodePage of
-    0: TargetEncodingName := '未知';
-    65001: TargetEncodingName := 'UTF-8';
-    1200: TargetEncodingName := 'UTF-16LE';
-    1201: TargetEncodingName := 'UTF-16BE';
-    936: TargetEncodingName := 'GB2312';
-    else TargetEncodingName := 'CodePage-' + IntToStr(TargetCodePage);
-  end;
-  
-  // BOM信息
-  if AddBOM then
-    BOMInfo := ' (添加BOM)'
-  else
-    BOMInfo := ' (无BOM)';
-  
   // 记录日志
   if Assigned(FLogCallback) then
-    FLogCallback('转换成功: ' + SourceFile + ' 从 ' + SourceEncodingName + ' 到 ' + TargetEncodingName + BOMInfo);
+    FLogCallback('✓ 转换成功: ' + ExtractFileName(SourceFile));
 end;
 
 procedure TEncodingController.RestoreFromBackup(const OriginalFile, BackupFile: string);
