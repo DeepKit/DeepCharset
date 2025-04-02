@@ -8,7 +8,7 @@ uses
   Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.FileCtrl, Vcl.Buttons, Vcl.ComCtrls,
   Vcl.Grids, System.Math, Vcl.CheckLst, System.Types, Vcl.Menus, System.Rtti,
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles, 
-  ControllerEncoding, HelperLanguage, Winapi.ShlObj, ViewSynEdit;
+  ControllerEncoding, HelperLanguage, Winapi.ShlObj, ViewSynEdit, Vcl.Themes;
 
 type
   // 语言包装器类
@@ -34,7 +34,7 @@ type
     Panel7: TPanel;
     Splitter5: TSplitter;
     Splitter6: TSplitter;
-    ListBox1: TListBox;
+    TreeViewEncodings: TTreeView;
     MemLog: TMemo;
     Splitter7: TSplitter;
     Splitter8: TSplitter;
@@ -65,8 +65,7 @@ type
     procedure DirectoryListBox1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure StringGridSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
-    procedure ListBox1Click(Sender: TObject);
-    procedure ListBox1DrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState);
+    procedure TreeViewEncodingsClick(Sender: TObject);
     procedure StringGrid1Click(Sender: TObject);
     procedure DriveComboBox1Change(Sender: TObject);
     procedure MenuItemConvertClick(Sender: TObject);
@@ -82,6 +81,9 @@ type
     procedure btnSelectAllExtClick(Sender: TObject);
     procedure MenuItemViewContentClick(Sender: TObject);
     procedure UpdateFileCountLabel;
+    procedure TreeViewEncodingsAdvancedCustomDrawItem(Sender: TCustomTreeView; 
+      Node: TTreeNode; Stage: TCustomDrawStage; var PaintImages, 
+      DefaultDraw: Boolean);
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
@@ -95,6 +97,8 @@ type
     FEncodingController: TEncodingController;
     FUIHelper: TUIHelper;
     FFileHelper: TFileHelper;
+    
+    FOriginalFontSize: Integer;
     
     procedure UpdateFileGrid(const FolderPath: string);
     procedure UpdateFileExtensions(const FolderPath: string);
@@ -325,66 +329,54 @@ end;
 procedure TForm1.btnConvertClick(Sender: TObject);
 var
   FolderPath: string;
-  TargetEncoding: TEncoding;
+  TargetInfo: TEncodingInfo;
   WithBOM: Boolean;
   FileExtensions: TArray<string>;
-  Files: TArray<string>;
+  SelectedFiles: TArray<string>;
   i: Integer;
+  SelectedIndex: Integer;
 begin
   FolderPath := FSelectedFolder;
   
-  // 确保文件夹路径有效
-  if not System.SysUtils.DirectoryExists(FolderPath) then
+  // 确保文件夹路径有效 (Fix Deprecation Warning)
+  if not System.SysUtils.DirectoryExists(FolderPath) then // Ensure qualified
   begin
     Log('请选择有效的文件夹');
     Exit;
   end;
   
-  // 获取选中的编码
-  WithBOM := False;
-  TargetEncoding := FEncodingModel.GetEncodingByIndex(ListBox1.ItemIndex, WithBOM);
-  
-  // 获取文件扩展名过滤
-  SetLength(FileExtensions, 0);
-    for i := 0 to CheckListBox1.Items.Count - 1 do
-    begin
-      if CheckListBox1.Checked[i] then
-      begin
-      SetLength(FileExtensions, Length(FileExtensions) + 1);
-      FileExtensions[High(FileExtensions)] := CheckListBox1.Items[i];
-        end;
-      end;
-  
-  // 获取要转换的文件列表
-  Files := FFileHelper.GetFilesInFolder(FolderPath, FileExtensions);
-  
-  if Length(Files) = 0 then
+  // 获取选中的编码信息
+  if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
   begin
-    Log('当前目录下没有符合条件的文件可转换');
+    ShowMessage('请选择一个目标编码。');
     Exit;
   end;
-  
-  // 显示转换开始信息
-  Log('开始转换文件夹: ' + FolderPath + '，共' + IntToStr(Length(Files)) + '个文件');
+  SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
+  TargetInfo := FEncodingModel.Encodings[SelectedIndex];
+  WithBOM := TargetInfo.HasBOM;
+
+  // 获取选中的文件
+  SelectedFiles := FUIHelper.GetSelectedFiles(StringGrid1, FSelectedFolder);
+
+  if Length(SelectedFiles) = 0 then
+  begin
+    ShowMessage('请在表格中勾选至少一个文件进行转换。');
+    Exit;
+  end;
   
   // 执行转换
   Screen.Cursor := crHourGlass;
   try
-    FEncodingController.ConvertFilesToEncoding(FolderPath, FileExtensions, nil, TargetEncoding, WithBOM);
-    
-    // 逐个更新已转换文件的编码信息
-    for i := 0 to High(Files) do
-      begin
-      UpdateSingleFileInGrid(Files[i]);
-      
-      // 每10个文件更新一次界面，避免卡顿
-      if (i mod 10 = 0) and (i > 0) then
-        Application.ProcessMessages;
-    end;
-    
-    // 显示转换结果
-    Log('文件夹转换完成: 共处理' + IntToStr(Length(Files)) + '个文件');
-    finally
+    // (Fix Callback Type E2010 - Explicit Cast)
+    FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
+      TProc<string>( // Explicit cast
+        procedure(const FilePath: string)
+        begin
+          UpdateSingleFileInGrid(FilePath); 
+        end
+      )
+    );
+  finally
     Screen.Cursor := crDefault;
   end;
 end;
@@ -399,66 +391,9 @@ begin
 end;
 
 procedure TForm1.btnSingleFileClick(Sender: TObject);
-var
-  SelectedFiles: TArray<string>;
-  TargetEncoding: TEncoding;
-  WithBOM: Boolean;
-  SelectedFileName: string;
-  FullFilePath: string;
 begin
-  // 确保有文件被选中
-  if FSelectedRow <= 0 then
-  begin
-    Log('请选择一个文件');
-    Exit;
-  end;
-
-  // 确保选定行有有效的文件名
-  SelectedFileName := StringGrid1.Cells[1, FSelectedRow];
-  if (SelectedFileName = '') or (SelectedFileName = '(无文件)') or
-     (SelectedFileName = '(访问被拒绝)') then
-  begin
-    Log('无效的文件名或文件无法访问');
-    Exit;
-  end;
-
-  // 获取选中的编码
-  WithBOM := False;
-  TargetEncoding := FEncodingModel.GetEncodingByIndex(ListBox1.ItemIndex, WithBOM);
-
-  // 创建完整文件路径
-  FullFilePath := IncludeTrailingPathDelimiter(FSelectedFolder) + SelectedFileName;
-  SetLength(SelectedFiles, 1);
-  SelectedFiles[0] := FullFilePath;
-
-  // 确保文件存在且可访问
-  if not FileExists(FullFilePath) then
-  begin
-    Log('文件不存在: ' + FullFilePath);
-        Exit;
-      end;
-
-  try
-    // 尝试打开文件以确保可访问
-    with TFileStream.Create(FullFilePath, fmOpenRead or fmShareDenyNone) do
-      Free;
-        except
-          on E: Exception do
-          begin
-      Log('无法访问文件: ' + SelectedFileName + ' - ' + E.Message);
-      Exit;
-    end;
-  end;
-  
-  // 执行单文件转换
-  Log('开始转换单个文件: ' + FullFilePath);
-  FEncodingController.ConvertSelectedFilesToEncoding(SelectedFiles, TargetEncoding, WithBOM);
-  
-  // 只更新被转换文件的编码状态，而不是整个目录
-  UpdateSingleFileInGrid(FullFilePath);
-  
-  // 记录完成信息
-  Log('单文件转换完成: ' + SelectedFileName);
+  // Just call the logic from the menu item handler
+  MenuItemConvertCurrentClick(Sender);
 end;
 
 procedure TForm1.btnToggleSelectClick(Sender: TObject);
@@ -622,7 +557,7 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   // 初始化界面
   FUIHelper.InitStringGrid(StringGrid1);
-  FUIHelper.SetupEncodingList(ListBox1, FEncodingModel);
+  FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
   
   // 绑定事件
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
@@ -662,6 +597,8 @@ begin
   
   // 记录启动日志
   Log('程序已启动，当前语言：' + LanguageManager.GetLanguageNameByCode(LanguageManager.CurrentLanguage));
+  
+  FOriginalFontSize := TreeViewEncodings.Font.Size;
 end;
 
 class procedure TForm1.Initialize;
@@ -674,21 +611,14 @@ class procedure TForm1.Initialize;
   LanguageManager.Initialize;
 end;
 
-procedure TForm1.ListBox1Click(Sender: TObject);
+procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
     begin
-  // 当用户点击ListBox1中的项目时触发
-  // 如果点击的是组标题，取消选择
-  if (ListBox1.ItemIndex >= 0) and (ListBox1.ItemIndex < FEncodingModel.EncodingCount) then
+  // 当用户点击TreeViewEncodings中的项目时触发
+  // 如果点击的是组标题（根节点），取消选择
+  if (TreeViewEncodings.Selected <> nil) and (TreeViewEncodings.Selected.Level = 0) then
     begin
-    if FEncodingModel.Encodings[ListBox1.ItemIndex].IsGroup then
-      ListBox1.ItemIndex := -1;
-      end;
+    TreeViewEncodings.Selected := nil;
     end;
-
-procedure TForm1.ListBox1DrawItem(Control: TWinControl; Index: Integer; Rect: TRect; State: TOwnerDrawState);
-    begin
-  // 使用UIHelper绘制编码列表项
-  FUIHelper.DrawEncodingListItem(Control, Index, Rect, State, FEncodingModel.EncodingList);
 end;
 
 procedure TForm1.Log(const Msg: string);
@@ -698,49 +628,159 @@ procedure TForm1.Log(const Msg: string);
 end;
 
 procedure TForm1.MenuItemConvertAllFilesClick(Sender: TObject);
+var
+  TargetInfo: TEncodingInfo;
+  WithBOM: Boolean;
+  FolderPath: string;
+  FileExtensions: TArray<string>;
+  AllFiles: TArray<string>;
+  SelectedIndex: Integer;
+  i: Integer;
 begin
-  btnConvertClick(Sender);
+  FolderPath := FSelectedFolder;
+
+  // 确保文件夹路径有效 (Fix Deprecation Warning)
+  if not System.SysUtils.DirectoryExists(FolderPath) then // Ensure qualified
+  begin
+    Log('请选择有效的文件夹');
+    Exit;
+  end;
+
+  // 获取选中的编码信息
+  if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
+  begin
+    ShowMessage('请选择一个目标编码。');
+    Exit;
+  end;
+  SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
+  TargetInfo := FEncodingModel.Encodings[SelectedIndex];
+  WithBOM := TargetInfo.HasBOM;
+
+  // 获取勾选的文件扩展名
+  SetLength(FileExtensions, 0);
+  for i := 0 to CheckListBox1.Items.Count - 1 do
+  begin
+    if CheckListBox1.Checked[i] then
+    begin
+      SetLength(FileExtensions, Length(FileExtensions) + 1);
+      FileExtensions[High(FileExtensions)] := CheckListBox1.Items[i];
+    end;
+  end;
+
+  if Length(FileExtensions) = 0 then
+  begin
+      ShowMessage('请至少选择一种文件类型。');
+      Exit;
+  end;
+
+  // 获取所有符合扩展名的文件
+  AllFiles := FFileHelper.GetFilesInFolder(FolderPath, FileExtensions);
+
+  if Length(AllFiles) = 0 then
+  begin
+    ShowMessage('在当前目录中未找到符合所选类型的文件。');
+    Exit;
+  end;
+
+  // 执行转换
+  Screen.Cursor := crHourGlass;
+  try
+    // (Fix Callback Type E2010 - Explicit Cast)
+    FEncodingController.ConvertFilesByName(AllFiles, TargetInfo.ShortName, WithBOM, 
+      TProc<string>( // Explicit cast
+        procedure(const FilePath: string) 
+        begin
+          UpdateSingleFileInGrid(FilePath); 
+        end
+      )
+    );
+  finally
+    Screen.Cursor := crDefault;
+  end;
 end;
 
 procedure TForm1.MenuItemConvertClick(Sender: TObject);
 var
-  SelectedFiles: TArray<string>;
-  TargetEncoding: TEncoding;
+  TargetInfo: TEncodingInfo;
   WithBOM: Boolean;
-  i: Integer;
-        begin
-  // 获取选中的文件
-  SelectedFiles := FUIHelper.GetSelectedFiles(StringGrid1, FSelectedFolder);
-  
-  // 确保有文件被选中
-  if Length(SelectedFiles) = 0 then
-    begin
-    Log('请选择至少一个文件');
+  SelectedFiles: TArray<string>;
+  SelectedIndex: Integer;
+begin
+  if StringGrid1.RowCount <= 1 then Exit; // No files loaded
+
+  // 获取选中的编码信息
+  if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
+  begin
+    ShowMessage('请选择一个目标编码。');
     Exit;
   end;
-  
-  // 获取选中的编码
-  WithBOM := False;
-  TargetEncoding := FEncodingModel.GetEncodingByIndex(ListBox1.ItemIndex, WithBOM);
-  
-  // 转换选中的文件
-  Log('开始转换选中的' + IntToStr(Length(SelectedFiles)) + '个文件');
-  FEncodingController.ConvertSelectedFilesToEncoding(SelectedFiles, TargetEncoding, WithBOM);
-  
-  // 只更新被转换文件的编码状态
-  for i := 0 to High(SelectedFiles) do
-    begin
-    UpdateSingleFileInGrid(SelectedFiles[i]);
+  SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
+  TargetInfo := FEncodingModel.Encodings[SelectedIndex];
+  WithBOM := TargetInfo.HasBOM;
+
+  // 获取选中的文件
+  SelectedFiles := FUIHelper.GetSelectedFiles(StringGrid1, FSelectedFolder);
+
+  if Length(SelectedFiles) = 0 then
+  begin
+    ShowMessage('请至少选择一个文件进行转换。');
+    Exit;
   end;
-  
-  // 记录完成信息
-  Log('选中文件转换完成，共' + IntToStr(Length(SelectedFiles)) + '个文件');
+
+  // 执行转换
+  FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
+    TProc<string>( // Explicit cast
+      procedure(const FilePath: string) 
+      begin
+        UpdateSingleFileInGrid(FilePath);
+      end
+    )
+  );
+  Log(Format('批量转换完成: %d 个文件', [Length(SelectedFiles)]));
 end;
 
 procedure TForm1.MenuItemConvertCurrentClick(Sender: TObject);
+var
+  TargetInfo: TEncodingInfo;
+  WithBOM: Boolean;
+  FilePath: string;
+  FileName: string;
+  SelectedIndex: Integer;
 begin
-  // 转换单个文件
-  btnSingleFileClick(Sender);
+  if FSelectedRow <= 0 then Exit; // No row selected or header selected
+
+  // 获取选中的编码信息
+  if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
+  begin
+    ShowMessage('请选择一个目标编码。');
+    Exit;
+  end;
+  SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
+  TargetInfo := FEncodingModel.Encodings[SelectedIndex];
+  WithBOM := TargetInfo.HasBOM;
+
+  // 创建完整文件路径
+  FileName := StringGrid1.Cells[1, FSelectedRow];
+  if FileName = '' then Exit; // Empty cell
+  FilePath := IncludeTrailingPathDelimiter(FSelectedFolder) + FileName;
+
+  // 检查文件是否存在
+  if not FileExists(FilePath) then
+  begin
+    ShowMessage('文件不存在: ' + FilePath);
+    Exit;
+  end;
+
+  // 执行转换
+  FEncodingController.ConvertSingleFileByName(FilePath, TargetInfo.ShortName, WithBOM,
+    TProc<string>( // Explicit cast
+      procedure(const AFilePath: string) 
+      begin
+        UpdateSingleFileInGrid(AFilePath);
+      end
+    )
+  );
+  Log('单个文件转换完成: ' + FileName);
 end;
 
 procedure TForm1.MenuItemToggleSelectClick(Sender: TObject);
@@ -969,7 +1009,8 @@ begin
     // 清空表格
     FUIHelper.ClearGrid(StringGrid1);
     
-    if not System.SysUtils.DirectoryExists(FolderPath) then
+    // (Fix Deprecation Warning)
+    if not System.SysUtils.DirectoryExists(FolderPath) then // Ensure qualified
     begin
       StringGrid1.Cells[1, 1] := '(目录不存在)';
       Exit;
@@ -1400,6 +1441,55 @@ begin
   Log('文件类型统计: 已选择 ' + IntToStr(SelectedCount) + '/' + 
       IntToStr(CheckListBox1.Items.Count) + ' 种类型，共 ' + 
       IntToStr(TotalFiles) + ' 个文件');
+end;
+
+procedure TForm1.TreeViewEncodingsAdvancedCustomDrawItem(Sender: TCustomTreeView;
+  Node: TTreeNode; Stage: TCustomDrawStage; var PaintImages,
+  DefaultDraw: Boolean);
+var
+  Tree: TTreeView;
+  NewStyle: TFontStyles;
+  NewSize: Integer;
+begin
+  Tree := Sender as TTreeView;
+
+  if Stage = cdPrePaint then
+  begin
+    NewStyle := [];
+    NewSize := FOriginalFontSize; // Start with default
+
+    case Node.Level of
+      0: // Root Node ("目标编码")
+      begin
+        NewStyle := [fsBold];
+        NewSize := FOriginalFontSize + 2;
+      end;
+      1: // Category Node
+      begin
+        NewStyle := [fsBold];
+        NewSize := FOriginalFontSize + 1;
+      end;
+      2: // Encoding Node
+        ;// Keep default style and size
+    end;
+
+    // Apply changes only if different from current canvas font
+    if (Tree.Canvas.Font.Style <> NewStyle) or (Tree.Canvas.Font.Size <> NewSize) then
+    begin
+       Tree.Canvas.Font.Style := NewStyle;
+       Tree.Canvas.Font.Size := NewSize;
+    end;
+  end
+  else if Stage = cdPostPaint then
+  begin
+    // Restore default font settings after painting the item
+    // Check if it was changed before restoring
+    if (Tree.Canvas.Font.Style <> []) or (Tree.Canvas.Font.Size <> FOriginalFontSize) then
+    begin
+        Tree.Canvas.Font.Style := [];
+        Tree.Canvas.Font.Size := FOriginalFontSize;
+    end;
+  end;
 end;
 
 end.

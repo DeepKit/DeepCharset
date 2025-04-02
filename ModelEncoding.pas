@@ -220,55 +220,108 @@ end;
 procedure TEncodingModel.InitEncodingList;
 begin
   SetLength(FEncodingList, 0);
-  
-  // 添加常见编码组和选项
-  // 1. Unicode组
-  AddEncodingGroup('Unicode编码');
+
+  // --- NEW Categorized List with Descriptions (Ordered as UTF, Asia, Regions, Other) ---
+
+  // --- 1. UTF 相关 ---
+  AddEncodingGroup('UTF 相关');
   AddEncodingOption('UTF-8', 'UTF-8', 65001, False);
   AddEncodingOption('UTF-8 BOM', 'UTF-8 BOM', 65001, True);
-  AddEncodingOption('UTF-16LE', 'UTF-16', 1200, True);
-  AddEncodingOption('UTF-16BE', 'UTF-16BE', 1201, True);
-  AddEncodingOption('UTF-7', 'UTF-7', 65000, False);
-  AddEncodingOption('UTF-32', 'UTF-32', 12000, True);
-  AddEncodingOption('UTF-32BE', 'UTF-32BE', 12001, True);
-  
-  // 2. 亚洲编码组
-  AddEncodingGroup('亚洲编码');
-  AddEncodingOption('简体中文 (GB2312)', 'GB2312', 936, False);
-  AddEncodingOption('繁体中文 (Big5)', 'Big5', 950, False);
-  AddEncodingOption('日语 (Shift-JIS)', 'Shift-JIS', 932, False);
-  AddEncodingOption('韩语 (Korean)', 'Korean', 949, False);
-  AddEncodingOption('日语 EUC-JP', 'EUC-JP', 51932, False);
-  AddEncodingOption('简体中文 GB18030', 'GB18030', 54936, False);
-  AddEncodingOption('泰语', 'Thai', 874, False);
-  AddEncodingOption('越南语', 'Vietnamese', 1258, False);
-  
-  // 3. 欧洲编码组
-  AddEncodingGroup('欧洲编码');
-  AddEncodingOption('西欧语系 (Latin1)', 'Latin1', 1252, False);
-  AddEncodingOption('ASCII', 'ASCII', 20127, False);
-  AddEncodingOption('中欧语系 (Latin2)', 'Latin2', 1250, False);
-  AddEncodingOption('西里尔字母 (Cyrillic)', 'Cyrillic', 1251, False);
-  AddEncodingOption('希腊语', 'Greek', 1253, False);
-  AddEncodingOption('土耳其语', 'Turkish', 1254, False);
-  AddEncodingOption('希伯来语', 'Hebrew', 1255, False);
-  AddEncodingOption('阿拉伯语', 'Arabic', 1256, False);
-  AddEncodingOption('波罗的海语系', 'Baltic', 1257, False);
-  
-  // 4. 其他编码组
-  AddEncodingGroup('其他编码');
-  AddEncodingOption('IBM EBCDIC (US)', 'EBCDIC', 37, False);
-  AddEncodingOption('OEM 美国', 'OEM-US', 437, False);
-  AddEncodingOption('OEM 多语言拉丁语 I', 'OEM-Latin', 850, False);
-  AddEncodingOption('ISO-8859-1', 'ISO-8859-1', 28591, False);
-  AddEncodingOption('ISO-8859-2', 'ISO-8859-2', 28592, False);
-  AddEncodingOption('ISO-8859-3', 'ISO-8859-3', 28593, False);
-  AddEncodingOption('ISO-8859-4', 'ISO-8859-4', 28594, False);
-  AddEncodingOption('ISO-8859-5', 'ISO-8859-5', 28595, False);
-  AddEncodingOption('ISO-8859-6', 'ISO-8859-6', 28596, False);
-  AddEncodingOption('ISO-8859-7', 'ISO-8859-7', 28597, False);
-  AddEncodingOption('ISO-8859-8', 'ISO-8859-8', 28598, False);
-  AddEncodingOption('ISO-8859-9', 'ISO-8859-9', 28599, False);
+  AddEncodingOption('UTF-16LE - 小端序', 'UTF-16LE', 1200, True);
+  AddEncodingOption('UTF-16BE - 大端序', 'UTF-16BE', 1201, True);
+  AddEncodingOption('UTF-16 - 小端序', 'UTF-16', 1200, True);
+  AddEncodingOption('UTF-32LE - 小端序', 'UTF-32LE', 12000, True);
+  AddEncodingOption('UTF-32BE - 大端序', 'UTF-32BE', 12001, True);
+  AddEncodingOption('UTF-32 - 小端序', 'UTF-32', 12000, True);
+  AddEncodingOption('UTF-7 - 不推荐', 'UTF-7', 65000, False);
+  AddEncodingOption('UCS-2 - UTF-16旧版', 'UCS-2', 1200, False);
+  AddEncodingOption('UCS-4LE - 小端序', 'UCS-4LE', 12000, False);
+  AddEncodingOption('UCS-4BE - 大端序', 'UCS-4BE', 12001, False);
+
+  // --- 2. 亚洲 --- 
+  AddEncodingGroup('亚洲');
+  AddEncodingOption('GB2312 - 中文简体', 'GB2312', 936, False);
+  AddEncodingOption('GBK - 中文简体扩展', 'GBK', 936, False);
+  AddEncodingOption('GB18030 - 最新中文国标', 'GB18030', 54936, False);
+  AddEncodingOption('Big5 - 中文繁体', 'BIG5', 950, False);
+  AddEncodingOption('Big5-HKSCS - 香港标准', 'BIG5-HKSCS', 950, False);
+  AddEncodingOption('Shift_JIS - 日语 (Windows常用)', 'SHIFT_JIS', 932, False);
+  AddEncodingOption('EUC-JP - 日语 (Unix常用)', 'EUC-JP', 20932, False);
+  AddEncodingOption('ISO-2022-JP - 日语 (电子邮件常用)', 'ISO-2022-JP', 50220, False);
+  AddEncodingOption('ISO-2022-JP-2 - 日语 (多语言扩展)', 'ISO-2022-JP-2', 50222, False);
+  AddEncodingOption('EUC-KR - 韩语', 'EUC-KR', 949, False);
+  AddEncodingOption('TIS-620 - 泰语', 'TIS-620', 874, False);
+  AddEncodingOption('VISCII - 越南语', 'VISCII', 0, False);
+
+  // --- 3. Windows (代码页) --- 
+  AddEncodingGroup('Windows (代码页)');
+  AddEncodingOption('Windows-1250 - 中欧', 'CP1250', 1250, False);
+  AddEncodingOption('Windows-1251 - 西里尔', 'CP1251', 1251, False);
+  AddEncodingOption('Windows-1252 - 西欧', 'CP1252', 1252, False);
+  AddEncodingOption('Windows-1253 - 希腊', 'CP1253', 1253, False);
+  AddEncodingOption('Windows-1254 - 土耳其', 'CP1254', 1254, False);
+  AddEncodingOption('Windows-1255 - 希伯来', 'CP1255', 1255, False);
+  AddEncodingOption('Windows-1256 - 阿拉伯', 'CP1256', 1256, False);
+  AddEncodingOption('Windows-1257 - 波罗的海', 'CP1257', 1257, False);
+  AddEncodingOption('Windows-1258 - 越南', 'CP1258', 1258, False);
+  AddEncodingOption('Windows-874 - 泰语', 'CP874', 874, False);
+
+  // --- 4. ISO-8859 --- 
+  AddEncodingGroup('ISO-8859 (Latin系列)');
+  AddEncodingOption('ISO-8859-1 (Latin-1)', 'ISO-8859-1', 28591, False);
+  AddEncodingOption('ISO-8859-2 (Latin-2) - 中欧', 'ISO-8859-2', 28592, False);
+  AddEncodingOption('ISO-8859-3 (Latin-3) - 南欧', 'ISO-8859-3', 28593, False);
+  AddEncodingOption('ISO-8859-4 (Latin-4) - 北欧', 'ISO-8859-4', 28594, False);
+  AddEncodingOption('ISO-8859-5 - 西里尔', 'ISO-8859-5', 28595, False);
+  AddEncodingOption('ISO-8859-6 - 阿拉伯', 'ISO-8859-6', 28596, False);
+  AddEncodingOption('ISO-8859-7 - 希腊', 'ISO-8859-7', 28597, False);
+  AddEncodingOption('ISO-8859-8 - 希伯来', 'ISO-8859-8', 28598, False);
+  AddEncodingOption('ISO-8859-9 (Latin-5) - 土耳其', 'ISO-8859-9', 28599, False);
+  AddEncodingOption('ISO-8859-10 (Latin-6) - 北欧', 'ISO-8859-10', 28600, False);
+  AddEncodingOption('ISO-8859-13 (Latin-7) - 波罗的海', 'ISO-8859-13', 28603, False);
+  AddEncodingOption('ISO-8859-14 (Latin-8) - 凯尔特', 'ISO-8859-14', 28604, False);
+  AddEncodingOption('ISO-8859-15 (Latin-9) - 带欧元符号', 'ISO-8859-15', 28605, False);
+  AddEncodingOption('ISO-8859-16 (Latin-10) - 东南欧', 'ISO-8859-16', 28606, False);
+
+  // --- 5. IBM/DOS/EBCDIC --- 
+  AddEncodingGroup('IBM/DOS/EBCDIC');
+  AddEncodingOption('IBM437 / CP437 - DOS 美国', 'CP437', 437, False);
+  AddEncodingOption('IBM850 / CP850 - DOS 拉丁1', 'CP850', 850, False);
+  AddEncodingOption('IBM852 / CP852 - DOS 拉丁2', 'CP852', 852, False);
+  AddEncodingOption('IBM855 / CP855 - DOS 西里尔', 'CP855', 855, False);
+  AddEncodingOption('IBM857 / CP857 - DOS 土耳其', 'CP857', 857, False);
+  AddEncodingOption('IBM862 / CP862 - DOS 希伯来', 'CP862', 862, False);
+  AddEncodingOption('IBM866 / CP866 - DOS 俄语', 'CP866', 866, False);
+  AddEncodingOption('CP866NAV - Navision 俄语', 'CP866NAV', 0, False);
+  AddEncodingOption('IBM037 - EBCDIC 美国/加拿大', 'IBM037', 37, False);
+  AddEncodingOption('IBM273 - EBCDIC 德国', 'IBM273', 20273, False);
+  AddEncodingOption('IBM500 - EBCDIC 国际', 'IBM500', 500, False);
+  AddEncodingOption('IBM870 - EBCDIC 多语言拉丁2', 'IBM870', 870, False);
+  AddEncodingOption('IBM1047 - EBCDIC OpenSys 拉丁1', 'IBM1047', 1047, False);
+
+  // --- 6. KOI8 --- 
+  AddEncodingGroup('KOI8 (西里尔)');
+  AddEncodingOption('KOI8-R - 俄语', 'KOI8-R', 20866, False);
+  AddEncodingOption('KOI8-U - 乌克兰语', 'KOI8-U', 21866, False);
+  AddEncodingOption('KOI8-T - 塔吉克语', 'KOI8-T', 0, False);
+
+  // --- 7. Mac --- 
+  AddEncodingGroup('Macintosh');
+  AddEncodingOption('MacRoman - 西欧', 'MACROMAN', 10000, False);
+  AddEncodingOption('MacCyrillic - 西里尔', 'MACCYRILLIC', 10007, False);
+  AddEncodingOption('MacGreek - 希腊', 'MACGREEK', 10006, False);
+  AddEncodingOption('MacTurkish - 土耳其', 'MACTURKISH', 10081, False);
+  AddEncodingOption('MacCentralEurope - 中欧', 'MACCE', 10029, False);
+  AddEncodingOption('MacIceland - 冰岛', 'MACICELAND', 10079, False);
+
+  // --- 8. 其他 --- 
+  AddEncodingGroup('其他');
+  AddEncodingOption('ASCII - 美国信息交换标准代码', 'ASCII', 20127, False);
+  AddEncodingOption('ARMSCII-8 - 亚美尼亚语', 'ARMSCII-8', 0, False);
+  AddEncodingOption('ATARIST - Atari ST', 'ATARIST', 0, False);
+  AddEncodingOption('HP Roman8 - HP 罗马字符', 'HP-ROMAN8', 0, False);
+  AddEncodingOption('TRANSLIT - 音译转换', 'TRANSLIT', 0, False); // Special iconv flag
+
 end;
 
 procedure TEncodingModel.ReplaceEncodingList(const NewList: TEncodingInfoArray);

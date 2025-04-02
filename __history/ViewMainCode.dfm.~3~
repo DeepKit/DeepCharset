@@ -1,9 +1,9 @@
-object Form1: TForm1
+﻿object Form1: TForm1
   Left = 0
   Top = 0
   Caption = #25991#20214#36716#25442#24037#20855
   ClientHeight = 587
-  ClientWidth = 1040
+  ClientWidth = 961
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -15,7 +15,7 @@ object Form1: TForm1
   object Splitter1: TSplitter
     Left = 0
     Top = 41
-    Width = 1040
+    Width = 961
     Height = 3
     Cursor = crVSplit
     Align = alTop
@@ -26,12 +26,11 @@ object Form1: TForm1
   object Splitter2: TSplitter
     Left = 0
     Top = 469
-    Width = 1040
+    Width = 961
     Height = 3
     Cursor = crVSplit
     Align = alBottom
     ExplicitTop = 49
-    ExplicitWidth = 961
   end
   object Splitter3: TSplitter
     Left = 225
@@ -41,7 +40,7 @@ object Form1: TForm1
     ExplicitHeight = 961
   end
   object Splitter4: TSplitter
-    Left = 757
+    Left = 741
     Top = 44
     Height = 425
     Align = alRight
@@ -51,14 +50,14 @@ object Form1: TForm1
   object Panel1: TPanel
     Left = 0
     Top = 472
-    Width = 1040
+    Width = 961
     Height = 115
     Align = alBottom
     TabOrder = 0
     ExplicitTop = 455
     ExplicitWidth = 955
     object Splitter7: TSplitter
-      Left = 817
+      Left = 738
       Top = 1
       Height = 113
       Align = alRight
@@ -73,7 +72,7 @@ object Form1: TForm1
       ExplicitTop = 47
     end
     object Panel6: TPanel
-      Left = 820
+      Left = 741
       Top = 1
       Width = 219
       Height = 113
@@ -85,7 +84,7 @@ object Form1: TForm1
     object MemLog: TMemo
       Left = 4
       Top = 1
-      Width = 813
+      Width = 734
       Height = 113
       Align = alClient
       Lines.Strings = (
@@ -97,13 +96,13 @@ object Form1: TForm1
   object Panel2: TPanel
     Left = 0
     Top = 0
-    Width = 1040
+    Width = 961
     Height = 41
     Align = alTop
     TabOrder = 1
     ExplicitWidth = 955
     DesignSize = (
-      1040
+      961
       41)
     object Label1: TLabel
       Left = 520
@@ -147,7 +146,7 @@ object Form1: TForm1
       OnClick = btnSelectAllExtClick
     end
     object btnClose: TButton
-      Left = 903
+      Left = 824
       Top = 4
       Width = 121
       Height = 25
@@ -198,16 +197,18 @@ object Form1: TForm1
     end
   end
   object Panel4: TPanel
-    Left = 760
+    Left = 744
     Top = 44
-    Width = 280
+    Width = 217
     Height = 425
     Align = alRight
     TabOrder = 3
+    ExplicitLeft = 738
+    ExplicitHeight = 408
     object Splitter6: TSplitter
       Left = 1
       Top = 1
-      Width = 278
+      Width = 215
       Height = 3
       Cursor = crVSplit
       Align = alTop
@@ -228,14 +229,13 @@ object Form1: TForm1
       TabOrder = 0
       HideSelection = False
       OnClick = TreeViewEncodingsClick
-      OnAdvancedCustomDrawItem = TreeViewEncodingsAdvancedCustomDrawItem
       ExplicitHeight = 397
     end
   end
   object Panel5: TPanel
     Left = 228
     Top = 44
-    Width = 529
+    Width = 513
     Height = 425
     Align = alClient
     TabOrder = 4
@@ -244,7 +244,7 @@ object Form1: TForm1
     object Splitter5: TSplitter
       Left = 1
       Top = 121
-      Width = 527
+      Width = 511
       Height = 3
       Cursor = crVSplit
       Align = alTop
@@ -254,7 +254,7 @@ object Form1: TForm1
     object StringGrid1: TStringGrid
       Left = 1
       Top = 124
-      Width = 527
+      Width = 511
       Height = 300
       Align = alClient
       ColCount = 3
@@ -272,7 +272,7 @@ object Form1: TForm1
     object Panel7: TPanel
       Left = 1
       Top = 1
-      Width = 527
+      Width = 511
       Height = 72
       Align = alTop
       TabOrder = 1
@@ -280,7 +280,7 @@ object Form1: TForm1
       object CheckListBox1: TCheckListBox
         Left = 1
         Top = 1
-        Width = 525
+        Width = 509
         Height = 70
         Align = alClient
         Columns = 5
@@ -292,7 +292,7 @@ object Form1: TForm1
     object Panel8: TPanel
       Left = 1
       Top = 73
-      Width = 527
+      Width = 511
       Height = 48
       Align = alTop
       TabOrder = 2
