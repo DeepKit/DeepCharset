@@ -95,10 +95,9 @@ type
     FSelectedFolder: string;
     FSelectedRow: Integer;
     FFileExtensions: TStringList;
-    FLanguageComboBox: TComboBox;
     FLanguageWrapper: TLanguageWrapper;
     FIncludeSubdirs: Boolean;
-    FLogBuffer: TStringList; // 添加日志缓冲区
+    FLogBuffer: TStringList; // 日志缓冲区
     FBufferingLogs: Boolean; // 是否正在缓冲日志
 
     // MVC架构组件
@@ -108,11 +107,8 @@ type
     FUIHelper: TUIHelper;
     FFileHelper: TFileHelper;
 
-    FOriginalFontSize: Integer;
-
     procedure UpdateFileGrid(const FolderPath: string);
     procedure UpdateFileExtensions(const FolderPath: string);
-    procedure CheckListBox1ClickCheck(Sender: TObject);
 
     // 日志记录
     procedure Log(const Msg: string);
@@ -459,11 +455,7 @@ begin
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
 
-procedure TForm1.CheckListBox1ClickCheck(Sender: TObject);
-begin
-  // 当CheckListBox1的项目被选中或取消选中时更新文件列表
-  UpdateFileGrid(FSelectedFolder);
-end;
+
 
 procedure TForm1.cmbLanguageChange(Sender: TObject);
 var
@@ -473,7 +465,7 @@ var
   IsChineseSelected: Boolean;
 begin
   // 获取选中的语言
-  Index := FLanguageComboBox.ItemIndex;
+  Index := ComboBox1.ItemIndex;
   if Index < 0 then
   begin
     Log('警告: 无效的语言索引');
@@ -526,15 +518,14 @@ begin
     LanguageManager := TLanguageManager.Create;
 
   // 使用窗体上已有的ComboBox1控件
-  FLanguageComboBox := ComboBox1;
-  FLanguageComboBox.Style := csDropDownList;
-  FLanguageComboBox.Tag := 1000; // 特殊标记，用于识别这是语言选择器
+  ComboBox1.Style := csDropDownList;
+  ComboBox1.Tag := 1000; // 特殊标记，用于识别这是语言选择器
 
   // 清空已有项
-  FLanguageComboBox.Items.Clear();
+  ComboBox1.Items.Clear();
 
   // 添加事件处理
-  FLanguageComboBox.OnChange := cmbLanguageChange;
+  ComboBox1.OnChange := cmbLanguageChange;
 
   // 获取可用语言列表并填充下拉框
   LanguageManager.LoadAvailableLanguages;
@@ -545,22 +536,22 @@ begin
   for i := 0 to High(LangInfos) do
   begin
     // 添加语言到下拉框，显示本地化名称
-    FLanguageComboBox.Items.Add(LangInfos[i].NativeName);
+    ComboBox1.Items.Add(LangInfos[i].NativeName);
 
     // 如果是当前语言，设置为选中
     if LangInfos[i].Code = LanguageManager.CurrentLanguage then
-  begin
-      FLanguageComboBox.ItemIndex := i;
+    begin
+      ComboBox1.ItemIndex := i;
       Log('当前语言: ' + LangInfos[i].NativeName + ' (' + LangInfos[i].Code + ')');
-  end;
+    end;
 end;
 
   // 如果没有设置选中项，默认选择第一个
-  if (FLanguageComboBox.ItemIndex < 0) and (FLanguageComboBox.Items.Count > 0) then
-    FLanguageComboBox.ItemIndex := 0;
+  if (ComboBox1.ItemIndex < 0) and (ComboBox1.Items.Count > 0) then
+    ComboBox1.ItemIndex := 0;
 
   // 确保语言选择框可见
-  FLanguageComboBox.Visible := True;
+  ComboBox1.Visible := True;
 end;
 
 procedure TForm1.DirectoryListBox1Change(Sender: TObject);
@@ -1746,7 +1737,11 @@ begin
   SelectUTF8BOMInTreeView;
 
   // 绑定事件
-  CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
+  CheckListBox1.OnClickCheck := procedure(Sender: TObject)
+  begin
+    // 当CheckListBox1的项目被选中或取消选中时更新文件列表
+    UpdateFileGrid(FSelectedFolder);
+  end;
 
   // 确保绑定弹出菜单
   StringGrid1.PopupMenu := GridPopupMenu;
