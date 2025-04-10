@@ -3,388 +3,264 @@
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  System.IOUtils, System.Math,  SynEdit, SynEditHighlighter,
-  SynHighlighterXML, SynHighlighterHTML, SynHighlighterPas, SynHighlighterJava,
-  SynHighlighterCpp, SynHighlighterPython, SynHighlighterCS, SynHighlighterSQL,
-  SynHighlighterJScript, SynHighlighterCSS, SynHighlighterJSON, SynHighlighterIni,
-  SynHighlighterBat, SynHighlighterVB, SynHighlighterPerl, SynHighlighterPHP,
-  SynHighlighterTeX, SynHighlighterRuby;
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  System.IOUtils, System.Generics.Collections, System.Math, System.StrUtils,
+  SynEdit, SynEditHighlighter, SynHighlighterPas, SynHighlighterCpp, SynHighlighterCss, SynHighlighterJava,
+  SynHighlighterJScript, SynHighlighterHTML, SynHighlighterXML, SynHighlighterSQL,
+  SynHighlighterPython, SynHighlighterPHP, SynHighlighterIni, SynHighlighterPerl,
+  SynHighlighterVB, SynHighlighterAsm, SynHighlighterRuby,
+  SynHighlighterJSON, SynHighlighterBat, SynEditCodeFolding,
+  JclEncodingUtils;
 
 type
-  TForm2 = class(TForm)
+  TSynEditForm = class(TForm)
+    SynEdit: TSynEdit;
     Panel1: TPanel;
-    btnClose: TButton;
-    lblFileInfo: TLabel;
+    lblFileName: TLabel;
+    lblEncoding: TLabel;
+    lblBOM: TLabel;
+    SynPasSyn1: TSynPasSyn;
+    SynCppSyn1: TSynCppSyn;
+    SynCSSyn1: TSynCssSyn;
+    SynJavaSyn1: TSynJavaSyn;
+    SynJScriptSyn1: TSynJScriptSyn;
+    SynHTMLSyn1: TSynHTMLSyn;
+    SynXMLSyn1: TSynXMLSyn;
+    SynSQLSyn1: TSynSQLSyn;
+    SynPythonSyn1: TSynPythonSyn;
+    SynPHPSyn1: TSynPHPSyn;
+    SynIniSyn1: TSynIniSyn;
+    SynPerlSyn1: TSynPerlSyn;
+    SynVBSyn1: TSynVBSyn;
+    SynAsmSyn1: TSynAsmSyn;
+    SynRubySyn1: TSynRubySyn;
+    SynJSONSyn1: TSynJSONSyn;
+    SynBatSyn1: TSynBatSyn;
     procedure FormCreate(Sender: TObject);
-    procedure btnCloseClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   private
-    { Private declarations }
-    FHighlighter: TObject; // 动态类型
-    FEditor: TObject; // 编辑器对象(TSynEdit或TMemo)
-    FUseSynEdit: Boolean; // 是否使用SynEdit
-
-    // SynEdit高亮器实例
-    FHighlighterXML: TSynXMLSyn;
-    FHighlighterHTML: TSynHTMLSyn;
-    FHighlighterPas: TSynPasSyn;
-    FHighlighterJava: TSynJavaSyn;
-    FHighlighterCpp: TSynCppSyn;
-    FHighlighterPython: TSynPythonSyn;
-    FHighlighterCS: TSynCSSyn;
-    FHighlighterSQL: TSynSQLSyn;
-    FHighlighterJS: TSynJScriptSyn;
-    FHighlighterCSS: TSynCssSyn;
-    FHighlighterJSON: TSynJSONSyn;
-    FHighlighterIni: TSynIniSyn;
-    FHighlighterBat: TSynBatSyn;
-    FHighlighterVB: TSynVBSyn;
-    FHighlighterPerl: TSynPerlSyn;
-    FHighlighterPHP: TSynPHPSyn;
-    FHighlighterTeX: TSynTeXSyn;
-    FHighlighterRuby: TSynRubySyn;
-
     procedure ApplyHighlighter(const FileName: string);
-    procedure CreateSynEdit;
-    procedure CreateDefaultEditor;
+    procedure LogMessage(const Msg: string);
   public
-    { Public declarations }
-    procedure LoadFile(const FileName: string; Encoding: TEncoding);
-    procedure SetFileInfo(const FileName, EncodingName: string; HasBOM: Boolean);
+    procedure LoadFile(const FileName: string; Encoding: TEncoding = nil);
+    procedure SetFileInfo(const FileName, DetectedEncoding: string; HasBOM: Boolean);
   end;
 
 var
-  Form2: TForm2;
+  SynEditForm: TSynEditForm;
 
 implementation
 
 {$R *.dfm}
 
-procedure TForm2.btnCloseClick(Sender: TObject);
+procedure TSynEditForm.FormCreate(Sender: TObject);
 begin
-  Close;
-end;
-
-procedure TForm2.FormCreate(Sender: TObject);
-begin
-  // 尝试加载SynEdit组件
-  FUseSynEdit := True;
+  // 设置窗体属性
+  Position := poDefaultPosOnly; // 使窗体位置由代码控制
+  FormStyle := fsStayOnTop;     // 保持在其他窗体之上
+  KeyPreview := True;           // 允许窗体接收所有键盘事件
   
-  try
-    try
-      CreateSynEdit;
-    except
-      on E: Exception do
-      begin
-        OutputDebugString(PChar('无法创建SynEdit: ' + E.Message));
-        FUseSynEdit := False;
-        CreateDefaultEditor;
-      end;
-    end;
-      
-    // 设置窗体属性
-    Position := poScreenCenter;
-  except
-    on E: Exception do
-    begin
-      ShowMessage('初始化编辑器失败: ' + E.Message);
-      // 确保创建备用编辑器
-      CreateDefaultEditor;
-    end;
-  end;
+  // 设置SynEdit的属性
+  SynEdit.Font.Name := 'Consolas';
+  SynEdit.Font.Size := 10;
+  SynEdit.ScrollBars := ssBoth;
+  SynEdit.WordWrap := False;
+  SynEdit.ReadOnly := True;
+  SynEdit.Gutter.ShowLineNumbers := True;
+  SynEdit.UseCodeFolding := True;
+  
+  // 记录初始化日志
+  LogMessage('SynEdit窗体已初始化');
 end;
 
-procedure TForm2.CreateSynEdit;
+procedure TSynEditForm.FormDestroy(Sender: TObject);
 begin
-  try
-    // 动态创建SynEdit控件
-    FEditor := TSynEdit.Create(Self);
-    TSynEdit(FEditor).Parent := Self;
-    TSynEdit(FEditor).Align := alClient;
-    TSynEdit(FEditor).Font.Name := 'Consolas';
-    TSynEdit(FEditor).Font.Size := 10;
-    TSynEdit(FEditor).Gutter.ShowLineNumbers := True;
-    TSynEdit(FEditor).Options := TSynEdit(FEditor).Options + [eoTabsToSpaces];
-    TSynEdit(FEditor).TabWidth := 2;
-    
-    Panel1.Align := alBottom;
-    
-    // 初始化语法高亮器
-    FHighlighterXML := TSynXMLSyn.Create(Self);
-    FHighlighterHTML := TSynHTMLSyn.Create(Self);
-    FHighlighterPas := TSynPasSyn.Create(Self);
-    FHighlighterJava := TSynJavaSyn.Create(Self);
-    FHighlighterCpp := TSynCppSyn.Create(Self);
-    FHighlighterPython := TSynPythonSyn.Create(Self);
-    FHighlighterCS := TSynCSSyn.Create(Self);
-    FHighlighterSQL := TSynSQLSyn.Create(Self);
-    FHighlighterJS := TSynJScriptSyn.Create(Self);
-    FHighlighterCSS := TSynCssSyn.Create(Self);
-    FHighlighterJSON := TSynJSONSyn.Create(Self);
-    FHighlighterIni := TSynIniSyn.Create(Self);
-    FHighlighterBat := TSynBatSyn.Create(Self);
-    FHighlighterVB := TSynVBSyn.Create(Self);
-    FHighlighterPerl := TSynPerlSyn.Create(Self);
-    FHighlighterPHP := TSynPHPSyn.Create(Self);
-    FHighlighterTeX := TSynTeXSyn.Create(Self);
-    FHighlighterRuby := TSynRubySyn.Create(Self);
-    
-    // 配置Pascal高亮器
-    if Assigned(FHighlighterPas) then
-    begin
-      FHighlighterPas.KeyAttri.Foreground := clBlue;
-      FHighlighterPas.StringAttri.Foreground := clRed;
-      FHighlighterPas.CommentAttri.Foreground := clGreen;
-      FHighlighterPas.NumberAttri.Foreground := clMaroon;
-    end;
-  except
-    on E: Exception do
-    begin
-      OutputDebugString(PChar('创建SynEdit失败: ' + E.Message));
-      FUseSynEdit := False;
-      CreateDefaultEditor;
-    end;
-  end;
+  // 所有组件都由表单自动释放
 end;
 
-procedure TForm2.CreateDefaultEditor;
+procedure TSynEditForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  try
-    // 创建标准备用编辑器
-    if not Assigned(FEditor) or not (FEditor is TMemo) then
+  // 设置关闭时的行为
+  Action := caHide; // 隐藏而非释放，因为我们使用全局变量SynEditForm
+end;
+
+procedure TSynEditForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  // Esc键关闭窗体
+  if Key = VK_ESCAPE then
+  begin
+    Close;
+    Key := 0;
+  end
+  // Ctrl++/Ctrl+= 增大字体
+  else if ((Key = 187) or (Key = 107) or (Key = VK_ADD)) and (ssCtrl in Shift) then
+  begin
+    SynEdit.Font.Size := SynEdit.Font.Size + 1;
+    Key := 0;
+  end
+  // Ctrl+- 减小字体
+  else if ((Key = 189) or (Key = 109) or (Key = VK_SUBTRACT)) and (ssCtrl in Shift) then
+  begin
+    if SynEdit.Font.Size > 8 then
     begin
-      FEditor := TMemo.Create(Self);
-      TMemo(FEditor).Parent := Self;
-      TMemo(FEditor).Align := alClient;
-      TMemo(FEditor).Font.Name := 'Consolas';
-      TMemo(FEditor).Font.Size := 10;
-      TMemo(FEditor).ScrollBars := ssBoth;
-      TMemo(FEditor).WordWrap := False;
-      
-      Panel1.Align := alBottom;
+      SynEdit.Font.Size := SynEdit.Font.Size - 1;
     end;
-  except
-    on E: Exception do
-      ShowMessage('创建备用编辑器失败: ' + E.Message);
+    Key := 0;
+  end
+  // Ctrl+0 恢复默认字体大小
+  else if ((Key = Ord('0')) or (Key = VK_NUMPAD0)) and (ssCtrl in Shift) then
+  begin
+    SynEdit.Font.Size := 10; // 恢复默认大小
+    Key := 0;
   end;
 end;
 
-procedure TForm2.ApplyHighlighter(const FileName: string);
+procedure TSynEditForm.ApplyHighlighter(const FileName: string);
 var
   Ext: string;
 begin
   Ext := LowerCase(ExtractFileExt(FileName));
   
-  if not FUseSynEdit then
+  // 根据文件扩展名应用适当的语法高亮器
+  if (Ext = '.pas') or (Ext = '.dpr') or (Ext = '.dpk') then
   begin
-    // 备用编辑器不支持高亮
-    Caption := ExtractFileName(FileName);
-    Exit;
-  end;
-
-  // 清除当前高亮
-  TSynEdit(FEditor).Highlighter := nil;
-  
-  // 根据文件扩展名选择高亮器
-  // Delphi/Pascal
-  if (Ext = '.pas') or (Ext = '.dpr') or (Ext = '.dpk') or (Ext = '.inc') 
-    or (Ext = '.dfm') or (Ext = '.fmx') then
-    TSynEdit(FEditor).Highlighter := FHighlighterPas
-    
-  // XML相关
-  else if (Ext = '.xml') or (Ext = '.svg') or (Ext = '.config') or (Ext = '.xsd') 
-    or (Ext = '.xsl') or (Ext = '.xslt') or (Ext = '.dtd') or (Ext = '.resx') 
-    or (Ext = '.manifest') then
-    TSynEdit(FEditor).Highlighter := FHighlighterXML
-    
-  // HTML相关
-  else if (Ext = '.html') or (Ext = '.htm') or (Ext = '.shtml') or (Ext = '.xhtml') then
-    TSynEdit(FEditor).Highlighter := FHighlighterHTML
-    
-  // Java
-  else if (Ext = '.java') or (Ext = '.jav') then
-    TSynEdit(FEditor).Highlighter := FHighlighterJava
-    
-  // C/C++
-  else if (Ext = '.c') or (Ext = '.cpp') or (Ext = '.cc') or (Ext = '.h') 
-    or (Ext = '.hpp') or (Ext = '.hh') or (Ext = '.cxx') or (Ext = '.hxx') then
-    TSynEdit(FEditor).Highlighter := FHighlighterCpp
-    
-  // Python
-  else if (Ext = '.py') or (Ext = '.pyw') or (Ext = '.pyc') or (Ext = '.pyd') 
-    or (Ext = '.pyo') then
-    TSynEdit(FEditor).Highlighter := FHighlighterPython
-    
-  // C#
-  else if (Ext = '.cs') then
-    TSynEdit(FEditor).Highlighter := FHighlighterCS
-    
-  // SQL
-  else if (Ext = '.sql') or (Ext = '.ddl') or (Ext = '.dml') or (Ext = '.pls') 
-    or (Ext = '.pks') or (Ext = '.pkb') then
-    TSynEdit(FEditor).Highlighter := FHighlighterSQL
-    
-  // JavaScript
-  else if (Ext = '.js') or (Ext = '.jsx') or (Ext = '.mjs') then
-    TSynEdit(FEditor).Highlighter := FHighlighterJS
-    
-  // CSS
-  else if (Ext = '.css') or (Ext = '.scss') or (Ext = '.sass') or (Ext = '.less') then
-    TSynEdit(FEditor).Highlighter := FHighlighterCSS
-    
-  // JSON
+    SynEdit.Highlighter := SynPasSyn1;
+  end
+  else if (Ext = '.cpp') or (Ext = '.h') or (Ext = '.hpp') or (Ext = '.c') then
+  begin
+    SynEdit.Highlighter := SynCppSyn1;
+  end
+  else if (Ext = '.css') then
+  begin
+    SynEdit.Highlighter := SynCSSyn1;
+  end
+  else if (Ext = '.java') then
+  begin
+    SynEdit.Highlighter := SynJavaSyn1;
+  end
+  else if (Ext = '.js') then
+  begin
+    SynEdit.Highlighter := SynJScriptSyn1;
+  end
+  else if (Ext = '.html') or (Ext = '.htm') then
+  begin
+    SynEdit.Highlighter := SynHTMLSyn1;
+  end
+  else if (Ext = '.xml') or (Ext = '.xsd') or (Ext = '.xsl') or (Ext = '.xslt') then
+  begin
+    SynEdit.Highlighter := SynXMLSyn1;
+  end
+  else if (Ext = '.sql') then
+  begin
+    SynEdit.Highlighter := SynSQLSyn1;
+  end
+  else if (Ext = '.py') then
+  begin
+    SynEdit.Highlighter := SynPythonSyn1;
+  end
+  else if (Ext = '.php') then
+  begin
+    SynEdit.Highlighter := SynPHPSyn1;
+  end
+  else if (Ext = '.ini') or (Ext = '.inf') then
+  begin
+    SynEdit.Highlighter := SynIniSyn1;
+  end
+  else if (Ext = '.pl') or (Ext = '.pm') then
+  begin
+    SynEdit.Highlighter := SynPerlSyn1;
+  end
+  else if (Ext = '.vb') then
+  begin
+    SynEdit.Highlighter := SynVBSyn1;
+  end
+  else if (Ext = '.asm') then
+  begin
+    SynEdit.Highlighter := SynAsmSyn1;
+  end
+  else if (Ext = '.rb') then
+  begin
+    SynEdit.Highlighter := SynRubySyn1;
+  end
   else if (Ext = '.json') then
-    TSynEdit(FEditor).Highlighter := FHighlighterJSON
-    
-  // INI files
-  else if (Ext = '.ini') or (Ext = '.inf') or (Ext = '.conf') or (Ext = '.cfg') 
-    or (Ext = '.properties') then
-    TSynEdit(FEditor).Highlighter := FHighlighterIni
-    
-  // Batch files
+  begin
+    SynEdit.Highlighter := SynJSONSyn1;
+  end
   else if (Ext = '.bat') or (Ext = '.cmd') then
-    TSynEdit(FEditor).Highlighter := FHighlighterBat
-    
-  // Visual Basic
-  else if (Ext = '.vb') or (Ext = '.bas') or (Ext = '.vbs') or (Ext = '.frm') 
-    or (Ext = '.cls') then
-    TSynEdit(FEditor).Highlighter := FHighlighterVB
-    
-  // Perl
-  else if (Ext = '.pl') or (Ext = '.pm') or (Ext = '.perl') then
-    TSynEdit(FEditor).Highlighter := FHighlighterPerl
-    
-  // PHP
-  else if (Ext = '.php') or (Ext = '.php3') or (Ext = '.php4') or (Ext = '.php5') 
-    or (Ext = '.phtml') then
-    TSynEdit(FEditor).Highlighter := FHighlighterPHP
-    
-  // TeX/LaTeX
-  else if (Ext = '.tex') or (Ext = '.latex') or (Ext = '.sty') or (Ext = '.cls') 
-    or (Ext = '.ltx') then
-    TSynEdit(FEditor).Highlighter := FHighlighterTeX
-    
-  // Ruby
-  else if (Ext = '.rb') or (Ext = '.rbw') or (Ext = '.rake') or (Ext = '.gemspec') then
-    TSynEdit(FEditor).Highlighter := FHighlighterRuby;
-  
-  // 更新标题
-  if TSynEdit(FEditor).Highlighter <> nil then
-    Caption := ExtractFileName(FileName) + ' - [' + TSynEdit(FEditor).Highlighter.LanguageName + ']'
+  begin
+    SynEdit.Highlighter := SynBatSyn1;
+  end
   else
-    Caption := ExtractFileName(FileName);
+  begin
+    SynEdit.Highlighter := nil; // 未知文件类型，不使用高亮
+  end;
+  
+  // 确保立即重绘
+  SynEdit.Invalidate;
 end;
 
-procedure TForm2.LoadFile(const FileName: string; Encoding: TEncoding);
+procedure TSynEditForm.LogMessage(const Msg: string);
+begin
+  // 使用更安全的方式记录日志，避免调用OutputDebugString可能引起的问题
+  {$IFDEF DEBUG}
+  // 仅在调试模式下输出到控制台
+  WriteLn('[SynEdit] ' + Msg);
+  {$ENDIF}
+end;
+
+procedure TSynEditForm.LoadFile(const FileName: string; Encoding: TEncoding = nil);
 var
-  Stream: TFileStream;
-  Reader: TStreamReader;
-  Content: string;
-  IsBinary: Boolean;
-  Buffer: TBytes;
-  i: Integer;
+  DetectedEncoding: string;
+  HasBOM: Boolean;
 begin
   try
-    // 检查文件是否存在
-    if not FileExists(FileName) then
-      raise Exception.Create('文件不存在');
-      
-    Stream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
-    try
-      // 检测二进制文件
-      IsBinary := False;
-      if Stream.Size > 0 then
-      begin
-        SetLength(Buffer, Min(Stream.Size, 1024));
-        Stream.ReadBuffer(Buffer[0], Length(Buffer));
-        Stream.Position := 0;
-        
-        // 检查是否包含二进制字符
-        for i := 0 to High(Buffer) do
-          if (Buffer[i] < 7) or ((Buffer[i] > 14) and (Buffer[i] < 32) and (Buffer[i] <> 9)) then
-          begin
-            IsBinary := True;
-            Break;
-          end;
-      end;
-      
-      // 处理二进制文件
-      if IsBinary then
-      begin
-        if FUseSynEdit then
-        begin
-          TSynEdit(FEditor).Lines.Clear;
-          TSynEdit(FEditor).Lines.Add('(二进制文件，不显示内容)');
-        end
-        else
-        begin
-          TMemo(FEditor).Lines.Clear;
-          TMemo(FEditor).Lines.Add('(二进制文件，不显示内容)');
-        end;
-        
-        Caption := ExtractFileName(FileName) + ' [二进制文件]';
-        Exit;
-      end;
-      
-      // 读取文本内容
-      Stream.Position := 0;
-      Reader := TStreamReader.Create(Stream, Encoding, True);
-      try
-        Content := Reader.ReadToEnd;
-        
-        // 设置编辑器内容
-        if FUseSynEdit then
-        begin
-          TSynEdit(FEditor).Lines.Text := Content;
-          TSynEdit(FEditor).Modified := False;
-        end
-        else
-        begin
-          TMemo(FEditor).Lines.Text := Content;
-          TMemo(FEditor).Modified := False;
-        end;
-        
-        // 应用语法高亮
-        ApplyHighlighter(FileName);
-      finally
-        Reader.Free;
-      end;
-    finally
-      Stream.Free;
-    end;
+    // 直接使用SynEdit的Lines加载文件，简单可靠
+    if Assigned(Encoding) then
+      SynEdit.Lines.LoadFromFile(FileName, Encoding)
+    else
+      SynEdit.Lines.LoadFromFile(FileName);
+    
+    // 设置窗体标题
+    Caption := ExtractFileName(FileName);
+    
+    // 首先清除现有高亮器
+    SynEdit.Highlighter := nil;
+    
+    // 应用语法高亮
+    ApplyHighlighter(FileName);
+    
+    // 检测文件编码
+    DetectedEncoding := JclEncodingUtils.DetectFileEncoding(FileName);
+    HasBOM := Pos('BOM', DetectedEncoding) > 0;
+    
+    // 设置文件信息
+    SetFileInfo(FileName, DetectedEncoding, HasBOM);
     
   except
     on E: Exception do
-      raise Exception.Create('加载文件失败: ' + E.Message);
+    begin
+      SynEdit.Text := '无法打开文件: ' + E.Message;
+    end;
   end;
 end;
 
-procedure TForm2.SetFileInfo(const FileName, EncodingName: string; HasBOM: Boolean);
+procedure TSynEditForm.SetFileInfo(const FileName, DetectedEncoding: string; HasBOM: Boolean);
 var
-  FileSize: Int64;
   BOMStr: string;
-  LinesCount: Integer;
 begin
-  // 获取文件信息
-  FileSize := 0;
-  if FileExists(FileName) then
-    FileSize := TFile.GetSize(FileName);
-    
+  // 更新文件信息标签
+  lblFileName.Caption := 'File: ' + ExtractFileName(FileName);
+  lblEncoding.Caption := 'Encoding: ' + DetectedEncoding;
+  
   if HasBOM then
-    BOMStr := '有BOM'
+    BOMStr := 'Yes'
   else
-    BOMStr := '无BOM';
+    BOMStr := 'No';
     
-  // 获取行数
-  if FUseSynEdit then
-    LinesCount := TSynEdit(FEditor).Lines.Count
-  else
-    LinesCount := TMemo(FEditor).Lines.Count;
-    
-  // 设置信息标签
-  lblFileInfo.Caption := Format('文件: %s | 大小: %d 字节 | 编码: %s (%s) | 行数: %d', 
-    [ExtractFileName(FileName), FileSize, EncodingName, BOMStr, LinesCount]);
+  lblBOM.Caption := 'BOM: ' + BOMStr;
 end;
 
-end. 
+end.

@@ -29,12 +29,12 @@
 
 ## 进行中的工作
 1. **代码优化**
-   - [ ] 重构日志记录机制
+   - [x] 重构日志记录机制
    - [ ] 优化编码检测算法
    - [ ] 完善错误处理
 
 2. **功能增强**
-   - [ ] 添加更多编码格式支持
+   - [x] 添加更多编码格式支持
    - [ ] 实现配置保存功能
    - [ ] 添加转换进度显示
 
@@ -92,9 +92,41 @@
 - [x] 添加更详细的日志记录
 - [x] 完善异常处理
 
-## SynEdit组件集成进度
+## ICU库集成进度
 
-### 2024-05-30：问题修复
+### 2024-06-01：决策转向ICU
+- [x] 评估ICU库的优势和功能集
+- [x] 确认ICU库提供更强大的国际化和Unicode支持
+- [x] 决定用ICU库替代libiconv作为编码转换引擎
+
+### 2024-06-03：基础架构搭建
+- [x] 创建UtilsICU单元，添加ICU基本API声明
+- [x] 实现ICU库的动态加载
+- [x] 设计ICU编码检测和转换API的Delphi封装
+
+### 2024-06-05：核心功能迁移
+- [x] 迁移编码检测功能到ICU
+- [x] 更新编码转换逻辑，使用ICU API
+- [x] 修改ControllerEncoding，适配ICU
+- [x] 删除不再需要的ICONV代码
+
+### 2024-06-07：支持脚本和测试
+- [x] 创建setup.bat脚本，自动下载并安装ICU库
+- [x] 测试ICU编码检测功能
+- [x] 测试ICU编码转换功能
+- [x] 验证大文件处理性能
+
+## 界面组件增强
+
+### 2024-05-30：SynEdit集成
 - [x] 创建SynEditWrapper单元和TSynEditHelper类
 - [x] 重构ViewSynEdit单元，使用包装类
 - [x] 调整ViewMainCode单元，支持新的查看器 
+
+### 2024-06-10：TMemo替代SynEdit
+- [x] 创建ViewMemo单元，实现基于TMemo的文本查看器
+- [x] 创建ViewMemo.dfm界面布局
+- [x] 修改TransSuccess.dpr，移除对SynEdit的依赖
+- [x] 更新ViewMainCode单元，改用TMemoForm组件
+- [x] 移除对SynEditWrapper单元的依赖
+- [x] 验证TMemo文本查看器功能正常 

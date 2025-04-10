@@ -1,0 +1,208 @@
+﻿program BasicTest;
+
+{$APPTYPE CONSOLE}
+
+uses
+  System.SysUtils,
+  System.IOUtils,
+  System.Classes,
+  System.Types,
+  System.Rtti,
+  Winapi.Windows,
+  ModelEncoding in 'ModelEncoding.pas',
+  ControllerEncoding in 'ControllerEncoding.pas',
+  UtilsIconv in 'UtilsIconv.pas',
+  UtilsUTF8 in 'UtilsUTF8.pas';
+
+var
+  Controller: TEncodingController;
+  SourceEncoding, TargetEncoding, ReverseEncoding: string;
+  SourceFiles: TStringDynArray;
+  SourceDir, TargetDir, BackDir: string;
+  InitialPath: string;
+  SourceFilePath, TargetFilePath, BackFilePath: string;
+  ForwardResult, ReverseResult: TConversionResult;
+  ComparisonResult: Boolean;
+  
+// 这个过程手动打印消息
+procedure ManualLog(const Msg: string);
+begin
+  Writeln('[LOG] ' + Msg);
+end;
+
+// 函数：设置DLL搜索路径
+function SetDllDirectory(lpPathName: PWideChar): BOOL; stdcall; external 'kernel32.dll';
+
+// 函数：比较两个文件内容是否相同
+function CompareFiles(const File1, File2: string): Boolean;
+var
+  FS1, FS2: TFileStream;
+  Buffer1, Buffer2: TBytes;
+  BytesRead1, BytesRead2: Integer;
+  BufferSize: Integer;
+begin
+  Result := False;
+  if not FileExists(File1) or not FileExists(File2) then
+  begin
+    ManualLog(Format('比较文件错误：文件 %s 或 %s 不存在', [File1, File2]));
+    Exit;
+  end;
+
+  if TFile.GetSize(File1) <> TFile.GetSize(File2) then
+  begin
+    ManualLog(Format('文件大小不同: %s (%d bytes) vs %s (%d bytes)', 
+      [ExtractFileName(File1), TFile.GetSize(File1), ExtractFileName(File2), TFile.GetSize(File2)]));
+    Exit;
+  end;
+
+  BufferSize := 65536; // 64 KB buffer
+  SetLength(Buffer1, BufferSize);
+  SetLength(Buffer2, BufferSize);
+
+  FS1 := TFileStream.Create(File1, fmOpenRead or fmShareDenyWrite);
+  try
+    FS2 := TFileStream.Create(File2, fmOpenRead or fmShareDenyWrite);
+    try
+      repeat
+        BytesRead1 := FS1.Read(Buffer1, BufferSize);
+        BytesRead2 := FS2.Read(Buffer2, BufferSize);
+
+        if (BytesRead1 <> BytesRead2) or (CompareMem(@Buffer1[0], @Buffer2[0], BytesRead1) <> True) then
+          Exit; // 内容不同
+          
+      until (BytesRead1 = 0);
+      Result := True; // 文件内容相同
+    finally
+      FS2.Free;
+    end;
+  finally
+    FS1.Free;
+  end;
+end;
+
+// 函数：将TConversionResult枚举转换为字符串
+function ConversionResultToString(AResult: TConversionResult): string;
+begin
+  Result := TRttiEnumerationType.GetName<TConversionResult>(AResult);
+end;
+
+begin
+  try
+    // 在程序开始时，将当前目录添加到DLL搜索路径
+    // 这有助于确保程序能找到同一目录下的DLL文件
+    InitialPath := string(GetEnvironmentVariable('PATH'));
+    if not SetEnvironmentVariable(PWideChar('PATH'), PWideChar(ExtractFilePath(ParamStr(0)) + ';' + InitialPath)) then
+      ManualLog('SetEnvironmentVariable 调用失败')
+    else
+      ManualLog('已将程序目录添加到PATH环境变量');
+    
+    // 或者，更现代的方法是使用 SetDllDirectory (需要Windows Vista或更高版本)
+    // 如果您使用的是较新版本的Windows，可以取消下面一行的注释
+    // if not SetDllDirectory(PWideChar(ExtractFilePath(ParamStr(0)))) then
+    //   ManualLog('SetDllDirectory 调用失败');
+    
+    Writeln('===== 单文件完整流程测试 =====');
+    
+    // 设置目录和编码
+    SourceDir := 'tests\from';
+    TargetDir := 'tests\to';
+    BackDir := 'tests\back';
+    TargetEncoding := 'GBK'; // 目标编码
+    ReverseEncoding := 'UTF-8'; // 反向转换的目标编码
+    
+    // 确保目录存在
+    ForceDirectories(SourceDir);
+    ForceDirectories(TargetDir);
+    ForceDirectories(BackDir);
+    
+    // 创建控制器
+    Controller := TEncodingController.Create(nil); // 暂时不用日志回调，用ManualLog
+    try
+      Writeln('查找测试文件:');
+      
+      if DirectoryExists(SourceDir) then
+      begin
+        SourceFiles := TDirectory.GetFiles(SourceDir);
+        
+        if Length(SourceFiles) = 0 then
+          Writeln('  源目录为空')
+        else
+        begin
+          // 只处理第一个文件
+          SourceFilePath := SourceFiles[0];
+          Writeln('开始处理文件: ' + ExtractFileName(SourceFilePath));
+          
+          // 1. 检测编码
+          if Controller.DetectFileEncoding(SourceFilePath, SourceEncoding) then
+          begin
+            Writeln('  检测到源编码: ' + SourceEncoding);
+            ManualLog('检测到文件 ' + SourceFilePath + ' 的编码: ' + SourceEncoding);
+            
+            // 构建目标和反向文件路径
+            TargetFilePath := TPath.Combine(TargetDir, ExtractFileName(SourceFilePath));
+            BackFilePath := TPath.Combine(BackDir, ExtractFileName(SourceFilePath));
+            
+            // 2. 正向转换 (Source -> Target)
+            Writeln(Format('  开始正向转换 (%s -> %s) 到 %s', [SourceEncoding, TargetEncoding, TargetFilePath]));
+            ForwardResult := Controller.ConvertSingleFileByName(SourceFilePath, TargetEncoding, False, nil);
+            if ForwardResult = TConversionResult.Success then
+            begin
+              Writeln('  正向转换成功!');
+              ManualLog('文件 ' + SourceFilePath + ' 成功转换为 ' + TargetEncoding);
+              
+              // 3. 反向转换 (Target -> Back)
+              Writeln(Format('  开始反向转换 (%s -> %s) 到 %s', [TargetEncoding, ReverseEncoding, BackFilePath]));
+              ReverseResult := Controller.ConvertSingleFileByName(TargetFilePath, ReverseEncoding, True, nil); // 反向转回UTF-8通常加BOM
+              if ReverseResult = TConversionResult.Success then
+              begin
+                Writeln('  反向转换成功!');
+                ManualLog('文件 ' + TargetFilePath + ' 成功反向转换为 ' + ReverseEncoding);
+                
+                // 4. 文件比较 (Source vs Back)
+                Writeln('  开始比较源文件与反向转换文件...');
+                ComparisonResult := CompareFiles(SourceFilePath, BackFilePath);
+                if ComparisonResult then
+                begin
+                  Writeln('  文件比较结果：一致!');
+                  ManualLog('文件比较成功: ' + SourceFilePath + ' 与 ' + BackFilePath + ' 一致');
+                end
+                else
+                begin
+                  Writeln('  文件比较结果：不一致!');
+                  ManualLog('文件比较失败: ' + SourceFilePath + ' 与 ' + BackFilePath + ' 不一致');
+                end;
+              end
+              else
+              begin
+                Writeln('  反向转换失败! 结果: ' + ConversionResultToString(ReverseResult));
+                ManualLog('文件 ' + TargetFilePath + ' 反向转换失败');
+              end;
+            end
+            else
+            begin
+              Writeln('  正向转换失败! 结果: ' + ConversionResultToString(ForwardResult));
+              ManualLog('文件 ' + SourceFilePath + ' 转换为 ' + TargetEncoding + ' 失败');
+            end;
+          end
+          else
+          begin
+            Writeln('  无法检测编码');
+            ManualLog('无法检测文件 ' + SourceFilePath + ' 的编码');
+          end;
+        end;
+      end
+      else
+        Writeln('找不到源目录');
+    finally
+      Controller.Free;
+      // 程序结束前恢复原始PATH（虽然通常不是必须的，但更规范）
+      SetEnvironmentVariable(PWideChar('PATH'), PWideChar(InitialPath));
+    end;
+  except
+    on E: Exception do
+      Writeln(E.ClassName, ': ', E.Message);
+  end;
+  
+  Writeln('按Enter键退出...');
+  Readln;
+end. 

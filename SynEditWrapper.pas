@@ -1,11 +1,11 @@
-unit SynEditWrapper;
+﻿unit SynEditWrapper;
 
 interface
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
-  SynEdit, SynMemo;
+  SynEdit;
 
 type
   TSynEditHelper = class(TSynEdit)

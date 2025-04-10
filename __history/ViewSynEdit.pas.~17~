@@ -1,0 +1,131 @@
+﻿unit ViewSynEdit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  System.IOUtils, System.Generics.Collections, System.Math, System.StrUtils,
+  SynEdit;
+
+type
+  TSynEditForm = class(TForm)
+    SynEdit: TSynEdit;
+    Panel1: TPanel;
+    lblFileName: TLabel;
+    lblEncoding: TLabel;
+    lblBOM: TLabel;
+    procedure FormCreate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  private
+
+  public
+    procedure LoadFile(const FileName: string);
+    procedure SetFileInfo(const FileName, DetectedEncoding: string; HasBOM: Boolean);
+  end;
+
+var
+  SynEditForm: TSynEditForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TSynEditForm.FormCreate(Sender: TObject);
+var
+  LogCallback: TProc<string>;
+begin
+  // 设置窗体属性
+  Position := poDefaultPosOnly;
+  FormStyle := fsStayOnTop;
+  KeyPreview := True;
+
+  // 设置SynEdit的属性
+  SynEdit.Font.Name := 'Consolas';
+  SynEdit.Font.Size := 10;
+  SynEdit.ScrollBars := ssBoth;
+  SynEdit.WordWrap := False;
+  SynEdit.ReadOnly := True;
+  SynEdit.Gutter.ShowLineNumbers := True;
+  SynEdit.UseCodeFolding := True;
+  SynEdit.Highlighter := nil; // 确保没有高亮器
+
+end;
+
+procedure TSynEditForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caHide; // 关闭时隐藏，以便下次重用全局实例
+end;
+
+procedure TSynEditForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  // Esc键关闭窗体
+  if Key = VK_ESCAPE then
+  begin
+    Close;
+    Key := 0;
+  end
+  // Ctrl++/Ctrl+= 增大字体
+  else if ((Key = 187) or (Key = 107) or (Key = VK_ADD)) and (ssCtrl in Shift) then
+  begin
+    SynEdit.Font.Size := SynEdit.Font.Size + 1;
+    LogMessage('字体大小增加到 ' + IntToStr(SynEdit.Font.Size));
+    Key := 0;
+  end
+  // Ctrl+- 减小字体
+  else if ((Key = 189) or (Key = 109) or (Key = VK_SUBTRACT)) and (ssCtrl in Shift) then
+  begin
+    if SynEdit.Font.Size > 8 then
+    begin
+      SynEdit.Font.Size := SynEdit.Font.Size - 1;
+      LogMessage('字体大小减小到 ' + IntToStr(SynEdit.Font.Size));
+    end;
+    Key := 0;
+  end
+  // Ctrl+0 恢复默认字体大小
+  else if ((Key = Ord('0')) or (Key = VK_NUMPAD0)) and (ssCtrl in Shift) then
+  begin
+    SynEdit.Font.Size := 10; // 恢复默认大小
+    LogMessage('字体大小重置为 10');
+    Key := 0;
+  end;
+end;
+
+
+procedure TSynEditForm.LoadFile(const FileName: string);
+begin
+  // 清空当前内容和高亮器
+  SynEdit.Lines.Clear;
+  //SynEdit.Highlighter := nil;
+
+  try
+
+      // 直接使用SynEdit自带的功能加载文件
+      SynEdit.Lines.LoadFromFile(FileName);
+
+      // 设置窗体标题
+      Caption := ExtractFileName(FileName);
+
+      LogMessage('已加载文件(无高亮): ' + FileName);
+
+
+  finally
+    // 重置GetLastError
+    SetLastError(0);
+  end;
+end;
+
+procedure TSynEditForm.SetFileInfo(const FileName, DetectedEncoding: string; HasBOM: Boolean);
+begin
+  // 这个方法现在可能不再被直接调用，但保留以防万一
+  lblFileName.Caption := '文件: ' + ExtractFileName(FileName);
+  lblEncoding.Caption := '编码: ' + DetectedEncoding;
+
+  if HasBOM then
+    lblBOM.Caption := 'BOM: 是'
+  else
+    lblBOM.Caption := 'BOM: 否';
+end;
+
+end.

@@ -56,7 +56,7 @@ object Form1: TForm1
     Align = alBottom
     TabOrder = 0
     ExplicitTop = 455
-    ExplicitWidth = 955
+    ExplicitWidth = 1034
     object Splitter7: TSplitter
       Left = 817
       Top = 1
@@ -80,7 +80,7 @@ object Form1: TForm1
       Align = alRight
       TabOrder = 0
       Visible = False
-      ExplicitLeft = 735
+      ExplicitLeft = 814
     end
     object MemLog: TMemo
       Left = 4
@@ -91,7 +91,7 @@ object Form1: TForm1
       Lines.Strings = (
         'MemLog')
       TabOrder = 1
-      ExplicitWidth = 728
+      ExplicitWidth = 807
     end
   end
   object Panel2: TPanel
@@ -101,7 +101,8 @@ object Form1: TForm1
     Height = 41
     Align = alTop
     TabOrder = 1
-    ExplicitWidth = 955
+    ExplicitLeft = -1
+    ExplicitTop = 1
     DesignSize = (
       1040
       41)
@@ -155,7 +156,15 @@ object Form1: TForm1
       Caption = #20851#38381
       TabOrder = 3
       OnClick = btnCloseClick
-      ExplicitLeft = 818
+      ExplicitLeft = 897
+    end
+    object chkIncludeSubdirs: TCheckBox
+      Left = 680
+      Top = 8
+      Width = 97
+      Height = 17
+      Caption = 'chkIncludeSubdirs'
+      TabOrder = 5
     end
   end
   object Panel3: TPanel
@@ -204,6 +213,8 @@ object Form1: TForm1
     Height = 425
     Align = alRight
     TabOrder = 3
+    ExplicitLeft = 754
+    ExplicitHeight = 408
     object Splitter6: TSplitter
       Left = 1
       Top = 1
@@ -218,18 +229,18 @@ object Form1: TForm1
       AlignWithMargins = True
       Left = 4
       Top = 7
-      Width = 206
+      Width = 269
       Height = 414
       Margins.Right = 6
       Align = alClient
+      HideSelection = False
       Indent = 19
       ReadOnly = True
       RightClickSelect = True
       TabOrder = 0
-      HideSelection = False
       OnClick = TreeViewEncodingsClick
-      OnAdvancedCustomDrawItem = TreeViewEncodingsAdvancedCustomDrawItem
-      ExplicitHeight = 397
+      ExplicitLeft = 6
+      ExplicitTop = 8
     end
   end
   object Panel5: TPanel
@@ -239,7 +250,7 @@ object Form1: TForm1
     Height = 425
     Align = alClient
     TabOrder = 4
-    ExplicitWidth = 507
+    ExplicitWidth = 523
     ExplicitHeight = 408
     object Splitter5: TSplitter
       Left = 1
@@ -266,7 +277,7 @@ object Form1: TForm1
       OnClick = StringGrid1Click
       OnContextPopup = StringGrid1ContextPopup
       OnSelectCell = StringGridSelectCell
-      ExplicitWidth = 505
+      ExplicitWidth = 521
       ExplicitHeight = 283
     end
     object Panel7: TPanel
@@ -276,7 +287,7 @@ object Form1: TForm1
       Height = 72
       Align = alTop
       TabOrder = 1
-      ExplicitWidth = 505
+      ExplicitWidth = 521
       object CheckListBox1: TCheckListBox
         Left = 1
         Top = 1
@@ -284,9 +295,9 @@ object Form1: TForm1
         Height = 70
         Align = alClient
         Columns = 5
-        ItemHeight = 15
+        ItemHeight = 17
         TabOrder = 0
-        ExplicitWidth = 503
+        ExplicitWidth = 519
       end
     end
     object Panel8: TPanel
@@ -296,7 +307,7 @@ object Form1: TForm1
       Height = 48
       Align = alTop
       TabOrder = 2
-      ExplicitWidth = 505
+      ExplicitWidth = 521
       object btnConvert: TButton
         Left = 256
         Top = 11

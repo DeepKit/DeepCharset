@@ -1,0 +1,10 @@
+﻿这是一个UTF-8无BOM编码的文本文件
+This is a UTF-8 text file without BOM
+包含中文内容
+日本語のテキスト
+한국어 텍스트
+Русский текст
+Ελληνικό κείμενο
+العربية النص
+עברית טקסט
+Special characters: 

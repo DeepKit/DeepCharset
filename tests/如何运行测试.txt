@@ -1,0 +1,50 @@
+JCL编码检测与转换测试程序使用说明
+===============================
+
+本测试程序使用Jedi Code Library (JCL)实现了文件编码的检测和转换功能。测试结果将保存到tests.md文件中。
+
+运行测试的步骤：
+---------------
+
+方法一：使用批处理文件（Windows命令提示符）
+1. 双击"run_tests.bat"文件
+2. 等待测试完成
+3. 查看tests.md文件中的测试结果
+
+方法二：使用PowerShell脚本
+1. 右键点击"run_tests.ps1"，选择"使用PowerShell运行"
+2. 等待测试完成
+3. 查看tests.md文件中的测试结果
+
+方法三：手动编译和运行
+1. 打开命令提示符或PowerShell
+2. 运行以下命令编译编码检测测试程序：
+   dcc32 -b sample_test.dpr
+3. 运行编码检测测试：
+   sample_test.exe
+4. 运行以下命令编译编码转换测试程序：
+   dcc32 -b conversion_test.dpr
+5. 运行编码转换测试：
+   conversion_test.exe
+6. 查看tests.md文件中的测试结果
+
+测试内容：
+---------
+1. 编码检测：对"files"、"from"和"UcsExamples"目录中的文件进行编码检测
+2. 编码转换：将"from"目录中的文件转换为不同的编码格式，并保存到"to"目录
+
+支持的编码：
+-----------
+- UTF-8（带BOM和不带BOM）
+- UTF-16LE（Unicode）
+- UTF-16BE
+- GBK/GB2312
+- GB18030
+- 其他JCL支持的编码
+
+注意事项：
+---------
+1. 确保已安装Delphi和JCL库
+2. 确保dcc32命令可用（Delphi命令行编译器）
+3. 如果出现编译错误，请检查JCL库是否正确安装
+4. 测试结果将会覆盖之前的结果 

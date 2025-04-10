@@ -110,9 +110,9 @@ begin
   Grid.ScrollBars := ssVertical;
   
   // 设置列宽
-  Grid.ColWidths[0] := 40;  // 选择框列
-  Grid.ColWidths[1] := 200; // 文件名列
-  Grid.ColWidths[2] := 150; // 编码列
+  Grid.ColWidths[0] := 40;        // 选择框列
+  Grid.ColWidths[1] := 500;       // 文件名列 (原来是200，增大到2.5倍)
+  Grid.ColWidths[2] := 225;       // 编码列 (原来是150，增大到1.5倍)
   
   // 设置表头
   Grid.Cells[0, 0] := '选择';

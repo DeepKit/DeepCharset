@@ -1,0 +1,27 @@
+﻿
+Keyboard Symbols with combining enclosing keycap
+
+2380 20E3 鈳€鈨?2381 20E3 鈳佲儯
+2382 20E3 鈳傗儯
+2383 20E3 鈳冣儯
+2384 20E3 鈳勨儯
+2385 20E3 鈳呪儯
+2386 20E3 鈳嗏儯
+2387 20E3 鈳団儯
+2388 20E3 鈳堚儯
+2389 20E3 鈳夆儯
+238A 20E3 鈳娾儯
+238B 20E3 鈳嬧儯
+238C 20E3 鈳屸儯
+2396 20E3 鈳栤儯
+2397 20E3 鈳椻儯
+2398 20E3 鈳樷儯
+2399 20E3 鈳欌儯
+239A 20E3 鈳氣儯
+
+Information source with combining enclosing circle
+
+2139 20DD 鈩光儩
+
+All these are not expected to work in the normal half-width fonts, but
+they should look reasonably good in the square full-width fonts.

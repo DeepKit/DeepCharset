@@ -1,0 +1,30 @@
+﻿program TransSuccess;
+
+{$R *.res}
+
+uses
+  Vcl.Forms,
+  System.SysUtils,
+  ViewMainCode in 'ViewMainCode.pas' {MainForm},
+  ModelEncoding in 'ModelEncoding.pas',
+  UtilsTypes in 'UtilsTypes.pas',
+  ControllerEncoding in 'ControllerEncoding.pas',
+  HelperFiles in 'HelperFiles.pas',
+  HelperUI in 'HelperUI.pas',
+  ModelConfig in 'ModelConfig.pas',
+  UtilsUTF8 in 'UtilsUTF8.pas',
+  UtilsJCLEncoding in 'UtilsJCLEncoding.pas',
+  HelperLanguage in 'HelperLanguage.pas',
+  ViewSynEdit in 'ViewSynEdit.pas' {SynEditForm};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.Title := 'TransSuccess - 高级编码转换工具';
+
+  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TSynEditForm,SynEditForm);
+  Application.Run;
+end.

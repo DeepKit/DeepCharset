@@ -3,15 +3,15 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, Vcl.Dialogs, Vcl.Controls, UtilsUTF8,
-  System.Math, System.StrUtils;
+  System.SysUtils, System.Classes, System.IOUtils, Vcl.Dialogs, Vcl.Controls, 
+  System.Math, System.StrUtils, System.Generics.Collections, 
+  JclBOM, JclStrings, JclStringConversions, JclEncodingUtils;
 
 type
   // 文件辅助类
   TFileHelper = class
   private
     FLogCallback: TProc<string>;
-    
 
   public
     constructor Create(ALogCallback: TProc<string>);
@@ -21,10 +21,14 @@ type
     function GetFileExtensions(const FolderPath: string): TArray<string>;
     
     // 获取指定文件夹中的文件
-    function GetFilesInFolder(const FolderPath: string; const Extensions: TArray<string> = nil): TArray<string>;
+    function GetFilesInFolder(const FolderPath: string; 
+      const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False): TArray<string>;
     
     // 检测文件编码
     function DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
+    
+    // 判断文件是否是正常的文本文件
+    function IsNormalTextFile(const FileName: string): Boolean;
     
     // 转换文件编码
     function ConvertFile(const SourceFile, TargetFile: string; 
@@ -51,6 +55,15 @@ uses
 
 const
   CSIDL_PERSONAL = $0005; // My Documents
+  
+  // 添加最大文本文件大小常量 (5MB)
+  MAX_TEXT_FILE_SIZE = 5 * 1024 * 1024;
+  // 添加二进制检测阈值 (超过5%的字节是二进制则判定为二进制文件)
+  BINARY_THRESHOLD = 0.05;
+  // 最小有效文本文件大小 (10字节)
+  MIN_TEXT_FILE_SIZE = 10;
+  // 每次读取的缓冲区大小
+  BUFFER_SIZE = 4096;
 
 { TFileHelper }
 
@@ -58,6 +71,9 @@ constructor TFileHelper.Create(ALogCallback: TProc<string>);
 begin
   inherited Create;
   FLogCallback := ALogCallback;
+  
+  if Assigned(FLogCallback) then
+    FLogCallback('文件助手已初始化，使用JCL编码支持');
 end;
 
 destructor TFileHelper.Destroy;
@@ -85,33 +101,63 @@ end;
 function TFileHelper.ConvertFile(const SourceFile, TargetFile: string; 
   TargetEncoding: TEncoding; AddBOM: Boolean): Boolean;
 var
-  ConvResult: Boolean;
+  SourceEncoding: string;
+  TargetEncodingName: string;
+  SourceCodePage, TargetCodePage: Integer;
+  HasBOM: Boolean;
 begin
+  Result := False;
   try
-    // 根据目标编码选择不同的转换函数
-    if TargetEncoding.CodePage = 936 then
+    // 检查是否为正常文本文件
+    if not IsNormalTextFile(SourceFile) then
     begin
-      // 转换为GB2312/GBK
-      ConvResult := ConvertFileToGB2312(SourceFile, TargetFile);
-      Result := ConvResult;
+      if Assigned(FLogCallback) then
+        FLogCallback('跳过非文本文件: ' + SourceFile);
+      Exit;
+    end;
+    
+    // 检测源文件编码
+    SourceEncoding := DetectFileEncoding(SourceFile, HasBOM);
+    if SourceEncoding = '未知' then
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('无法检测文件编码: ' + SourceFile);
+      Exit;
+    end;
+    
+    // 确定目标编码名称
+    case TargetEncoding.CodePage of
+      65001: begin
+        if AddBOM then
+          TargetEncodingName := ENCODING_UTF8_BOM
+        else
+          TargetEncodingName := ENCODING_UTF8;
+      end;
+      936: TargetEncodingName := ENCODING_GBK;
+      950: TargetEncodingName := ENCODING_BIG5;
+      1200: TargetEncodingName := ENCODING_UTF16_LE;
+      1201: TargetEncodingName := ENCODING_UTF16_BE;
+      else TargetEncodingName := ENCODING_ANSI;
+    end;
+    
+    // 使用JCL进行转换
+    if ConvertFileByName(SourceFile, TargetFile, SourceEncoding, TargetEncodingName, AddBOM) then
+    begin
+      Result := True;
       
-      if ConvResult and Assigned(FLogCallback) then
-        FLogCallback('成功转换到GB2312: ' + SourceFile);
+      if Assigned(FLogCallback) then
+        FLogCallback('成功转换: ' + SourceFile + ' -> ' + TargetEncodingName);
     end
     else
     begin
-      // 转换为UTF-8或其他编码
-      ConvResult := ConvertFileToUTF8(SourceFile, TargetFile);
-      Result := ConvResult;
-      
-      if ConvResult and Assigned(FLogCallback) then
-        FLogCallback('成功转换到UTF-8: ' + SourceFile);
+      if Assigned(FLogCallback) then
+        FLogCallback('转换失败');
     end;
   except
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('转换失败: ' + SourceFile + ' - ' + E.Message);
+        FLogCallback('转换异常: ' + SourceFile + ' - ' + E.Message);
       Result := False;
     end;
   end;
@@ -119,189 +165,36 @@ end;
 
 function TFileHelper.DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
 var
-  Encoding: TEncoding;
-  Stream: TFileStream;
-  Buffer: TBytes;
-  TextSample: string;
-  GB2312Bytes: TBytes;
-  ByteToRead: Integer;
-  i, ValidChars, ChineseChars: Integer;
-  IsUTF8: Boolean;
+  EncodingName: string;
 begin
   Result := '未知';
   HasBOM := False;
   
+  if not FileExists(FileName) then
+    Exit;
+    
   try
-    Stream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
-    try
-      // 读取文件头部用于检测BOM和分析内容
-      ByteToRead := Min(Stream.Size, 8192); // 读取更多字节用于分析
-      SetLength(Buffer, ByteToRead);
-      if Length(Buffer) > 0 then
-        Stream.ReadBuffer(Buffer[0], Length(Buffer));
+    // 使用JCL检测编码
+    EncodingName := JclEncodingUtils.DetectFileEncoding(FileName);
+    if EncodingName <> 'Unknown' then
+    begin
+      Result := EncodingName;
       
-      // 先用标准方法检测BOM
-      Encoding := nil;
-      TEncoding.GetBufferEncoding(Buffer, Encoding);
-      
-      // 有BOM的情况
-      HasBOM := Stream.Position > 0;
-      
-      if Encoding = TEncoding.UTF8 then
-      begin
-        if HasBOM then
-          Result := 'UTF-8 BOM'
-        else
-          Result := 'UTF-8';
-      end
-      else if Encoding = TEncoding.Unicode then
-        Result := 'UTF-16LE'
-      else if Encoding = TEncoding.BigEndianUnicode then
-        Result := 'UTF-16BE'
-      else if Encoding = TEncoding.UTF7 then
-        Result := 'UTF-7'
-      else if Encoding = TEncoding.ASCII then
-        Result := 'ASCII'
-      else // 可能是ANSI、GB2312或UTF-8(无BOM)
-      begin
-        // 首先检查是否为UTF-8编码(无BOM)
-        IsUTF8 := False;
-        
-        // 采用更可靠的UTF-8检测方法
-        if ByteToRead > 0 then
-        begin
-          IsUTF8 := True; // 假设是UTF-8
-          i := 0;
-          while i < ByteToRead do
-          begin
-            // 检查单字节ASCII字符(0-127)
-            if Buffer[i] < $80 then
-            begin
-              Inc(i);
-              Continue;
-            end;
-            
-            // 检查UTF-8多字节序列
-            if (Buffer[i] and $E0) = $C0 then // 2字节序列: 110xxxxx 10xxxxxx
-            begin
-              if (i + 1 >= ByteToRead) or ((Buffer[i+1] and $C0) <> $80) then
-              begin
-                IsUTF8 := False;
-                Break;
-              end;
-              Inc(i, 2);
-            end
-            else if (Buffer[i] and $F0) = $E0 then // 3字节序列: 1110xxxx 10xxxxxx 10xxxxxx
-            begin
-              if (i + 2 >= ByteToRead) or 
-                 ((Buffer[i+1] and $C0) <> $80) or 
-                 ((Buffer[i+2] and $C0) <> $80) then
-              begin
-                IsUTF8 := False;
-                Break;
-              end;
-              Inc(i, 3);
-            end
-            else if (Buffer[i] and $F8) = $F0 then // 4字节序列: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-            begin
-              if (i + 3 >= ByteToRead) or 
-                 ((Buffer[i+1] and $C0) <> $80) or 
-                 ((Buffer[i+2] and $C0) <> $80) or 
-                 ((Buffer[i+3] and $C0) <> $80) then
-              begin
-                IsUTF8 := False;
-                Break;
-              end;
-              Inc(i, 4);
-            end
-            else // 无效的UTF-8首字节
-            begin
-              IsUTF8 := False;
-              Break;
-            end;
-          end;
-          
-          // 如果检测为有效的UTF-8，直接返回
-          if IsUTF8 and (ByteToRead > 20) then // 确保有足够的样本量
-          begin
-            Result := 'UTF-8';
-            Exit;
-          end;
-        end;
-        
-        // 检测GB2312/GBK中文编码 - 更加强力的检测方法
-        // 首先分析文件是否符合GB2312特征
-        ChineseChars := 0;
-        ValidChars := 0;
-        
-        // 计算GB2312双字节字符的数量和规律
-        i := 0;
-        while i < ByteToRead - 1 do
-        begin
-          // 检查是否符合GB2312/GBK编码模式 - 更精确的范围
-          // 第一个字节范围: 0x81-0xFE
-          // 第二个字节范围: 0x40-0x7E, 0x80-0xFE
-          if (i < ByteToRead - 1) and 
-             (Buffer[i] >= $81) and (Buffer[i] <= $FE) and 
-             (((Buffer[i+1] >= $40) and (Buffer[i+1] <= $7E)) or
-              ((Buffer[i+1] >= $80) and (Buffer[i+1] <= $FE))) then
-          begin
-            ChineseChars := ChineseChars + 1;
-            Inc(i, 2); // 跳过双字节字符
-          end
-          // 检查ASCII字符
-          else if (Buffer[i] >= 32) and (Buffer[i] <= 126) then
-          begin
-            ValidChars := ValidChars + 1;
-            Inc(i);
-          end
-          else
-          begin
-            Inc(i);
-          end;
-        end;
-        
-        // GB2312编码的判断逻辑 - 不同条件的组合判断
-        if (ChineseChars > 5) or 
-           ((ChineseChars > 0) and (ChineseChars * 5 >= ByteToRead / 40)) or
-           // 文本文件中有明显的中文特征
-           ((EndsText('.txt', FileName) or EndsText('.pas', FileName)) and (ChineseChars > 0))
-        then
-        begin
-          Result := '简体中文 (GB2312)';
-          Exit;
-        end
-        else if ValidChars > ByteToRead / 3 then
-        begin
-          Result := 'ANSI';
-        end
-        else
-        begin
-          Result := 'ANSI/二进制';
-        end;
-      end;
-
-      // 处理特殊的二进制文件
-      if EndsText('.bin', FileName) or EndsText('.exe', FileName) or
-         EndsText('.dll', FileName) or EndsText('.obj', FileName) then
-      begin
-        Result := '二进制';
-      end
-      else if Result = '' then // 如果之前的检测没有结果
-      begin
-        Result := 'ANSI/未知';
-      end;
-    finally
-      Stream.Free;
+      // 检查是否有BOM
+      HasBOM := (Result = ENCODING_UTF8_BOM) or 
+                (Result = ENCODING_UTF16_LE) or 
+                (Result = ENCODING_UTF16_BE) or
+                (Result = ENCODING_UTF32_LE) or
+                (Result = ENCODING_UTF32_BE);
+                
+      if Assigned(FLogCallback) then
+        FLogCallback('检测到文件编码: ' + FileName + ' -> ' + Result);
     end;
   except
     on E: Exception do
     begin
-      // 记录文件访问错误但不抛出异常
       if Assigned(FLogCallback) then
-        FLogCallback('检测编码失败: ' + FileName + ' - ' + E.Message);
-      Result := '(访问被拒绝)';
-      HasBOM := False;
+        FLogCallback('编码检测错误: ' + E.Message);
     end;
   end;
 end;
@@ -315,9 +208,8 @@ begin
     try
       Result := ForceDirectories(Path);
       
-      if not Result and Assigned(FLogCallback) then
-        FLogCallback('无法创建目录: ' + Path);
-        
+      if Result and Assigned(FLogCallback) then
+        FLogCallback('创建目录: ' + Path);
     except
       on E: Exception do
       begin
@@ -333,78 +225,122 @@ function TFileHelper.GetFileExtensions(const FolderPath: string): TArray<string>
 var
   Files: TArray<string>;
   Extensions: TStringList;
-  Ext: string;
   i: Integer;
+  Ext: string;
 begin
   Extensions := TStringList.Create;
   try
     Extensions.Sorted := True;
-    Extensions.Duplicates := dupIgnore;
+    Extensions.Duplicates := TDuplicates.dupIgnore;
     
-    Files := TDirectory.GetFiles(FolderPath, '*.*', TSearchOption.soTopDirectoryOnly);
-    
-    for i := 0 to High(Files) do
+    // 安全检查：确保目录存在
+    if not DirectoryExists(FolderPath) then
     begin
-      Ext := ExtractFileExt(Files[i]);
-      if Ext <> '' then
-        Extensions.Add(Ext);
+      if Assigned(FLogCallback) then
+        FLogCallback('目录不存在: ' + FolderPath);
+      SetLength(Result, 0);
+      Exit;
     end;
     
-    SetLength(Result, Extensions.Count);
-    for i := 0 to Extensions.Count - 1 do
-      Result[i] := Extensions[i];
+    try
+      // 仅搜索当前目录，不再使用soAllDirectories
+      Files := TDirectory.GetFiles(FolderPath, '*.*', TSearchOption.soTopDirectoryOnly);
       
+      if Assigned(FLogCallback) then
+        FLogCallback('找到 ' + IntToStr(Length(Files)) + ' 个文件，正在提取扩展名');
+      
+      for i := 0 to High(Files) do
+      begin
+        Ext := ExtractFileExt(Files[i]);
+        if Ext <> '' then
+          Extensions.Add(Ext);
+      end;
+      
+      SetLength(Result, Extensions.Count);
+      for i := 0 to Extensions.Count - 1 do
+        Result[i] := Extensions[i];
+        
+      if Assigned(FLogCallback) then
+        FLogCallback('成功获取 ' + IntToStr(Extensions.Count) + ' 个不同的文件扩展名');
+    except
+      on E: Exception do
+      begin
+        if Assigned(FLogCallback) then
+          FLogCallback('获取文件扩展名出错: ' + E.Message);
+        SetLength(Result, 0);
+      end;
+    end;
   finally
     Extensions.Free;
   end;
 end;
 
-function TFileHelper.GetFilesInFolder(const FolderPath: string; const Extensions: TArray<string>): TArray<string>;
+function TFileHelper.GetFilesInFolder(const FolderPath: string; 
+  const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False): TArray<string>;
 var
-  AllFiles: TArray<string>;
-  FilteredFiles: TStringList;
+  Files: TArray<string>;
+  FilteredFiles: TList<string>;
   i, j: Integer;
   Ext: string;
-  MatchFound: Boolean;
+  IsMatch: Boolean;
+  SearchOption: TSearchOption;
 begin
-  SetLength(Result, 0);
-  
   if not DirectoryExists(FolderPath) then
-    Exit;
-    
-  AllFiles := TDirectory.GetFiles(FolderPath, '*.*', TSearchOption.soTopDirectoryOnly);
-  
-  // 如果没有指定扩展名过滤器，返回所有文件
-  if (Length(Extensions) = 0) or (Extensions = nil) then
   begin
-    Result := AllFiles;
+    SetLength(Result, 0);
     Exit;
   end;
   
-  // 根据扩展名过滤
-  FilteredFiles := TStringList.Create;
+  // 根据参数决定是否搜索子目录
+  if IncludeSubdirs then
+    SearchOption := TSearchOption.soAllDirectories
+  else
+    SearchOption := TSearchOption.soTopDirectoryOnly;
+    
+  if Assigned(FLogCallback) then
+    FLogCallback('开始搜索文件: ' + FolderPath + 
+                 ', 包含子目录: ' + BoolToStr(IncludeSubdirs, True) + 
+                 ', 扩展名: ' + Integer(Length(Extensions)).ToString + '个');
+  
+  FilteredFiles := TList<string>.Create;
   try
-    for i := 0 to High(AllFiles) do
+    // 使用SearchOption参数来控制是否搜索子目录
+    Files := TDirectory.GetFiles(FolderPath, '*.*', SearchOption);
+    
+    if Assigned(FLogCallback) then
+      FLogCallback('找到' + Integer(Length(Files)).ToString + '个文件');
+    
+    for i := 0 to High(Files) do
     begin
-      Ext := ExtractFileExt(AllFiles[i]);
-      MatchFound := False;
-      
-      for j := 0 to High(Extensions) do
+      if Length(Extensions) = 0 then
       begin
-        if SameText(Ext, Extensions[j]) then
+        FilteredFiles.Add(Files[i]);
+      end
+      else
+      begin
+        Ext := ExtractFileExt(Files[i]);
+        IsMatch := False;
+        
+        for j := 0 to High(Extensions) do
         begin
-          MatchFound := True;
-          Break;
+          if SameText(Ext, Extensions[j]) then
+          begin
+            IsMatch := True;
+            Break;
+          end;
         end;
+        
+        if IsMatch then
+          FilteredFiles.Add(Files[i]);
       end;
-      
-      if MatchFound then
-        FilteredFiles.Add(AllFiles[i]);
     end;
     
     SetLength(Result, FilteredFiles.Count);
     for i := 0 to FilteredFiles.Count - 1 do
       Result[i] := FilteredFiles[i];
+    
+    if Assigned(FLogCallback) then
+      FLogCallback('筛选后有' + Integer(Length(Result)).ToString + '个符合条件的文件');
       
   finally
     FilteredFiles.Free;
@@ -413,12 +349,103 @@ end;
 
 function TFileHelper.GetMyDocumentsPath: string;
 var
-  Path: array[0..MAX_PATH] of Char;
+  SpecialPath: array[0..MAX_PATH] of Char;
 begin
-  if SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, Path) = S_OK then
-    Result := Path
+  if SHGetFolderPath(0, CSIDL_PERSONAL, 0, 0, SpecialPath) = S_OK then
+    Result := StrPas(SpecialPath)
   else
     Result := '';
+end;
+
+function TFileHelper.IsNormalTextFile(const FileName: string): Boolean;
+var
+  FileStream: TFileStream;
+  Buffer: array of Byte;
+  BytesRead, i, TotalBytes, BinaryCount: Integer;
+  FileSize: Int64;
+  BinaryRatio: Double;
+  Ext: string;
+begin
+  Result := False;
+  
+  // 检查文件是否存在
+  if not FileExists(FileName) then
+    Exit;
+    
+  // 获取文件扩展名
+  Ext := LowerCase(ExtractFileExt(FileName));
+  
+  // 跳过已知的二进制文件类型
+  if (Ext = '.exe') or (Ext = '.dll') or (Ext = '.obj') or
+     (Ext = '.bin') or (Ext = '.o') or (Ext = '.a') or 
+     (Ext = '.so') or (Ext = '.lib') or (Ext = '.pdb') or
+     (Ext = '.com') or (Ext = '.sys') or (Ext = '.ocx') or
+     (Ext = '.ico') or (Ext = '.bmp') or (Ext = '.jpg') or
+     (Ext = '.jpeg') or (Ext = '.png') or (Ext = '.gif') or
+     (Ext = '.tif') or (Ext = '.tiff') or (Ext = '.zip') or
+     (Ext = '.rar') or (Ext = '.7z') or (Ext = '.tar') or
+     (Ext = '.gz') or (Ext = '.pdf') or (Ext = '.doc') or
+     (Ext = '.docx') or (Ext = '.xls') or (Ext = '.xlsx') or
+     (Ext = '.ppt') or (Ext = '.pptx') or (Ext = '.db') or
+     (Ext = '.sqlite') or (Ext = '.mdb') or (Ext = '.accdb') then
+    Exit;
+    
+  try
+    // 打开文件
+    FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+    try
+      // 获取文件大小
+      FileSize := FileStream.Size;
+      
+      // 文件太大或太小，不是正常文本文件
+      if (FileSize > MAX_TEXT_FILE_SIZE) or (FileSize < MIN_TEXT_FILE_SIZE) then
+        Exit;
+        
+      // 分配缓冲区
+      SetLength(Buffer, BUFFER_SIZE);
+      
+      // 初始化计数器
+      TotalBytes := 0;
+      BinaryCount := 0;
+      
+      // 检查前4KB数据
+      BytesRead := FileStream.Read(Buffer[0], BUFFER_SIZE);
+      TotalBytes := BytesRead;
+      
+      // 检查每个字节是否为二进制数据
+      for i := 0 to BytesRead - 1 do
+      begin
+        // ASCII控制字符(除了制表符、换行和回车)通常不会出现在文本文件中
+        if (Buffer[i] < 9) or ((Buffer[i] > 13) and (Buffer[i] < 32)) then
+          Inc(BinaryCount);
+      end;
+      
+      // 计算二进制字节占比
+      if TotalBytes > 0 then
+        BinaryRatio := BinaryCount / TotalBytes
+      else
+        BinaryRatio := 0;
+        
+      // 如果二进制字节比例高于阈值，认为是二进制文件
+      Result := BinaryRatio <= BINARY_THRESHOLD;
+      
+      // 记录分析结果
+      if Assigned(FLogCallback) and not Result then
+        FLogCallback('跳过非文本文件: ' + FileName + ' (二进制比例: ' + 
+                     FormatFloat('0.00%', BinaryRatio * 100) + ')');
+                     
+    finally
+      FileStream.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      // 如果无法读取文件，认为它不是正常文本文件
+      if Assigned(FLogCallback) then
+        FLogCallback('无法分析文件: ' + FileName + ' - ' + E.Message);
+      Result := False;
+    end;
+  end;
 end;
 
 function TFileHelper.PathWithSeparator(const Path: string): string;

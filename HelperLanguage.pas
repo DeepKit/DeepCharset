@@ -121,35 +121,49 @@ begin
 end;
 
 procedure TLanguageManager.Initialize;
-var
-  ConfigPath: string;
-  IniFile: TMemIniFile;
-  LoadedLang: string;
 begin
-  // 确保语言目录存在
-  if not DirectoryExists(FLanguagePath) then
-    ForceDirectories(FLanguagePath);
-    
-  // 加载可用语言
-  LoadAvailableLanguages;
+  // 完全简化初始化流程，直接使用内置语言
+  FLanguageInfoList.Clear;
+  FLanguages.Clear;
   
-  // 尝试从配置文件加载上次使用的语言
-  ConfigPath := ChangeFileExt(Application.ExeName, '.ini');
-  if FileExists(ConfigPath) then
-  begin
-    IniFile := TMemIniFile.Create(ConfigPath, TEncoding.UTF8);
-    try
-      LoadedLang := IniFile.ReadString('Settings', 'Language', '');
-      if (LoadedLang <> '') and FLanguages.ContainsKey(LoadedLang) then
-        FCurrentLanguage := LoadedLang
-      else
-        FCurrentLanguage := GetDefaultLanguage;
-    finally
-      IniFile.Free;
-    end;
-  end
-  else
-    FCurrentLanguage := GetDefaultLanguage;
+  // 只添加简体中文语言
+  var LangInfo: TLanguageInfo;
+  LangInfo.Code := 'zh-CN';
+  LangInfo.Name := '简体中文';
+  LangInfo.NativeName := '简体中文';
+  LangInfo.FileName := '';
+  
+  // 添加到语言信息列表
+  FLanguageInfoList.Add(LangInfo);
+  
+  // 创建默认语言字符串
+  var DefaultStrings := CreateDefaultLanguageStrings;
+  
+  // 中文界面字符串
+  DefaultStrings.WindowTitle := 'UTF-8 BOM 编码转换工具';
+  DefaultStrings.BtnConvert := '批量转换';
+  DefaultStrings.BtnSingleFile := '单个文件';
+  DefaultStrings.BtnRefresh := '刷新';
+  DefaultStrings.BtnClose := '关闭';
+  DefaultStrings.BtnToggleSelect := '全选/取消全选';
+  DefaultStrings.LanguageGroupCaption := '语言';
+  DefaultStrings.DirectoryListBoxLabel := '目录';
+  DefaultStrings.FileListLabel := '文件列表';
+  DefaultStrings.CurrentEncodingLabel := '当前编码';
+  DefaultStrings.FileSelectColumn := '选择';
+  DefaultStrings.FileNameColumn := '文件名';
+  DefaultStrings.EncodingColumn := '当前编码';
+  DefaultStrings.PopupMenuConvert := '转换选中文件';
+  DefaultStrings.PopupMenuToggleSelect := '全选/取消全选';
+  DefaultStrings.NoFilesText := '(无文件)';
+  DefaultStrings.ReadErrorText := '(读取错误)';
+  DefaultStrings.LogSelectedDirectory := '选择的目录: ';
+  
+  // 添加到语言字典
+  FLanguages.Add(LangInfo.Code, DefaultStrings);
+  
+  // 设置当前语言为简体中文
+  FCurrentLanguage := 'zh-CN';
 end;
 
 function TLanguageManager.GetDefaultLanguage: string;
@@ -174,103 +188,8 @@ begin
 end;
 
 procedure TLanguageManager.LoadAvailableLanguages;
-var
-  LangFiles: TArray<string>;
-  LangInfo: TLanguageInfo;
-  IniFile: TMemIniFile;
-  i: Integer;
-  BuiltInStrings: TLanguageStrings;
-  LanguageEnum: TAppLanguage;
 begin
-  // 清空现有语言列表
-  FLanguageInfoList.Clear;
-  FLanguages.Clear;
-  
-  // 添加内置语言
-  for i := 0 to High(BUILTIN_LANGUAGES) do
-  begin
-    LangInfo.Code := BUILTIN_LANGUAGES[i, 0];
-    LangInfo.Name := BUILTIN_LANGUAGES[i, 1];
-    LangInfo.NativeName := BUILTIN_LANGUAGES[i, 1];
-    LangInfo.FileName := '';
-    
-    // 添加到语言信息列表
-    FLanguageInfoList.Add(LangInfo);
-    
-    // 使用默认语言字符串
-    BuiltInStrings := CreateDefaultLanguageStrings;
-    
-    // 如果回调函数存在且是内置的语言，尝试获取硬编码的语言字符串
-    if Assigned(FGetLanguageStringsCallback) and (i < 16) then
-    begin
-      try
-        // 直接使用索引值对应的枚举
-        if i < Ord(High(TAppLanguage)) then
-        begin
-          LanguageEnum := TAppLanguage(i);
-          BuiltInStrings := FGetLanguageStringsCallback(LanguageEnum);
-        end;
-      except
-        // 忽略错误，使用默认字符串
-      end;
-    end;
-    
-    // 添加到语言字典
-    if not FLanguages.ContainsKey(LangInfo.Code) then
-      FLanguages.Add(LangInfo.Code, BuiltInStrings);
-    
-    // 导出内置语言到INI文件（如果文件不存在且路径已初始化）
-    if DirectoryExists(FLanguagePath) and 
-       not FileExists(FLanguagePath + PathDelim + LangInfo.Code + '.ini') then
-      ExportLanguageToFile(LangInfo.Code, BuiltInStrings, '');
-  end;
-  
-  // 加载外部语言文件
-  if DirectoryExists(FLanguagePath) then
-  begin
-    LangFiles := TDirectory.GetFiles(FLanguagePath, '*.ini');
-    for var FileName in LangFiles do
-    begin
-      IniFile := TMemIniFile.Create(FileName, TEncoding.UTF8);
-      try
-        LangInfo.Code := IniFile.ReadString('Meta', 'LanguageCode', '');
-        LangInfo.Name := IniFile.ReadString('Meta', 'LanguageName', '');
-        LangInfo.NativeName := IniFile.ReadString('Meta', 'NativeName', LangInfo.Name);
-        LangInfo.FileName := FileName;
-        
-        // 如果是有效的语言文件
-        if (LangInfo.Code <> '') and (LangInfo.Name <> '') then
-        begin
-          // 加载语言字符串
-          var LangStrings := LoadFromFile(FileName);
-          
-          // 更新语言字典
-          if FLanguages.ContainsKey(LangInfo.Code) then
-            FLanguages[LangInfo.Code] := LangStrings
-          else
-            FLanguages.Add(LangInfo.Code, LangStrings);
-            
-          // 更新或添加语言信息
-          var ExistingIndex := -1;
-          for var j := 0 to FLanguageInfoList.Count - 1 do
-          begin
-            if FLanguageInfoList[j].Code = LangInfo.Code then
-            begin
-              ExistingIndex := j;
-              Break;
-            end;
-          end;
-          
-          if ExistingIndex >= 0 then
-            FLanguageInfoList[ExistingIndex] := LangInfo
-          else
-            FLanguageInfoList.Add(LangInfo);
-        end;
-      finally
-        IniFile.Free;
-      end;
-    end;
-  end;
+  // 这个方法不再需要，由Initialize直接处理
 end;
 
 function TLanguageManager.LoadFromFile(const FileName: string): TLanguageStrings;
@@ -308,125 +227,19 @@ end;
 
 procedure TLanguageManager.ExportCurrentLanguage(const FilePath: string);
 begin
-  if FCurrentLanguage <> '' then
-    ExportLanguageToFile(FCurrentLanguage, FLanguages[FCurrentLanguage], FilePath);
+  // 不再执行任何文件操作
 end;
 
 procedure TLanguageManager.ExportLanguageToFile(const LangCode: string; 
   const LangStrings: TLanguageStrings; const CustomPath: string);
-var
-  IniFile: TMemIniFile;
-  FilePath: string;
-  LangInfo: TLanguageInfo;
 begin
-  // 确定文件路径
-  if CustomPath <> '' then
-    FilePath := CustomPath
-  else
-    FilePath := FLanguagePath + PathDelim + LangCode + '.ini';
-    
-  // 确保目录存在
-  ForceDirectories(ExtractFilePath(FilePath));
-  
-  // 获取语言信息
-  LangInfo := GetLanguageInfo(LangCode);
-    
-  IniFile := TMemIniFile.Create(FilePath, TEncoding.UTF8);
-  try
-    // 写入元数据
-    IniFile.WriteString('Meta', 'LanguageCode', LangCode);
-    IniFile.WriteString('Meta', 'LanguageName', LangInfo.Name);
-    IniFile.WriteString('Meta', 'NativeName', LangInfo.NativeName);
-    IniFile.WriteString('Meta', 'Version', '1.0');
-    IniFile.WriteString('Meta', 'ExportDate', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
-    
-    // 写入所有界面字符串
-    IniFile.WriteString('Strings', 'WindowTitle', LangStrings.WindowTitle);
-    IniFile.WriteString('Strings', 'BtnConvert', LangStrings.BtnConvert);
-    IniFile.WriteString('Strings', 'BtnSingleFile', LangStrings.BtnSingleFile);
-    IniFile.WriteString('Strings', 'BtnRefresh', LangStrings.BtnRefresh);
-    IniFile.WriteString('Strings', 'BtnClose', LangStrings.BtnClose);
-    IniFile.WriteString('Strings', 'BtnToggleSelect', LangStrings.BtnToggleSelect);
-    IniFile.WriteString('Strings', 'LanguageGroupCaption', LangStrings.LanguageGroupCaption);
-    IniFile.WriteString('Strings', 'DirectoryListBoxLabel', LangStrings.DirectoryListBoxLabel);
-    IniFile.WriteString('Strings', 'FileListLabel', LangStrings.FileListLabel);
-    IniFile.WriteString('Strings', 'CurrentEncodingLabel', LangStrings.CurrentEncodingLabel);
-    IniFile.WriteString('Strings', 'FileSelectColumn', LangStrings.FileSelectColumn);
-    IniFile.WriteString('Strings', 'FileNameColumn', LangStrings.FileNameColumn);
-    IniFile.WriteString('Strings', 'EncodingColumn', LangStrings.EncodingColumn);
-    IniFile.WriteString('Strings', 'PopupMenuConvert', LangStrings.PopupMenuConvert);
-    IniFile.WriteString('Strings', 'PopupMenuToggleSelect', LangStrings.PopupMenuToggleSelect);
-    IniFile.WriteString('Strings', 'NoFilesText', LangStrings.NoFilesText);
-    IniFile.WriteString('Strings', 'ReadErrorText', LangStrings.ReadErrorText);
-    IniFile.WriteString('Strings', 'LogSelectedDirectory', LangStrings.LogSelectedDirectory);
-    
-    // 更新到文件
-    IniFile.UpdateFile;
-  finally
-    IniFile.Free;
-  end;
+  // 不再执行任何文件操作
 end;
 
 function TLanguageManager.ImportLanguage(const FilePath: string): Boolean;
-var
-  IniFile: TMemIniFile;
-  LangInfo: TLanguageInfo;
-  LangStrings: TLanguageStrings;
 begin
+  // 不再执行任何文件操作，直接返回false
   Result := False;
-  
-  if not FileExists(FilePath) then
-    Exit;
-    
-  IniFile := TMemIniFile.Create(FilePath, TEncoding.UTF8);
-  try
-    // 读取语言代码和名称
-    LangInfo.Code := IniFile.ReadString('Meta', 'LanguageCode', '');
-    LangInfo.Name := IniFile.ReadString('Meta', 'LanguageName', '');
-    LangInfo.NativeName := IniFile.ReadString('Meta', 'NativeName', LangInfo.Name);
-    
-    // 检查语言代码和名称是否有效
-    if (LangInfo.Code = '') or (LangInfo.Name = '') then
-      Exit;
-      
-    // 加载语言字符串
-    LangStrings := LoadFromFile(FilePath);
-    
-    // 目标文件路径
-    LangInfo.FileName := FLanguagePath + PathDelim + LangInfo.Code + '.ini';
-    
-    // 复制到语言目录
-    if not DirectoryExists(FLanguagePath) then
-      ForceDirectories(FLanguagePath);
-      
-    TFile.Copy(FilePath, LangInfo.FileName, True);
-    
-    // 添加或更新语言信息
-    var ExistingIndex := -1;
-    for var i := 0 to FLanguageInfoList.Count - 1 do
-    begin
-      if FLanguageInfoList[i].Code = LangInfo.Code then
-      begin
-        ExistingIndex := i;
-        Break;
-      end;
-    end;
-    
-    if ExistingIndex >= 0 then
-      FLanguageInfoList[ExistingIndex] := LangInfo
-    else
-      FLanguageInfoList.Add(LangInfo);
-      
-    // 更新语言字典
-    if FLanguages.ContainsKey(LangInfo.Code) then
-      FLanguages[LangInfo.Code] := LangStrings
-    else
-      FLanguages.Add(LangInfo.Code, LangStrings);
-      
-    Result := True;
-  finally
-    IniFile.Free;
-  end;
 end;
 
 function TLanguageManager.GetLanguageList: TArray<TLanguageInfo>;
@@ -551,19 +364,8 @@ begin
 end;
 
 procedure TLanguageManager.SaveUserPreference(const LangCode: string);
-var
-  ConfigPath: string;
-  IniFile: TMemIniFile;
 begin
-  ConfigPath := ChangeFileExt(Application.ExeName, '.ini');
-  
-  IniFile := TMemIniFile.Create(ConfigPath, TEncoding.UTF8);
-  try
-    IniFile.WriteString('Settings', 'Language', LangCode);
-    IniFile.UpdateFile;
-  finally
-    IniFile.Free;
-  end;
+  // 不再保存到ini文件，此方法保留但不执行任何操作
 end;
 
 function TLanguageManager.GetSystemLanguage: string;

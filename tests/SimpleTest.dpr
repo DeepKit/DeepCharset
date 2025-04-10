@@ -1,1 +1,0 @@
-program SimpleTest; { CONSOLE} uses System.SysUtils, System.Classes, System.IOUtils; begin try WriteLn('???????...'); if not DirectoryExists('from') then CreateDir('from'); if not DirectoryExists('to') then CreateDir('to'); if not DirectoryExists('back') then CreateDir('back'); WriteLn('????'); ReadLn; except on E:Exception do begin WriteLn(E.Message); ReadLn; end; end; end.

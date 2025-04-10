@@ -9,13 +9,9 @@ type
   // 应用程序配置模型
   TAppConfig = class
   private
-    FConfigPath: string;
     FLastDirectory: string;
     FDefaultEncoding: Integer;
     FAddBOM: Boolean;
-    
-    procedure LoadConfig;
-    procedure SaveConfig;
   public
     constructor Create;
     destructor Destroy; override;
@@ -36,59 +32,22 @@ implementation
 constructor TAppConfig.Create;
 begin
   inherited Create;
-  FConfigPath := ChangeFileExt(ParamStr(0), '.ini');
+  // 设置默认值，不再读取ini文件
   FLastDirectory := '';
   FDefaultEncoding := 65001; // UTF-8
-  FAddBOM := True;
-  
-  LoadConfig;
+  FAddBOM := True; // 总是添加BOM
 end;
 
 destructor TAppConfig.Destroy;
 begin
-  SaveConfig;
+  // 不再保存配置到ini文件
   inherited;
-end;
-
-procedure TAppConfig.LoadConfig;
-var
-  IniFile: TMemIniFile;
-begin
-  if FileExists(FConfigPath) then
-  begin
-    IniFile := TMemIniFile.Create(FConfigPath, TEncoding.UTF8);
-    try
-      FLastDirectory := IniFile.ReadString('Settings', 'LastDirectory', '');
-      FDefaultEncoding := IniFile.ReadInteger('Settings', 'DefaultEncoding', 65001);
-      FAddBOM := IniFile.ReadBool('Settings', 'AddBOM', True);
-    finally
-      IniFile.Free;
-    end;
-  end;
-end;
-
-procedure TAppConfig.SaveConfig;
-var
-  IniFile: TMemIniFile;
-begin
-  IniFile := TMemIniFile.Create(FConfigPath, TEncoding.UTF8);
-  try
-    IniFile.WriteString('Settings', 'LastDirectory', FLastDirectory);
-    IniFile.WriteInteger('Settings', 'DefaultEncoding', FDefaultEncoding);
-    IniFile.WriteBool('Settings', 'AddBOM', FAddBOM);
-    IniFile.UpdateFile;
-  finally
-    IniFile.Free;
-  end;
 end;
 
 procedure TAppConfig.SetLastDirectory(const Directory: string);
 begin
-  if Directory <> FLastDirectory then
-  begin
-    FLastDirectory := Directory;
-    SaveConfig;
-  end;
+  // 简单赋值，不再保存到ini文件
+  FLastDirectory := Directory;
 end;
 
 end. 

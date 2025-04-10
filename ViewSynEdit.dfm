@@ -1,9 +1,9 @@
-object Form2: TForm2
+object SynEditForm: TSynEditForm
   Left = 0
   Top = 0
-  Caption = #25991#20214#20869#23481#26597#30475#22120
-  ClientHeight = 844
-  ClientWidth = 690
+  Caption = '#25991#20214#20869#23481'
+  ClientHeight = 561
+  ClientWidth = 884
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,35 +11,165 @@ object Form2: TForm2
   Font.Name = 'Segoe UI'
   Font.Style = []
   Position = poScreenCenter
+  OnClose = FormClose
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
   TextHeight = 15
+  object SynEdit: TSynEdit
+    Left = 0
+    Top = 0
+    Width = 884
+    Height = 521
+    Align = alClient
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Consolas'
+    Font.Style = []
+    Font.Quality = fqClearTypeNatural
+    TabOrder = 0
+    UseCodeFolding = False
+    Gutter.Font.Charset = DEFAULT_CHARSET
+    Gutter.Font.Color = clWindowText
+    Gutter.Font.Height = -11
+    Gutter.Font.Name = 'Consolas'
+    Gutter.Font.Style = []
+    Gutter.Font.Quality = fqClearTypeNatural
+    Gutter.ShowLineNumbers = True
+    Gutter.Bands = <
+      item
+        Kind = gbkMarks
+        Width = 13
+      end
+      item
+        Kind = gbkLineNumbers
+      end
+      item
+        Kind = gbkFold
+      end
+      item
+        Kind = gbkTrackChanges
+      end
+      item
+        Kind = gbkMargin
+        Width = 3
+      end>
+    ReadOnly = True
+    SelectedColor.Alpha = 0.400000005960464500
+    WantTabs = True
+  end
   object Panel1: TPanel
     Left = 0
-    Top = 803
-    Width = 690
-    Height = 41
+    Top = 521
+    Width = 884
+    Height = 40
     Align = alBottom
-    TabOrder = 0
-    DesignSize = (
-      690
-      41)
-    object lblFileInfo: TLabel
-      Left = 16
-      Top = 14
-      Width = 465
+    BevelOuter = bvNone
+    TabOrder = 1
+    object lblFileName: TLabel
+      Left = 8
+      Top = 12
+      Width = 257
       Height = 15
       AutoSize = False
-      Caption = #25991#20214#20449#24687
+      Caption = '#25991#20214:'
     end
-    object btnClose: TButton
-      Left = 579
-      Top = 10
-      Width = 89
-      Height = 25
-      Anchors = [akTop, akRight]
-      Caption = #20851#38381
-      TabOrder = 0
-      OnClick = btnCloseClick
+    object lblEncoding: TLabel
+      Left = 264
+      Top = 12
+      Width = 257
+      Height = 15
+      AutoSize = False
+      Caption = '#32534#30721:'
     end
+    object lblBOM: TLabel
+      Left = 520
+      Top = 12
+      Width = 357
+      Height = 15
+      AutoSize = False
+      Caption = 'BOM:'
+    end
+  end
+  object SynPasSyn1: TSynPasSyn
+    CommentAttri.Background = clWhite
+    CommentAttri.Foreground = clCadetblue
+    KeyAttri.Foreground = clBrown
+    NumberAttri.Foreground = clBlanchedalmond
+    StringAttri.Foreground = clDarkblue
+    CharAttri.Background = clWhite
+    SymbolAttri.Foreground = clBlueviolet
+    TypeAttri.Foreground = clOrange
+    TypeAttri.Style = [fsBold]
+    DelphiVersion = dvDelphi8
+    Left = 16
+    Top = 48
+  end
+  object SynCppSyn1: TSynCppSyn
+    Left = 8
+    Top = 112
+  end
+  object SynCSSyn1: TSynCssSyn
+    Left = 16
+    Top = 176
+  end
+  object SynJavaSyn1: TSynJavaSyn
+    Left = 16
+    Top = 264
+  end
+  object SynJScriptSyn1: TSynJScriptSyn
+    Left = 144
+    Top = 48
+  end
+  object SynHTMLSyn1: TSynHTMLSyn
+    Left = 176
+    Top = 48
+  end
+  object SynXMLSyn1: TSynXMLSyn
+    WantBracesParsed = False
+    Left = 208
+    Top = 48
+  end
+  object SynSQLSyn1: TSynSQLSyn
+    Left = 240
+    Top = 48
+  end
+  object SynPythonSyn1: TSynPythonSyn
+    KeyAttri.Foreground = clBrown
+    Left = 272
+    Top = 48
+  end
+  object SynPHPSyn1: TSynPHPSyn
+    Left = 304
+    Top = 48
+  end
+  object SynIniSyn1: TSynIniSyn
+    Left = 336
+    Top = 48
+  end
+  object SynPerlSyn1: TSynPerlSyn
+    Left = 368
+    Top = 48
+  end
+  object SynVBSyn1: TSynVBSyn
+    Left = 400
+    Top = 48
+  end
+  object SynAsmSyn1: TSynAsmSyn
+    Left = 432
+    Top = 48
+  end
+  object SynRubySyn1: TSynRubySyn
+    Left = 496
+    Top = 48
+  end
+  object SynJSONSyn1: TSynJSONSyn
+    Left = 560
+    Top = 48
+  end
+  object SynBatSyn1: TSynBatSyn
+    Left = 592
+    Top = 48
   end
 end

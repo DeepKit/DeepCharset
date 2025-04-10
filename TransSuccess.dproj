@@ -109,7 +109,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
-        <DCC_UnitSearchPath>D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\Highlighters;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\Highlighters;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\common;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\include;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\vcl;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\windows;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
@@ -134,19 +134,16 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="ModelEncoding.pas"/>
-        <DCCReference Include="ModelConfig.pas"/>
-        <DCCReference Include="ControllerEncoding.pas"/>
-        <DCCReference Include="HelperUI.pas"/>
-        <DCCReference Include="HelperFiles.pas"/>
         <DCCReference Include="UtilsTypes.pas"/>
+        <DCCReference Include="ControllerEncoding.pas"/>
+        <DCCReference Include="HelperFiles.pas"/>
+        <DCCReference Include="HelperUI.pas"/>
+        <DCCReference Include="ModelConfig.pas"/>
         <DCCReference Include="HelperLanguage.pas"/>
         <DCCReference Include="ViewSynEdit.pas">
-            <Form>Form2</Form>
+            <Form>SynEditForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="UtilsUTF8.pas"/>
-        <DCCReference Include="ModelLanguage.pas"/>
-        <DCCReference Include="UtilsIconv.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, ModelEncoding, UtilsUTF8, Winapi.Windows, UtilsIconv;
+  System.SysUtils, System.Classes, System.IOUtils, ModelEncoding, Winapi.Windows, JclEncodingUtils;
 
 type
   // 编码控制器类
@@ -12,9 +12,6 @@ type
     // 日志记录回调
     FLogCallback: TProc<string>;
     
-    // iconv库封装器
-    FIconvHelper: TIconvHelper;
-    
     // 内部编码转换辅助函数
     function CheckFileAccessibility(const FileName: string; var UseTemp: Boolean): Boolean;
     procedure CreateBackupFile(const SourceFile: string; var BackupFile: string);
@@ -22,14 +19,12 @@ type
     procedure LogConversionSuccess(const SourceFile: string);
     procedure RestoreFromBackup(const OriginalFile, BackupFile: string);
     
-    // 使用iconv进行编码转换
-    function ConvertWithIconv(const SourceFile, TargetFile: string;
+    // 使用JCL进行编码转换
+    function ConvertWithJCL(const SourceFile, TargetFile: string;
       const SourceEncoding, TargetEncoding: string; AddBOM: Boolean): Boolean;
     
     // NEW: Internal helper to perform single file conversion using names
-    function DoConvertSingleFileByName(const SourceFile: string;
-      const TargetEncodingName: string; AddBOM: Boolean;
-      UpdateCallback: TProc<string>): TConversionResult;
+    function DoConvertSingleFileByName(const SourceFile, TargetEncodingName: string; AddBOM: Boolean = False; const TargetFile: string = ''): TConversionResult;
 
   public
     constructor Create(ALogCallback: TProc<string>);
@@ -41,7 +36,7 @@ type
     // 检查文件是否有BOM标记
     function HasBOM(const FileName: string; Encoding: TEncoding = nil): Boolean;
     
-    // 检测文件编码 - 使用iconv
+    // 检测文件编码 - 使用JCL
     function DetectFileEncoding(const FileName: string; out EncodingName: string): Boolean;
     
     // 转换单个文件编码
@@ -66,7 +61,7 @@ type
     function ConvertSingleFileByName(const SourceFile: string; 
                                      const TargetEncodingName: string; 
                                      AddBOM: Boolean; 
-                                     UpdateCallback: TProc<string>): TConversionResult;
+                                     UpdateCallback: TProc<string>): Boolean;
     // --- End of NEW Public Methods ---
   end;
 
@@ -81,19 +76,13 @@ begin
   inherited Create;
   FLogCallback := ALogCallback;
   
-  // 创建iconv帮助器
-  FIconvHelper := TIconvHelper.Create;
-  
   // 记录日志
   if Assigned(FLogCallback) then
-    FLogCallback('iconv库已初始化');
+    FLogCallback('JCL编码处理功能已初始化');
 end;
 
 destructor TEncodingController.Destroy;
 begin
-  // 释放iconv帮助器
-  FIconvHelper.Free;
-  
   inherited;
 end;
 
@@ -162,185 +151,583 @@ begin
 end;
 
 function TEncodingController.DetectFileEncoding(const FileName: string; out EncodingName: string): Boolean;
+var
+  HasUTF8BOM: Boolean;
+  Stream: TFileStream;
+  BOMBytes: TBytes;
 begin
-  // 使用iconv库检测文件编码
+  // 首先检查是否有UTF-8 BOM
+  HasUTF8BOM := False;
+  
   try
-    if not FileExists(FileName) then
+    if FileExists(FileName) then
+    begin
+      Stream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+      try
+        if Stream.Size >= 3 then
+        begin
+          SetLength(BOMBytes, 3);
+          Stream.ReadBuffer(BOMBytes[0], 3);
+          
+          // UTF-8 BOM: EF BB BF
+          HasUTF8BOM := (BOMBytes[0] = $EF) and (BOMBytes[1] = $BB) and (BOMBytes[2] = $BF);
+        end;
+      finally
+        Stream.Free;
+      end;
+    end
+    else
     begin
       EncodingName := '';
       Result := False;
       Exit;
     end;
+  except
+    // 如果读取失败，假设没有BOM
+    HasUTF8BOM := False;
+  end;
+  
+  if HasUTF8BOM then
+  begin
+    EncodingName := 'UTF-8 with BOM';
+    Result := True;
     
-    // 调用iconv的编码检测方法
-    Result := FIconvHelper.DetectFileEncoding(FileName, EncodingName);
+    if Assigned(FLogCallback) then
+      FLogCallback('检测到UTF-8 BOM: ' + FileName);
+    Exit;
+  end;
+  
+  // 使用JCL库检测文件编码
+  try
+    // 调用JCL的编码检测方法
+    EncodingName := JclEncodingUtils.DetectFileEncoding(FileName);
+    Result := EncodingName <> 'Unknown';
     
-    if Result and Assigned(FLogCallback) then
-      FLogCallback('iconv检测到文件编码: ' + FileName + ' -> ' + EncodingName);
+    // 如果检测成功，但编码不明确或不是UTF-8，优先建议使用UTF-8+BOM
+    if Result then
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('JCL检测到文件编码: ' + FileName + ' -> ' + EncodingName);
+      
+      // 如果是UTF-8但没有BOM，标记为普通UTF-8
+      if SameText(EncodingName, 'UTF-8') and not HasUTF8BOM then
+        EncodingName := 'UTF-8';
+    end
+    else
+    begin
+      // 如果检测失败，默认假设为ANSI
+      EncodingName := 'ANSI';
+      Result := True;
+      
+      if Assigned(FLogCallback) then
+        FLogCallback('无法检测编码，默认使用ANSI: ' + FileName);
+    end;
   except
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
         FLogCallback('编码检测出错: ' + E.Message);
-      EncodingName := '';
-      Result := False;
+      
+      // 发生异常时，也默认使用ANSI
+      EncodingName := 'ANSI';
+      Result := True;
     end;
   end;
 end;
 
-function TEncodingController.ConvertWithIconv(const SourceFile, TargetFile: string;
+function TEncodingController.ConvertWithJCL(const SourceFile, TargetFile: string;
   const SourceEncoding, TargetEncoding: string; AddBOM: Boolean): Boolean;
 var
-  SourceContent, TargetContent: TBytes;
-  BOM: TBytes;
-  BOMStream: TFileStream;
+  SysErrorCode: Cardinal;
+  ActualTargetEncoding: string;
 begin
   Result := False;
   
   try
     if not FileExists(SourceFile) then
-      Exit;
-      
-    // 读取源文件内容
-    SourceContent := TFile.ReadAllBytes(SourceFile);
-    
-    // 使用iconv进行编码转换
-    if FIconvHelper.ConvertEncoding(SourceContent, SourceEncoding, TargetEncoding, TargetContent) then
     begin
-      // 写入目标文件，考虑BOM
-      if AddBOM then
+      if Assigned(FLogCallback) then
+        FLogCallback('文件不存在: ' + SourceFile);
+      Exit;
+    end;
+    
+    // 检查文件是否可访问
+    try
+      var TestStream := TFileStream.Create(SourceFile, fmOpenRead or fmShareDenyNone);
+      try
+        // 只测试是否可以读取，不做实际操作
+      finally
+        TestStream.Free;
+      end;
+    except
+      on E: Exception do
       begin
-        if TargetEncoding = 'UTF-8' then
-          BOM := TEncoding.UTF8.GetPreamble
-        else if (TargetEncoding = 'UTF-16LE') or (TargetEncoding = 'UTF-16') then
-          BOM := TEncoding.Unicode.GetPreamble
-        else if TargetEncoding = 'UTF-16BE' then
-          BOM := TEncoding.BigEndianUnicode.GetPreamble
-        else
-          SetLength(BOM, 0);
-          
-        if Length(BOM) > 0 then
-        begin
-          // 先创建文件并写入BOM
-          BOMStream := TFileStream.Create(TargetFile, fmCreate);
-          try
-            BOMStream.WriteBuffer(BOM[0], Length(BOM));
-            BOMStream.WriteBuffer(TargetContent[0], Length(TargetContent));
-          finally
-            BOMStream.Free;
-          end;
-        end else
-          TFile.WriteAllBytes(TargetFile, TargetContent);
-      end else
-        TFile.WriteAllBytes(TargetFile, TargetContent);
+        if Assigned(FLogCallback) then
+          FLogCallback('文件访问错误: ' + E.Message);
+        Exit;
+      end;
+    end;
+    
+    // 特殊处理UTF-8 BOM的情况
+    ActualTargetEncoding := TargetEncoding;
+    if (SameText(TargetEncoding, 'UTF-8 BOM') or SameText(TargetEncoding, 'UTF-8-BOM') or 
+       SameText(TargetEncoding, 'UTF8-BOM')) then
+    begin
+      ActualTargetEncoding := 'UTF-8';
+      AddBOM := True;
+      
+      if Assigned(FLogCallback) then
+        FLogCallback('注意: 目标编码"' + TargetEncoding + '"已规范化为"UTF-8"并设置AddBOM=True');
+    end;
+    
+    if Assigned(FLogCallback) then
+      FLogCallback(Format('开始转换: %s -> %s, 从 [%s] 到 [%s], BOM: %s', 
+                          [SourceFile, TargetFile, SourceEncoding, ActualTargetEncoding, 
+                           BoolToStr(AddBOM, True)]));
+    
+    // 使用JclEncodingUtils的ConvertFileByName函数
+    try
+      Result := JclEncodingUtils.ConvertFileByName(SourceFile, TargetFile, 
+                                               SourceEncoding, ActualTargetEncoding, AddBOM);
+    except
+      on E: EFOpenError do
+      begin
+        SysErrorCode := GetLastError;
+        if Assigned(FLogCallback) then
+          FLogCallback(Format('文件打开错误 (代码: %d): %s', [SysErrorCode, E.Message]));
+        Result := False;
+        Exit;
+      end;
+      on E: EFCreateError do
+      begin
+        SysErrorCode := GetLastError;
+        if Assigned(FLogCallback) then
+          FLogCallback(Format('文件创建错误 (代码: %d): %s', [SysErrorCode, E.Message]));
+        Result := False;
+        Exit;
+      end;
+      on E: EWriteError do
+      begin
+        SysErrorCode := GetLastError;
+        if Assigned(FLogCallback) then
+          FLogCallback(Format('文件写入错误 (代码: %d): %s', [SysErrorCode, E.Message]));
+        Result := False;
+        Exit;
+      end;
+      on E: Exception do
+        raise; // 重新抛出其他异常
+    end;
+    
+    if Result then
+    begin
+      if Assigned(FLogCallback) then
+      begin
+        FLogCallback(Format('JCL转换调用完成: %s (源编码: %s, 目标编码: %s, AddBOM: %s)', 
+                           [TargetFile, SourceEncoding, ActualTargetEncoding, BoolToStr(AddBOM, True)]));
         
-      Result := True;
+        // 验证转换结果
+        var ResultEncodingName: string;
+        if DetectFileEncoding(TargetFile, ResultEncodingName) then
+        begin
+          FLogCallback(Format('转换后的文件编码: %s -> %s', [TargetFile, ResultEncodingName]));
+          
+          // 特殊情况: 如果目标应为UTF-8 BOM但检测为其他编码，尝试手动添加BOM
+          if AddBOM and SameText(ActualTargetEncoding, 'UTF-8') and 
+             not SameText(ResultEncodingName, 'UTF-8 with BOM') then
+          begin
+            FLogCallback('检测到目标应为UTF-8 BOM但未成功添加BOM，尝试手动修复...');
+            var TempFile := TargetFile + '.fix';
+            
+            try
+              // 读取原文件内容
+              var Content := TFile.ReadAllBytes(TargetFile);
+              var BOMBytes := TBytes.Create($EF, $BB, $BF); // UTF-8 BOM
+              
+              // 检查是否已有BOM
+              var HasBOMAlready := (Length(Content) >= 3) and 
+                                   (Content[0] = $EF) and (Content[1] = $BB) and (Content[2] = $BF);
+              
+              if not HasBOMAlready then
+              begin
+                // 合并BOM和内容
+                var FinalContent: TBytes;
+                SetLength(FinalContent, Length(BOMBytes) + Length(Content));
+                if Length(BOMBytes) > 0 then
+                  Move(BOMBytes[0], FinalContent[0], Length(BOMBytes));
+                if Length(Content) > 0 then
+                  Move(Content[0], FinalContent[Length(BOMBytes)], Length(Content));
+                
+                // 写入修复后的文件
+                TFile.WriteAllBytes(TempFile, FinalContent);
+                
+                // 替换原文件
+                if FileExists(TempFile) then
+                begin
+                  // 删除原文件
+                  DeleteFile(PChar(TargetFile));
+                  if RenameFile(TempFile, TargetFile) then
+                  begin
+                    FLogCallback('成功手动添加UTF-8 BOM');
+                    // 重新检测以确认
+                    if DetectFileEncoding(TargetFile, ResultEncodingName) then
+                      FLogCallback(Format('修复后的文件编码: %s -> %s', [TargetFile, ResultEncodingName]));
+                  end
+                  else
+                  begin
+                    SysErrorCode := GetLastError;
+                    FLogCallback(Format('无法重命名修复文件 (错误码: %d)', [SysErrorCode]));
+                    // 尝试直接复制
+                    if CopyFile(PChar(TempFile), PChar(TargetFile), False) then
+                    begin
+                      FLogCallback('使用复制方式成功添加UTF-8 BOM');
+                      DeleteFile(PChar(TempFile));
+                    end;
+                  end;
+                end;
+              end;
+            except
+              on E: Exception do
+                FLogCallback('手动添加BOM失败: ' + E.Message);
+            end;
+          end;
+        end
+        else
+          FLogCallback('无法检测转换后的文件编码');
+      end;
+    end
+    else
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('JCL转换失败: %s -> %s', [SourceEncoding, ActualTargetEncoding]));
     end;
   except
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('iconv转换出错: ' + E.Message);
+        FLogCallback('JCL转换出错: ' + E.Message);
       Result := False;
     end;
   end;
 end;
 
 // NEW: Internal helper to perform single file conversion using names
-function TEncodingController.DoConvertSingleFileByName(const SourceFile: string;
-  const TargetEncodingName: string; AddBOM: Boolean;
-  UpdateCallback: TProc<string>): TConversionResult;
+function TEncodingController.DoConvertSingleFileByName(const SourceFile, TargetEncodingName: string; AddBOM: Boolean = False; const TargetFile: string = ''): TConversionResult;
 var
-  TempFile, BackupFile: string;
-  UseTemp: Boolean;
+  TempFile: string;
+  IsUTF8BOMTarget: Boolean;
   SourceEncodingName: string;
-  ConversionOk: Boolean;
+  ActualTargetName: string;
+  ActualBOM: Boolean;
+  DestinationFileEncoding: string;
+  SystemError: Cardinal;
+  ActualFile: string;
 begin
   Result := crFailed;
-  TempFile := '';
-  BackupFile := '';
-
-  if not FileExists(SourceFile) or IsUnsupportedFile(SourceFile) then
+  SourceEncodingName := '';
+  
+  // 详细日志：开始转换准备
+  if Assigned(FLogCallback) then
+    FLogCallback(Format('开始准备转换文件: %s, 目标编码: %s, 添加BOM: %s', 
+      [SourceFile, TargetEncodingName, BoolToStr(AddBOM, True)]));
+  
+  // 验证源文件存在
+  if not FileExists(SourceFile) then
   begin
     if Assigned(FLogCallback) then
-      FLogCallback('跳过: ' + SourceFile + ' (不支持或不存在)');
-    Exit(crSkipped);
+      FLogCallback('错误：源文件不存在: ' + SourceFile);
+    Exit;
   end;
-
-  if not CheckFileAccessibility(SourceFile, UseTemp) then
-  begin
-    if Assigned(FLogCallback) then
-      FLogCallback('错误: 无法访问文件 ' + SourceFile);
-    Exit(crFailed);
-  end;
-
-  CreateBackupFile(SourceFile, BackupFile);
-
-  if UseTemp then
-    TempFile := TPath.ChangeExtension(SourceFile, '.tmpconvert')
-  else
-    TempFile := SourceFile; 
-
-  if not DetectFileEncoding(SourceFile, SourceEncodingName) then
-  begin
-     if Assigned(FLogCallback) then
-       FLogCallback('警告: 未能检测源编码 ' + SourceFile + ', 将尝试默认转换。');
-     SourceEncodingName := '' ; 
-  end;
-
+  
+  // 检测源文件编码
   try
-    ConversionOk := ConvertWithIconv(SourceFile, TempFile, SourceEncodingName, TargetEncodingName, AddBOM);
+    if not DetectFileEncoding(SourceFile, SourceEncodingName) then
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('警告：无法检测源文件编码，假设为ANSI');
+      SourceEncodingName := 'ANSI';
+    end
+    else if Assigned(FLogCallback) then
+      FLogCallback(Format('检测到源文件编码: %s -> %s', [SourceFile, SourceEncodingName]));
   except
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('转换失败 (' + SourceFile + ' -> ' + TargetEncodingName + '): ' + E.Message);
-      ConversionOk := False;
+        FLogCallback(Format('检测文件编码失败: %s - %s', [SourceFile, E.Message]));
+      // 出错时默认为ANSI
+      SourceEncodingName := 'ANSI';
     end;
   end;
-
-  if ConversionOk then
-  begin
-    if UseTemp then
-      TryCopyTempToOriginal(TempFile, SourceFile);
-      
-    LogConversionSuccess(SourceFile);
-    Result := crSuccess;
+  
+  try
+    // 目标文件设置
+    if TargetFile = '' then
+      TempFile := ChangeFileExt(SourceFile, '.tmp')
+    else
+      TempFile := TargetFile;
     
-    // Call update callback DIRECTLY (Removed TTask.Run)
-    if Assigned(UpdateCallback) then
+    // 确定最终操作的文件
+    if TargetFile = '' then
+      ActualFile := SourceFile
+    else
+      ActualFile := TargetFile;
+    
+    // 检查UTF-8 BOM目标 - 改进识别逻辑
+    IsUTF8BOMTarget := (SameText(TargetEncodingName, 'UTF-8 with BOM') or 
+                        SameText(TargetEncodingName, 'UTF-8-BOM') or
+                        SameText(TargetEncodingName, 'UTF8-BOM') or
+                        (SameText(TargetEncodingName, 'UTF-8') and AddBOM));
+    
+    // 详细日志：源和目标编码信息更详细
+    if Assigned(FLogCallback) then
     begin
+      var BOMText: string := '';
+      if IsUTF8BOMTarget then
+        BOMText := ' (带BOM)'
+      else if AddBOM then
+        BOMText := ' (带BOM)';
+        
+      FLogCallback(Format('源编码: [%s] 目标编码: [%s%s]', 
+        [SourceEncodingName, TargetEncodingName, BOMText]));
+    end;
+    
+    if IsUTF8BOMTarget then
+    begin
+      // 使用专用函数处理UTF-8 BOM转换
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('使用专用函数转换为UTF-8 BOM (源编码: %s)...', [SourceEncodingName]));
+      
+      // 确保删除已存在的临时文件
+      if FileExists(TempFile) then
+        DeleteFile(PChar(TempFile));
+      
       try
-        UpdateCallback(SourceFile);
+        // 直接使用JclEncodingUtils.ConvertFileToUTF8BOM转换为UTF-8 BOM
+        if JclEncodingUtils.ConvertFileToUTF8BOM(SourceFile, TempFile) then
+        begin
+          Result := crSuccess;
+          if Assigned(FLogCallback) then
+            FLogCallback('UTF-8 BOM直接转换成功');
+        end
+        else
+        begin
+          SystemError := GetLastError;
+          if Assigned(FLogCallback) then
+          begin
+            FLogCallback(Format('UTF-8 BOM直接转换失败，系统错误: %d，尝试替代方法...', [SystemError]));
+            
+            // 替代方法：先转换为UTF-8，然后手动添加BOM
+            if ConvertWithJCL(SourceFile, TempFile, SourceEncodingName, 'UTF-8', False) then
+            begin
+              // 读取文件并添加BOM
+              var TempContent: TBytes;
+              var FinalContent: TBytes;
+              var BOMBytes: TBytes;
+              
+              try
+                if FileExists(TempFile) then
+                begin
+                  TempContent := TFile.ReadAllBytes(TempFile);
+                  BOMBytes := TBytes.Create($EF, $BB, $BF); // UTF-8 BOM
+                  
+                  // 合并BOM和内容
+                  SetLength(FinalContent, Length(BOMBytes) + Length(TempContent));
+                  if Length(BOMBytes) > 0 then
+                    Move(BOMBytes[0], FinalContent[0], Length(BOMBytes));
+                  if Length(TempContent) > 0 then
+                    Move(TempContent[0], FinalContent[Length(BOMBytes)], Length(TempContent));
+                  
+                  // 重写文件
+                  TFile.WriteAllBytes(TempFile, FinalContent);
+                  Result := crSuccess;
+                  FLogCallback('UTF-8 BOM手动添加成功');
+                end;
+              except
+                on E: Exception do
+                begin
+                  SystemError := GetLastError;
+                  FLogCallback(Format('UTF-8 BOM手动添加失败: %s (错误码: %d)', [E.Message, SystemError]));
+                  Result := crFailed;
+                end;
+              end;
+            end
+            else
+            begin
+              SystemError := GetLastError;
+              FLogCallback(Format('UTF-8转换失败，无法应用替代方法 (错误码: %d)', [SystemError]));
+              Result := crFailed;
+            end;
+          end;
+        end;
       except
         on E: Exception do
+        begin
+          SystemError := GetLastError;
           if Assigned(FLogCallback) then
-             FLogCallback('UpdateCallback 失败 (' + SourceFile + '): ' + E.Message);
+            FLogCallback(Format('UTF-8 BOM转换异常: %s (系统错误: %d)', [E.Message, SystemError]));
+          Result := crFailed;
+        end;
+      end;
+    end
+    else
+    begin
+      // 常规编码转换处理
+      ActualTargetName := TargetEncodingName;
+      ActualBOM := AddBOM;
+      
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('使用标准转换流程 %s -> %s (BOM: %s)', 
+          [SourceEncodingName, ActualTargetName, BoolToStr(ActualBOM, True)]));
+      
+      try
+        // 正确传递源编码和目标编码参数
+        if ConvertWithJCL(SourceFile, TempFile, SourceEncodingName, ActualTargetName, ActualBOM) then
+          Result := crSuccess
+        else
+        begin
+          SystemError := GetLastError;
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('标准转换失败，系统错误: %d', [SystemError]));
+          Result := crFailed;
+        end;
+      except
+        on E: Exception do
+        begin
+          SystemError := GetLastError;
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('标准转换异常: %s (系统错误: %d)', [E.Message, SystemError]));
+          Result := crFailed;
+        end;
       end;
     end;
-
-  end
-  else
-  begin
-    if Assigned(FLogCallback) then
-      FLogCallback('错误: 转换失败，正在从备份恢复 ' + SourceFile);
-    RestoreFromBackup(SourceFile, BackupFile);
-    Result := crFailed;
+    
+    // 如果转换成功且需要替换原文件
+    if (Result = crSuccess) and (TargetFile = '') then
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('转换成功，准备替换原文件...');
+      
+      try
+        TryCopyTempToOriginal(TempFile, SourceFile);
+        
+        // 检查文件复制成功
+        if not FileExists(SourceFile) then
+        begin 
+          SystemError := GetLastError;
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('替换原文件失败，系统错误: %d', [SystemError]));
+          Result := crFailed;
+        end;
+      except
+        on E: Exception do
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('替换原文件异常: %s', [E.Message]));
+          Result := crFailed;
+        end;
+      end;
+    end;
+    
+    // 检查转换后的文件编码
+    if Result = crSuccess then
+    begin
+      try
+        DestinationFileEncoding := '';
+        
+        if FileExists(ActualFile) then
+        begin
+          if DetectFileEncoding(ActualFile, DestinationFileEncoding) then
+          begin
+            if Assigned(FLogCallback) then
+              FLogCallback(Format('转换完成后的文件编码: %s -> %s', [ActualFile, DestinationFileEncoding]));
+            
+            // 验证是否成功转换为目标编码
+            if IsUTF8BOMTarget and (Pos('UTF-8', DestinationFileEncoding) = 0) then
+            begin
+              // 最后一次尝试修复 - 如果检测出来不是UTF-8，但是目标应该是UTF-8 BOM
+              if Assigned(FLogCallback) then
+              begin
+                FLogCallback('警告：文件应该是UTF-8 BOM，但检测到: ' + DestinationFileEncoding + '，尝试修复...');
+                
+                // 再次尝试添加BOM
+                var FixedFile := ActualFile + '.fix';
+                if JclEncodingUtils.ConvertFileToUTF8BOM(ActualFile, FixedFile) then
+                begin
+                  if FileExists(FixedFile) then
+                  begin
+                    if DeleteFile(PChar(ActualFile)) then
+                    begin
+                      if RenameFile(FixedFile, ActualFile) then
+                      begin
+                        FLogCallback('已修复UTF-8 BOM编码问题');
+                        
+                        // 重新检测以确认
+                        if DetectFileEncoding(ActualFile, DestinationFileEncoding) then
+                          FLogCallback(Format('修复后的文件编码: %s -> %s', [ActualFile, DestinationFileEncoding]));
+                      end
+                      else
+                        FLogCallback('无法重命名修复文件');
+                    end
+                    else
+                      FLogCallback('无法删除原文件以应用修复');
+                    
+                    // 如果临时修复文件仍然存在，清理它
+                    if FileExists(FixedFile) then
+                      DeleteFile(PChar(FixedFile));
+                  end;
+                end;
+              end;
+            end;
+          end
+          else
+          begin
+            if Assigned(FLogCallback) then
+              FLogCallback('警告：无法检测转换后的文件编码');
+          end;
+        end
+        else
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback('警告：转换后的文件不存在: ' + ActualFile);
+          Result := crFailed;
+        end;
+      except
+        on E: Exception do
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('检测转换后的文件编码失败: %s', [E.Message]));
+        end;
+      end;
+    end;
+  except
+    on E: Exception do
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('转换过程中发生异常: %s', [E.Message]));
+      Result := crFailed;
+    end;
   end;
-
-  // Clean up temp and backup files
-  if (TempFile <> '') and FileExists(TempFile) and UseTemp then
-    DeleteFile(PChar(TempFile));
-  if (BackupFile <> '') and FileExists(BackupFile) then
-    DeleteFile(PChar(BackupFile));
 end;
 
 // NEW Public Method Implementation: ConvertSingleFileByName
 function TEncodingController.ConvertSingleFileByName(const SourceFile: string; 
   const TargetEncodingName: string; AddBOM: Boolean; 
-  UpdateCallback: TProc<string>): TConversionResult;
+  UpdateCallback: TProc<string>): Boolean;
+var
+  ConversionResult: TConversionResult;
 begin
-  Result := DoConvertSingleFileByName(SourceFile, TargetEncodingName, AddBOM, UpdateCallback);
+  // 调用内部方法进行转换
+  ConversionResult := DoConvertSingleFileByName(SourceFile, TargetEncodingName, AddBOM, '');
+  
+  // 检查转换结果
+  Result := (ConversionResult = crSuccess);
+  
+  // 如果转换成功并且回调函数已分配，调用回调
+  if Result and Assigned(UpdateCallback) then
+  begin
+    if Assigned(FLogCallback) then
+      FLogCallback(Format('单文件转换成功，调用回调: %s', [SourceFile]));
+    UpdateCallback(SourceFile);
+  end;
 end;
 
 // NEW Public Method Implementation: ConvertFilesByName
@@ -350,6 +737,7 @@ procedure TEncodingController.ConvertFilesByName(const SelectedFiles: TArray<str
 var
   i: Integer;
   FileToConvert: string;
+  ConversionResult: TConversionResult;
 begin
   if Assigned(FLogCallback) then
     FLogCallback(Format('开始批量转换 %d 个文件到 %s', [Length(SelectedFiles), TargetEncodingName]));
@@ -358,7 +746,15 @@ begin
   begin
     FileToConvert := SelectedFiles[i];
     // Call the internal helper for each file
-    DoConvertSingleFileByName(FileToConvert, TargetEncodingName, AddBOM, UpdateCallback);
+    ConversionResult := DoConvertSingleFileByName(FileToConvert, TargetEncodingName, AddBOM, '');
+    
+    // 如果转换成功并且回调函数已分配，调用回调
+    if (ConversionResult = crSuccess) and Assigned(UpdateCallback) then
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('文件转换成功，调用回调: %s', [FileToConvert]));
+      UpdateCallback(FileToConvert);
+    end;
     // Potential improvement: Use parallel tasks for conversion if safe
   end;
   
@@ -374,12 +770,12 @@ var
   Dummy: Integer; // Placeholder
 begin
   // This implementation uses Delphi's TEncoding.Convert
-  // It needs significant rework to use iconv with TEncodingInfo.ShortName
+  // It needs significant rework to use JCL with TEncodingInfo.ShortName
   // For now, it's likely incompatible with the new approach.
 
   Result := crSkipped; // Mark as skipped/failed for now
   if Assigned(FLogCallback) then
-    FLogCallback('警告: ConvertFileEncoding (TEncoding version) 当前未实现 iconv 支持。');
+    FLogCallback('警告: ConvertFileEncoding (TEncoding version) 当前未实现 JCL 支持。');
 
   // --- Original code commented out ---
   (*
@@ -408,7 +804,7 @@ begin
  // This implementation likely calls ConvertFileEncoding internally.
  // It needs similar rework as ConvertFileEncoding.
   if Assigned(FLogCallback) then
-    FLogCallback('警告: ConvertFilesToEncoding (TEncoding version) 当前未实现 iconv 支持。');
+    FLogCallback('警告: ConvertFilesToEncoding (TEncoding version) 当前未实现 JCL 支持。');
   // --- Original code commented out ---
   (*
   var
@@ -430,7 +826,7 @@ begin
  // This implementation likely calls ConvertFileEncoding internally.
  // It needs similar rework as ConvertFileEncoding.
   if Assigned(FLogCallback) then
-    FLogCallback('警告: ConvertSelectedFilesToEncoding (TEncoding version) 当前未实现 iconv 支持。');
+    FLogCallback('警告: ConvertSelectedFilesToEncoding (TEncoding version) 当前未实现 JCL 支持。');
   // --- Original code commented out ---
   (*
   var
@@ -492,17 +888,121 @@ begin
 end;
 
 procedure TEncodingController.TryCopyTempToOriginal(const TempFile, OriginalFile: string);
+const
+  MAX_RETRY = 3; // 最大重试次数
+var
+  RetryCount: Integer;
+  Success: Boolean;
+  ErrCode: Cardinal;
 begin
+  RetryCount := 0;
+  Success := False;
+  
   try
-    // Ensure original file is deleted before copying
-    if FileExists(OriginalFile) then
-      DeleteFile(PChar(OriginalFile));
-    TFile.Move(TempFile, OriginalFile);
+    repeat
+      Inc(RetryCount);
+      
+      // 详细日志
+      if Assigned(FLogCallback) then
+      begin
+        if RetryCount > 1 then
+          FLogCallback(Format('尝试复制(第%d次): %s -> %s', [RetryCount, TempFile, OriginalFile]))
+        else
+          FLogCallback(Format('开始复制: %s -> %s', [TempFile, OriginalFile]));
+      end;
+      
+      // 检查临时文件是否存在
+      if not FileExists(TempFile) then
+      begin
+        if Assigned(FLogCallback) then
+          FLogCallback('错误: 临时文件不存在: ' + TempFile);
+        Exit;
+      end;
+      
+      // 确保原始文件是可写的
+      if FileExists(OriginalFile) then
+      begin
+        // 先尝试设置文件为可写
+        if FileGetAttr(OriginalFile) and faReadOnly <> 0 then
+        begin
+          if FileSetAttr(OriginalFile, FileGetAttr(OriginalFile) and not faReadOnly) <> 0 then
+          begin
+            ErrCode := GetLastError;
+            if Assigned(FLogCallback) then
+              FLogCallback(Format('警告: 无法设置文件为可写 (错误码: %d): %s', [ErrCode, OriginalFile]));
+          end;
+        end;
+        
+        // 然后删除文件
+        if not DeleteFile(PChar(OriginalFile)) then
+        begin
+          ErrCode := GetLastError;
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('无法删除原始文件 (错误码: %d): %s', [ErrCode, OriginalFile]));
+          
+          // 如果是"文件正在使用"错误，等待一下再重试
+          if (ErrCode = ERROR_SHARING_VIOLATION) or (ErrCode = ERROR_ACCESS_DENIED) then
+          begin
+            if Assigned(FLogCallback) then
+              FLogCallback('文件可能正在被使用，等待后重试...');
+            Sleep(500); // 等待500毫秒
+            Continue;
+          end
+          else
+            Exit; // 其他错误直接退出
+        end;
+      end;
+      
+      // 使用CopyFile函数进行复制，而不是TFile.Move
+      if CopyFile(PChar(TempFile), PChar(OriginalFile), False) then
+      begin
+        Success := True;
+        
+        // 删除临时文件
+        if FileExists(TempFile) then
+        begin
+          if not DeleteFile(PChar(TempFile)) then
+          begin
+            ErrCode := GetLastError;
+            if Assigned(FLogCallback) then
+              FLogCallback(Format('警告: 无法删除临时文件 (错误码: %d): %s', [ErrCode, TempFile]));
+          end;
+        end;
+        
+        if Assigned(FLogCallback) then
+          FLogCallback('成功复制: ' + TempFile + ' -> ' + OriginalFile);
+          
+        Break; // 成功则退出循环
+      end
+      else
+      begin
+        ErrCode := GetLastError;
+        if Assigned(FLogCallback) then
+          FLogCallback(Format('复制失败 (错误码: %d): %s -> %s', [ErrCode, TempFile, OriginalFile]));
+        
+        // 对于一些特定的错误，可以重试
+        if (ErrCode = ERROR_SHARING_VIOLATION) or (ErrCode = ERROR_ACCESS_DENIED) or
+           (ErrCode = ERROR_LOCK_VIOLATION) then
+        begin
+          if RetryCount < MAX_RETRY then
+          begin
+            if Assigned(FLogCallback) then
+              FLogCallback('文件可能正在被使用，等待后重试...');
+            Sleep(500 * RetryCount); // 等待时间逐次延长
+            Continue;
+          end;
+        end;
+      end;
+    until RetryCount >= MAX_RETRY;
+    
+    // 如果所有重试都失败
+    if not Success and Assigned(FLogCallback) then
+      FLogCallback(Format('复制文件失败，已达到最大重试次数(%d): %s -> %s', 
+                         [MAX_RETRY, TempFile, OriginalFile]));
   except
     on E: Exception do
       if Assigned(FLogCallback) then
-        FLogCallback('从临时文件复制回失败 (' + OriginalFile + '): ' + E.Message);
-      // Consider attempting TFile.Copy as a fallback?
+        FLogCallback('从临时文件复制时异常: ' + E.Message);
   end;
 end;
 
@@ -514,23 +1014,50 @@ end;
 
 procedure TEncodingController.RestoreFromBackup(const OriginalFile, BackupFile: string);
 begin
-  if (BackupFile = '') or not FileExists(BackupFile) then
-  begin
-    if Assigned(FLogCallback) then
-      FLogCallback('无法从备份恢复: 备份文件无效 ' + OriginalFile);
-    Exit;
-  end;
-
   try
-    if FileExists(OriginalFile) then
-      DeleteFile(PChar(OriginalFile));
-    TFile.Move(BackupFile, OriginalFile);
-    if Assigned(FLogCallback) then
-      FLogCallback('已从备份恢复: ' + OriginalFile);
+    if (BackupFile <> '') and FileExists(BackupFile) then
+    begin
+      // 确保原始文件是可写的
+      if FileExists(OriginalFile) then
+      begin
+        // 先尝试设置文件为可写
+        if FileSetAttr(OriginalFile, FileGetAttr(OriginalFile) and not faReadOnly) <> 0 then
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback('警告: 无法设置文件为可写: ' + OriginalFile);
+        end;
+        
+        // 然后删除文件
+        if not DeleteFile(PChar(OriginalFile)) then
+        begin
+          var ErrCode := GetLastError;
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('恢复备份时无法删除原始文件 (错误码: %d): %s', [ErrCode, OriginalFile]));
+          Exit;
+        end;
+      end;
+      
+      // 使用CopyFile函数进行复制
+      if not CopyFile(PChar(BackupFile), PChar(OriginalFile), False) then
+      begin
+        var ErrCode := GetLastError;
+        if Assigned(FLogCallback) then
+          FLogCallback(Format('从备份恢复失败 (错误码: %d): %s -> %s', [ErrCode, BackupFile, OriginalFile]));
+        Exit;
+      end;
+      
+      if Assigned(FLogCallback) then
+        FLogCallback('已从备份恢复: ' + OriginalFile);
+    end
+    else
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('没有可用的备份文件: ' + BackupFile);
+    end;
   except
     on E: Exception do
       if Assigned(FLogCallback) then
-        FLogCallback('从备份恢复失败 (' + OriginalFile + '): ' + E.Message);
+        FLogCallback('从备份恢复时出错: ' + E.Message);
   end;
 end;
 
