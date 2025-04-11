@@ -8,29 +8,9 @@ uses
   Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.FileCtrl, Vcl.Buttons, Vcl.ComCtrls,
   Vcl.Grids, System.Math, Vcl.CheckLst, System.Types, Vcl.Menus, System.Rtti,
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
-  ControllerEncoding, HelperLanguage, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
-  System.UIConsts, Skia, Vcl.skia;
+  ControllerEncoding, HelperLanguage, HelperProgress, HelperRecentFiles, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit;
 
 type
-  // ICO文件格式结构
-  TIconDirEntry = packed record
-    bWidth: Byte;          // 图标宽度
-    bHeight: Byte;         // 图标高度
-    bColorCount: Byte;     // 色数（如果是真彩色图标，则为0）
-    bReserved: Byte;       // 保留，必须为0
-    wPlanes: Word;         // 色彩平面数
-    wBitCount: Word;       // 每像素位数
-    dwBytesInRes: DWORD;   // 图像数据大小
-    dwImageOffset: DWORD;  // 图像数据相对于文件开头的偏移量
-  end;
-
-  TIconDir = packed record
-    idReserved: Word;      // 保留，必须为0
-    idType: Word;          // 资源类型（1=ICO, 2=CUR）
-    idCount: Word;         // 图像数量
-    idEntries: array[0..0] of TIconDirEntry; // 图像目录项数组
-  end;
-
   // 语言包装器类
   TLanguageWrapper = class
   public
@@ -79,7 +59,6 @@ type
     btnClose: TButton;
     chkIncludeSubdirs: TCheckBox;
     btnSVG2ICON: TButton;
-    SkSvg1: TSkSvg;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
@@ -113,16 +92,24 @@ type
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure chkIncludeSubdirsClick(Sender: TObject);
+    procedure MenuItemExitClick(Sender: TObject);
+    procedure MenuItemAboutClick(Sender: TObject);
+    procedure MenuItemOpenFolderClick(Sender: TObject);
+    procedure OnRecentFileClick(Sender: TObject);
+    procedure CheckListBoxClickCheck(Sender: TObject);
     procedure btnSVG2ICONClick(Sender: TObject);
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
     FFileExtensions: TStringList;
-    FLanguageComboBox: TComboBox;
     FLanguageWrapper: TLanguageWrapper;
     FIncludeSubdirs: Boolean;
-    FLogBuffer: TStringList; // 添加日志缓冲区
+    FLogBuffer: TStringList; // 日志缓冲区
     FBufferingLogs: Boolean; // 是否正在缓冲日志
+    FLanguageComboBox: TComboBox; // 语言选择下拉框
+    FOriginalFontSize: Integer; // 原始字体大小
+
+    // 获取版本信息
 
     // MVC架构组件
     FConfig: TAppConfig;
@@ -131,11 +118,14 @@ type
     FUIHelper: TUIHelper;
     FFileHelper: TFileHelper;
 
-    FOriginalFontSize: Integer;
+    // 进度条和配置管理
+    FProgressHelper: TProgressHelper;
+    FConfigManager: TConfigManager;
+    FRecentFilesManager: TRecentFilesManager;
 
     procedure UpdateFileGrid(const FolderPath: string);
     procedure UpdateFileExtensions(const FolderPath: string);
-    procedure CheckListBox1ClickCheck(Sender: TObject);
+    function GetVersionInfo: string;
 
     // 日志记录
     procedure Log(const Msg: string);
@@ -189,7 +179,7 @@ begin
     FillChar(Result, SizeOf(Result), 0);
 end;
 
-{ TForm1 }
+{ Tform1. }
 
 constructor TForm1.Create(AOwner: TComponent);
 begin
@@ -219,14 +209,7 @@ begin
     )
   );
 
-  FEncodingController := TEncodingController.Create(
-    TProc<string>(
-      procedure(const LogMsg: string)
-  begin
-        Log(LogMsg);
-      end
-    )
-  );
+  FEncodingController := TEncodingController.Create(Log);
 
   // 初始化语言管理器
   InitializeLanguageManager;
@@ -412,24 +395,43 @@ begin
   Log('开始批量转换 ' + IntToStr(Length(SelectedFiles)) + ' 个文件到 ' + TargetInfo.Name + '...');
   StartLogBuffering;
 
+  // 初始化进度条
+  if Assigned(FProgressHelper) then
+    FProgressHelper.Initialize(Length(SelectedFiles));
+
   // 执行转换
   Screen.Cursor := crHourGlass;
   SuccessCount := 0;
 
   try
-    // 执行转换
-    FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
-      TProc<string>(
-        procedure(const FilePath: string)
-        begin
-          UpdateSingleFileInGrid(FilePath);
-          Inc(SuccessCount);
-        end
-      )
-    );
+    // 使用安全的方式调用
+    if Assigned(FEncodingController) and (Length(SelectedFiles) > 0) then
+    begin
+      try
+        FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
+          TProc<string>(
+            procedure(const FilePath: string)
+            begin
+              if (FilePath <> '') and FileExists(FilePath) then
+              begin
+                UpdateSingleFileInGrid(FilePath);
+                Inc(SuccessCount);
 
-    // 设置转换结果为成功
-    ConversionResult := True;
+                // 更新进度条
+                if Assigned(FProgressHelper) then
+                  FProgressHelper.UpdateProgress(SuccessCount,
+                    Format('正在转换... %d/%d - %s',
+                      [SuccessCount, Length(SelectedFiles), ExtractFileName(FilePath)]));
+              end;
+            end
+          )
+        );
+      except
+        on E: Exception do
+          Log('转换过程中出错: ' + E.Message);
+      end;
+    end;
+    ConversionResult := True; // 假设转换成功
 
     // 记录转换结果
     Log(Format('批量转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]));
@@ -444,6 +446,15 @@ begin
 
     // 结束日志缓冲并一次性更新日志
     EndLogBuffering;
+
+    // 更新进度条完成状态
+    if Assigned(FProgressHelper) then
+    begin
+      if SuccessCount > 0 then
+        FProgressHelper.Complete(Format('转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]))
+      else
+        FProgressHelper.Complete('转换失败: 没有文件被成功转换');
+    end;
 
     // 显示结果
     if SuccessCount > 0 then
@@ -468,17 +479,106 @@ begin
   MenuItemConvertCurrentClick(Sender);
 end;
 
+procedure TForm1.btnSVG2ICONClick(Sender: TObject);
+var
+  OpenDialog: TOpenDialog;
+  SVGFileName, IconFileName: string;
+  SVG: TSVG;
+  IconFile: TIconFile;
+  MS: TMemoryStream;
+  Bitmap: TBitmap;
+  PNG: TPngImage;
+  Sizes: array of Integer;
+  I: Integer;
+begin
+  // 定义ICO文件需要包含的尺寸
+  Sizes := [16, 24, 32, 48, 64, 128, 256];
+
+  OpenDialog := TOpenDialog.Create(nil);
+  try
+    OpenDialog.Filter := 'SVG Files (*.svg)|*.svg';
+    OpenDialog.Title := '选择SVG文件';
+
+    if OpenDialog.Execute then
+    begin
+      SVGFileName := OpenDialog.FileName;
+      IconFileName := ChangeFileExt(SVGFileName, '.ico');
+
+      Screen.Cursor := crHourGlass;
+      try
+        // 创建ICO文件对象
+        IconFile := TIconFile.Create;
+        try
+          SVG := TSVG.Create;
+          try
+            // 加载SVG文件
+            SVG.LoadFromFile(SVGFileName);
+
+            // 为每个尺寸创建图标
+            for I := 0 to Length(Sizes) - 1 do
+            begin
+              Bitmap := TBitmap.Create;
+              try
+                // 设置位图尺寸和格式
+                Bitmap.SetSize(Sizes[I], Sizes[I]);
+                Bitmap.PixelFormat := pf32bit;
+                Bitmap.AlphaFormat := afPremultiplied;
+
+                // 清除位图背景
+                Bitmap.Canvas.Brush.Color := clNone;
+                Bitmap.Canvas.FillRect(Bitmap.Canvas.ClipRect);
+
+                // 渲染SVG到位图
+                SVG.PaintTo(Bitmap.Canvas, TRectF.Create(0, 0, Sizes[I], Sizes[I]));
+
+                // 转换为PNG（ICO文件需要）
+                PNG := TPngImage.Create;
+                try
+                  PNG.Assign(Bitmap);
+
+                  // 将PNG添加到ICO文件
+                  MS := TMemoryStream.Create;
+                  try
+                    PNG.SaveToStream(MS);
+                    MS.Position := 0;
+                    IconFile.AddImage(MS, Sizes[I], Sizes[I]);
+                  finally
+                    MS.Free;
+                  end;
+                finally
+                  PNG.Free;
+                end;
+              finally
+                Bitmap.Free;
+              end;
+            end;
+
+            // 保存ICO文件
+            IconFile.SaveToFile(IconFileName);
+            ShowMessage('转换完成！' + sLineBreak +
+                      '已保存到: ' + IconFileName);
+
+          finally
+            SVG.Free;
+          end;
+        finally
+          IconFile.Free;
+        end;
+      finally
+        Screen.Cursor := crDefault;
+      end;
+    end;
+  finally
+    OpenDialog.Free;
+  end;
+end;
 
 procedure TForm1.btnToggleSelectClick(Sender: TObject);
 begin
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
 
-procedure TForm1.CheckListBox1ClickCheck(Sender: TObject);
-begin
-  // 当CheckListBox1的项目被选中或取消选中时更新文件列表
-  UpdateFileGrid(FSelectedFolder);
-end;
+
 
 procedure TForm1.cmbLanguageChange(Sender: TObject);
 var
@@ -488,7 +588,7 @@ var
   IsChineseSelected: Boolean;
 begin
   // 获取选中的语言
-  Index := FLanguageComboBox.ItemIndex;
+  Index := ComboBox1.ItemIndex;
   if Index < 0 then
   begin
     Log('警告: 无效的语言索引');
@@ -541,15 +641,14 @@ begin
     LanguageManager := TLanguageManager.Create;
 
   // 使用窗体上已有的ComboBox1控件
-  FLanguageComboBox := ComboBox1;
-  FLanguageComboBox.Style := csDropDownList;
-  FLanguageComboBox.Tag := 1000; // 特殊标记，用于识别这是语言选择器
+  ComboBox1.Style := csDropDownList;
+  ComboBox1.Tag := 1000; // 特殊标记，用于识别这是语言选择器
 
   // 清空已有项
-  FLanguageComboBox.Items.Clear();
+  ComboBox1.Items.Clear();
 
   // 添加事件处理
-  FLanguageComboBox.OnChange := cmbLanguageChange;
+  ComboBox1.OnChange := cmbLanguageChange;
 
   // 获取可用语言列表并填充下拉框
   LanguageManager.LoadAvailableLanguages;
@@ -560,22 +659,22 @@ begin
   for i := 0 to High(LangInfos) do
   begin
     // 添加语言到下拉框，显示本地化名称
-    FLanguageComboBox.Items.Add(LangInfos[i].NativeName);
+    ComboBox1.Items.Add(LangInfos[i].NativeName);
 
     // 如果是当前语言，设置为选中
     if LangInfos[i].Code = LanguageManager.CurrentLanguage then
-  begin
-      FLanguageComboBox.ItemIndex := i;
+    begin
+      ComboBox1.ItemIndex := i;
       Log('当前语言: ' + LangInfos[i].NativeName + ' (' + LangInfos[i].Code + ')');
-  end;
+    end;
 end;
 
   // 如果没有设置选中项，默认选择第一个
-  if (FLanguageComboBox.ItemIndex < 0) and (FLanguageComboBox.Items.Count > 0) then
-    FLanguageComboBox.ItemIndex := 0;
+  if (ComboBox1.ItemIndex < 0) and (ComboBox1.Items.Count > 0) then
+    ComboBox1.ItemIndex := 0;
 
   // 确保语言选择框可见
-  FLanguageComboBox.Visible := True;
+  ComboBox1.Visible := True;
 end;
 
 procedure TForm1.DirectoryListBox1Change(Sender: TObject);
@@ -623,13 +722,41 @@ end;
 class procedure TForm1.Execute;
 begin
   // 创建并显示主窗体
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(Tform1, Form1);
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
+var
+  StatusLabel: TLabel;
+  ProgressBar: TProgressBar;
 begin
   // 允许窗体接收所有键盘事件
   KeyPreview := True;
+
+  // 创建状态栏和进度条
+  StatusLabel := TLabel.Create(Self);
+  StatusLabel.Parent := Panel6;
+  StatusLabel.Align := alLeft;
+  StatusLabel.AutoSize := False;
+  StatusLabel.Width := 300;
+  StatusLabel.Caption := '就绪';
+  StatusLabel.Visible := True;
+
+  ProgressBar := TProgressBar.Create(Self);
+  ProgressBar.Parent := Panel6;
+  ProgressBar.Align := alClient;
+  ProgressBar.Visible := False;
+
+  // 初始化进度条和配置管理器
+  FProgressHelper := TProgressHelper.Create(ProgressBar, StatusLabel);
+  FConfigManager := TConfigManager.Create();
+
+  // 初始化最近文件管理器
+  FRecentFilesManager := TRecentFilesManager.Create(10, nil);
+  FRecentFilesManager.OnRecentFileClick := OnRecentFileClick;
+
+  // 从配置文件加载设置
+  FIncludeSubdirs := FConfigManager.GetBoolean('Settings', 'IncludeSubdirs', False);
 
   // 调用统一的界面初始化方法
   InitializeUI;
@@ -664,6 +791,55 @@ procedure TForm1.StartLogBuffering;
 begin
   FBufferingLogs := True;
   FLogBuffer.Clear;
+end;
+
+function TForm1.GetVersionInfo: string;
+var
+  VersionInfo: Pointer;
+  VersionInfoSize: DWORD;
+  FileInfo: PVSFixedFileInfo;
+  FileInfoSize: DWORD;
+  Dummy: DWORD;
+  FilePath: string;
+begin
+  // 默认版本
+  Result := '1.0.0';
+
+  try
+    // 获取当前程序路径
+    FilePath := ParamStr(0);
+
+    // 获取版本信息大小
+    VersionInfoSize := GetFileVersionInfoSize(PChar(FilePath), Dummy);
+    if VersionInfoSize = 0 then
+      Exit;
+
+    // 分配内存
+    GetMem(VersionInfo, VersionInfoSize);
+    try
+      // 获取版本信息
+      if not GetFileVersionInfo(PChar(FilePath), 0, VersionInfoSize, VersionInfo) then
+        Exit;
+
+      // 获取固定版本信息
+      FileInfoSize := SizeOf(TVSFixedFileInfo);
+      if not VerQueryValue(VersionInfo, '\\', Pointer(FileInfo), FileInfoSize) then
+        Exit;
+
+      // 格式化版本信息
+      Result := Format('%d.%d.%d.%d',
+        [HiWord(FileInfo^.dwFileVersionMS),
+         LoWord(FileInfo^.dwFileVersionMS),
+         HiWord(FileInfo^.dwFileVersionLS),
+         LoWord(FileInfo^.dwFileVersionLS)]);
+    finally
+      // 释放内存
+      FreeMem(VersionInfo);
+    end;
+  except
+    // 如果出错，返回默认版本
+    Result := '1.0.0';
+  end;
 end;
 
 // 结束日志缓冲并一次性更新MemLog
@@ -761,19 +937,28 @@ begin
   SuccessCount := 0;
 
   try
-    // (Fix Callback Type E2010 - Explicit Cast)
-    FEncodingController.ConvertFilesByName(AllFiles, TargetInfo.ShortName, WithBOM,
-      TProc<string>(
-        procedure(const FilePath: string)
-        begin
-          UpdateSingleFileInGrid(FilePath);
-          Inc(SuccessCount);
-        end
-      )
-    );
-
-    // 设置转换结果为成功
-    ConversionResult := True;
+    // 使用安全的方式调用
+    if Assigned(FEncodingController) and (Length(AllFiles) > 0) then
+    begin
+      try
+        FEncodingController.ConvertFilesByName(AllFiles, TargetInfo.ShortName, WithBOM,
+          TProc<string>(
+            procedure(const FilePath: string)
+            begin
+              if (FilePath <> '') and FileExists(FilePath) then
+              begin
+                UpdateSingleFileInGrid(FilePath);
+                Inc(SuccessCount);
+              end;
+            end
+          )
+        );
+      except
+        on E: Exception do
+          Log('转换过程中出错: ' + E.Message);
+      end;
+    end;
+    ConversionResult := True; // 假设转换成功
 
     // 记录转换结果
     Log(Format('批量转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(AllFiles)]));
@@ -826,14 +1011,23 @@ begin
   end;
 
   // 执行转换
-  FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
-    TProc<string>(
-      procedure(const FilePath: string)
-      begin
-        UpdateSingleFileInGrid(FilePath);
-      end
-    )
-  );
+  if Assigned(FEncodingController) and (Length(SelectedFiles) > 0) then
+  begin
+    try
+      FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
+        TProc<string>(
+          procedure(const FilePath: string)
+          begin
+            if (FilePath <> '') and FileExists(FilePath) then
+              UpdateSingleFileInGrid(FilePath);
+          end
+        )
+      );
+    except
+      on E: Exception do
+        Log('转换过程中出错: ' + E.Message);
+    end;
+  end;
   Log(Format('批量转换完成: %d 个文件', [Length(SelectedFiles)]));
 end;
 
@@ -884,15 +1078,28 @@ begin
 
   Screen.Cursor := crHourGlass;
   try
-    // 执行转换
-    ConversionResult := FEncodingController.ConvertSingleFileByName(FilePath, TargetInfo.ShortName, WithBOM,
-      TProc<string>(
-        procedure(const AFilePath: string)
+    // 使用安全的方式调用
+    ConversionResult := False; // 默认失败
+    if Assigned(FEncodingController) and FileExists(FilePath) then
+    begin
+      try
+        ConversionResult := FEncodingController.ConvertSingleFileByName(FilePath, TargetInfo.ShortName, WithBOM,
+          TProc<string>(
+            procedure(const AFilePath: string)
+            begin
+              if (AFilePath <> '') and FileExists(AFilePath) then
+                UpdateSingleFileInGrid(AFilePath);
+            end
+          )
+        );
+      except
+        on E: Exception do
         begin
-          UpdateSingleFileInGrid(AFilePath);
-        end
-      )
-    );
+          Log('转换文件时出错: ' + E.Message);
+          ConversionResult := False;
+        end;
+      end;
+    end;
 
     if ConversionResult then
     begin
@@ -946,17 +1153,17 @@ begin
   // 更新语言选择框的选中项
   LangInfos := LanguageManager.GetLanguageList;
   for i := 0 to High(LangInfos) do
-begin
-    if LangInfos[i].Code = LangCode then
   begin
-      if FLanguageComboBox.ItemIndex <> i then
+    if LangInfos[i].Code = LangCode then
+    begin
+      if Assigned(FLanguageComboBox) and (FLanguageComboBox.ItemIndex <> i) then
       begin
         Log('更新语言下拉框选中项: ' + LangInfos[i].NativeName);
         FLanguageComboBox.ItemIndex := i;
       end;
       Break;
+    end;
   end;
-end;
 
   // 强制更新所有控件文本
   for i := 0 to ComponentCount - 1 do
@@ -990,10 +1197,7 @@ var
   Grid: TStringGrid;
   P: TPoint;
 begin
-  if Sender is TStringGrid then
-    Grid := TStringGrid(Sender)
-  else
-    Exit;
+  Grid := TStringGrid(Sender);
   P := Grid.ScreenToClient(Mouse.CursorPos);
 
   // 获取当前鼠标位置对应的单元格
@@ -1309,10 +1513,10 @@ begin
 
   // 如果FLanguageComboBox已创建，选择中文选项
   if Assigned(FLanguageComboBox) then
-begin
+  begin
     LangInfos := LanguageManager.GetLanguageList;
     for i := 0 to High(LangInfos) do
-begin
+    begin
       if LangInfos[i].Code = 'zh-CN' then
       begin
         FLanguageComboBox.ItemIndex := i;
@@ -1374,29 +1578,57 @@ var
   i: Integer;
   Found: Boolean;
 begin
-  // 提取文件名
-  FileName := ExtractFileName(FilePath);
-
-  // 检测文件编码
-  EncodingName := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
-
-  // 在表格中查找该文件
-  Found := False;
-  for i := 1 to StringGrid1.RowCount - 1 do
-begin
-    if StringGrid1.Cells[1, i] = FileName then
-begin
-      // 更新编码信息
-      StringGrid1.Cells[2, i] := EncodingName;
-      Found := True;
-      Break;
+  // 安全检查
+  if (FilePath = '') or not FileExists(FilePath) or not Assigned(FFileHelper) or not Assigned(StringGrid1) then
+  begin
+    Log('警告: UpdateSingleFileInGrid 被调用时参数无效或组件未就绪');
+    Exit;
   end;
-end;
 
-  // 如果表格中没有该文件，可能需要考虑添加它
-  if not Found and (FileName <> '') then
-begin
-    Log('文件 ' + FileName + ' 转换完成，编码: ' + EncodingName);
+  try
+    // 提取文件名
+    FileName := ExtractFileName(FilePath);
+    if FileName = '' then
+    begin
+      Log('警告: 无法提取文件名: ' + FilePath);
+      Exit;
+    end;
+
+    // 检测文件编码
+    try
+      EncodingName := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
+    except
+      on E: Exception do
+      begin
+        Log('检测文件编码时出错: ' + E.Message);
+        EncodingName := '检测失败';
+      end;
+    end;
+
+    // 在表格中查找该文件
+    Found := False;
+    if StringGrid1.RowCount > 1 then
+    begin
+      for i := 1 to StringGrid1.RowCount - 1 do
+      begin
+        if (i < StringGrid1.RowCount) and (StringGrid1.Cells[1, i] = FileName) then
+        begin
+          // 更新编码信息
+          StringGrid1.Cells[2, i] := EncodingName;
+          Found := True;
+          Break;
+        end;
+      end;
+    end;
+
+    // 如果表格中没有该文件，可能需要考虑添加它
+    if not Found and (FileName <> '') then
+    begin
+      Log('文件 ' + FileName + ' 转换完成，编码: ' + EncodingName);
+    end;
+  except
+    on E: Exception do
+      Log('更新文件信息时出错: ' + E.Message);
   end;
 end;
 
@@ -1454,6 +1686,10 @@ begin
       SynEditForm.Show;
       SynEditForm.BringToFront; // 确保窗口可见
       Log('成功显示文件: ' + SelectedFile);
+
+      // 将文件添加到最近使用文件列表
+      if Assigned(FRecentFilesManager) then
+        FRecentFilesManager.AddFile(SelectedFile);
     except
       on E: Exception do
       begin
@@ -1599,13 +1835,13 @@ begin
   if Stage = cdPrePaint then
   begin
     NewStyle := [];
-    NewSize := FOriginalFontSize; // Start with default
+    NewSize := TreeViewEncodings.Font.Size; // Start with default
 
     case Node.Level of
       0: // Root Node ("目标编码")
       begin
         NewStyle := [fsBold];
-        NewSize := FOriginalFontSize + 2;
+        NewSize := TreeViewEncodings.Font.Size + 2;
       end;
       1: // Category Node
       begin
@@ -1705,7 +1941,7 @@ begin
   SelectUTF8BOMInTreeView;
 
   // 绑定事件
-  CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
+  CheckListBox1.OnClickCheck := CheckListBoxClickCheck;
 
   // 确保绑定弹出菜单
   StringGrid1.PopupMenu := GridPopupMenu;
@@ -1713,15 +1949,6 @@ begin
   // 确保按钮事件绑定
   btnShowContent.OnClick := btnShowContentClick;
   btnSelectAllExt.OnClick := btnSelectAllExtClick;
-
-  // 初始化SVG转ICON按钮
-  if Assigned(btnSVG2ICON) then
-  begin
-    btnSVG2ICON.Caption := 'SVG转ICON';
-    btnSVG2ICON.Hint := '将选中的SVG文件转换为ICON格式';
-    btnSVG2ICON.ShowHint := True;
-    btnSVG2ICON.OnClick := btnSVG2ICONClick;
-  end;
 
   // 初始化"包含子目录"复选框
   chkIncludeSubdirs.Checked := False;
@@ -1816,7 +2043,9 @@ begin
   // 记录启动日志
   Log('程序已启动，当前语言：' + LanguageManager.GetLanguageNameByCode(LanguageManager.CurrentLanguage));
 
-  FOriginalFontSize := TreeViewEncodings.Font.Size;
+  // 记录原始字体大小
+  if Assigned(TreeViewEncodings) then
+    FOriginalFontSize := TreeViewEncodings.Font.Size;
 end;
 
 class procedure TForm1.Initialize;
@@ -1830,65 +2059,34 @@ begin
 end;
 
 procedure TForm1.ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
+var
+  SynEditForm: TSynEditForm;
 begin
   try
-    // 创建SynEditForm实例（如果尚未创建）
-    if not Assigned(SynEditForm) then
-    begin
-      try
-        Application.CreateForm(TSynEditForm, SynEditForm);
-      except
-        on E: Exception do
-        begin
-          ShowMessage('无法创建文件查看器: ' + E.Message);
-          Log('创建SynEditForm失败: ' + E.Message);
-          Exit;
-        end;
-      end;
-    end;
-
-    // 直接加载文件内容，SynEdit会自动处理编码
+    // 每次创建新的SynEditForm实例
+    SynEditForm := TSynEditForm.Create(Self);
     try
-      SynEditForm.LoadFile(FileName);
-    except
-      on E: Exception do
-      begin
-        ShowMessage('无法加载文件: ' + E.Message);
-        Log('SynEditForm.LoadFile失败: ' + E.Message);
-        Exit;
-      end;
-    end;
+      // 直接加载文件内容
+      SynEditForm.LoadFile(FileName, Encoding);
 
-    // 定位窗体在主窗体右侧(如果屏幕空间足够)
-    try
-      if Self.Left + Self.Width + 20 + 600 < Screen.Width then
-        SynEditForm.Left := Self.Left + Self.Width + 20
-      else
-        SynEditForm.Left := (Screen.Width - SynEditForm.Width) div 2;
+      // 设置编码信息标签
+      if DetectedEncoding <> '' then
+        SynEditForm.lblEncoding.Caption := '编码: ' + DetectedEncoding;
 
-      SynEditForm.Top := Self.Top + 50; // 略微偏下
+      SynEditForm.lblBOM.Caption := 'BOM: ' + IfThen(HasBOM, '有', '无');
 
-      // 调整窗体大小为合理值
-      SynEditForm.Width := 800;
-      SynEditForm.Height := 600;
-
-      // 显示窗体(非模态)
-      SynEditForm.Show;
-
-      // 记录日志
-      Log('已打开文件: ' + FileName);
-    except
-      on E: Exception do
-      begin
-        ShowMessage('显示窗体时发生错误: ' + E.Message);
-        Log('显示SynEditForm失败: ' + E.Message);
-      end;
+      // 显示为模态窗口
+      SynEditForm.Position := poScreenCenter;
+      SynEditForm.ShowModal;
+    finally
+      // 关闭后释放实例
+      SynEditForm.Free;
     end;
   except
     on E: Exception do
     begin
-      ShowMessage('无法打开文件: ' + E.Message);
-      Log('打开文件失败: ' + E.Message);
+      ShowMessage('无法显示文件内容: ' + E.Message);
+      Log('显示文件内容失败: ' + E.Message);
     end;
   end;
 end;
@@ -1906,6 +2104,25 @@ end;
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+  // 保存配置
+  try
+    if Assigned(FConfigManager) then
+    begin
+      // 保存当前目录
+      if (FSelectedFolder <> '') and System.SysUtils.DirectoryExists(FSelectedFolder) then
+        FConfigManager.SetString('Settings', 'LastDirectory', FSelectedFolder);
+
+      // 保存是否包含子目录
+      FConfigManager.SetBoolean('Settings', 'IncludeSubdirs', FIncludeSubdirs);
+
+      // 保存配置
+      FConfigManager.SaveConfig;
+    end;
+  except
+    on E: Exception do
+      Log('保存配置时出错: ' + E.Message);
+  end;
+
   // 安全释放全局的SynEditForm实例
   try
     if Assigned(SynEditForm) then
@@ -1926,6 +2143,104 @@ begin
   except
     // 忽略任何在关闭时可能发生的错误
   end;
+
+  // 释放进度条、配置管理器和最近文件管理器
+  try
+    if Assigned(FProgressHelper) then
+      FreeAndNil(FProgressHelper);
+
+    if Assigned(FConfigManager) then
+      FreeAndNil(FConfigManager);
+
+    if Assigned(FRecentFilesManager) then
+      FreeAndNil(FRecentFilesManager);
+  except
+    // 忽略可能的错误
+  end;
+end;
+
+procedure TForm1.MenuItemExitClick(Sender: TObject);
+begin
+  // 关闭程序
+  Close;
+end;
+
+procedure TForm1.MenuItemAboutClick(Sender: TObject);
+begin
+  // 显示关于对话框
+  ShowMessage('TransSuccess ' + GetVersionInfo + #13#10 +
+    '文件编码转换工具' + #13#10 +
+    '版权所有 © 2024');
+end;
+
+procedure TForm1.MenuItemOpenFolderClick(Sender: TObject);
+var
+  FolderName: string;
+begin
+  // 选择文件夹
+  if SelectDirectory('选择文件夹', '', FolderName) then
+  begin
+    // 更新目录列表框
+    DirectoryListBox1.Directory := FolderName;
+
+    // 更新选中的文件夹
+    FSelectedFolder := FolderName;
+
+    // 更新文件列表
+    UpdateFileExtensions(FSelectedFolder);
+    UpdateFileGrid(FSelectedFolder);
+
+    // 记录日志
+    Log('打开文件夹: ' + FolderName);
+  end;
+end;
+
+procedure TForm1.OnRecentFileClick(Sender: TObject);
+var
+  MenuItem: TMenuItem;
+  FileName: string;
+  EncodingName: string;
+  HasBOM: Boolean;
+  Index: Integer;
+begin
+  // 获取菜单项
+  MenuItem := Sender as TMenuItem;
+
+  // 获取文件索引
+  Index := MenuItem.Tag;
+
+  // 获取文件名
+  if Assigned(FRecentFilesManager) and (Index >= 0) and (Index < FRecentFilesManager.GetRecentFiles.Count) then
+    FileName := FRecentFilesManager.GetRecentFiles[Index]
+  else
+    Exit;
+
+  // 检查文件是否存在
+  if not FileExists(FileName) then
+  begin
+    ShowMessage('文件不存在: ' + FileName);
+    Exit;
+  end;
+
+  // 检测文件编码
+  if Assigned(FEncodingController) and FEncodingController.DetectFileEncoding(FileName, EncodingName) then
+  begin
+    // 显示文件内容
+    ShowFileContent(FileName, nil, EncodingName, HasBOM);
+
+    // 记录日志
+    Log('打开最近使用的文件: ' + FileName);
+  end
+  else
+  begin
+    ShowMessage('无法检测文件编码: ' + FileName);
+  end;
+end;
+
+procedure TForm1.CheckListBoxClickCheck(Sender: TObject);
+begin
+  // 当CheckListBox1的项目被选中或取消选中时更新文件列表
+  UpdateFileGrid(FSelectedFolder);
 end;
 
 procedure TForm1.chkIncludeSubdirsClick(Sender: TObject);
@@ -1952,83 +2267,6 @@ begin
 
   // 在日志中显示文件数量信息
   Log('文件列表已更新，当前共显示 ' + IntToStr(StringGrid1.RowCount - 1) + ' 个文件');
-end;
-
-procedure TForm1.btnSVG2ICONClick(Sender: TObject);
-var
-  SelectedFile, DestFile: string;
-  FileExt: string;
-  SaveDialog: TSaveDialog;
-begin
-  // 确保选中了有效的行
-  if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
-  begin
-    ShowMessage('请先选择一个SVG文件');
-    Exit;
-  end;
-
-  // 获取选中的文件路径
-  SelectedFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[1, FSelectedRow];
-  if not FileExists(SelectedFile) then
-  begin
-    ShowMessage('文件不存在: ' + SelectedFile);
-    Exit;
-  end;
-
-  // 检查文件扩展名
-  FileExt := LowerCase(ExtractFileExt(SelectedFile));
-  if FileExt <> '.svg' then
-  begin
-    ShowMessage('选中的文件不是SVG格式，当前文件类型: ' + FileExt);
-    Exit;
-  end;
-
-  // 创建保存对话框
-  SaveDialog := TSaveDialog.Create(nil);
-  try
-    SaveDialog.Title := '保存为ICO文件';
-    SaveDialog.Filter := 'ICO文件 (*.ico)|*.ico';
-    SaveDialog.DefaultExt := 'ico';
-    SaveDialog.FileName := ChangeFileExt(ExtractFileName(SelectedFile), '.ico');
-
-    // 如果用户选择了保存位置
-    if SaveDialog.Execute then
-    begin
-      DestFile := SaveDialog.FileName;
-
-      // 记录操作
-      Log('尝试将SVG文件转换为ICO: ' + SelectedFile + ' -> ' + DestFile);
-
-      try
-        Screen.Cursor := crHourGlass;
-
-        try
-          // 使用SkSvg1控件加载SVG文件
-          SkSvg1.Svg.Source := TFile.ReadAllText(SelectedFile);
-
-          // 将SVG保存为ICO文件
-          TFile.WriteAllText(DestFile, SkSvg1.svg.Source);
-
-          // 显示成功消息
-          ShowMessage('转换成功！' + #13#10 + #13#10 +
-                     '源文件: ' + SelectedFile + #13#10 +
-                     '目标文件: ' + DestFile);
-
-          Log('文件转换成功: ' + DestFile);
-        except
-          on E: Exception do
-          begin
-            ShowMessage('转换过程中出错: ' + E.Message);
-            Log('转换错误: ' + E.Message);
-          end;
-        end;
-      finally
-        Screen.Cursor := crDefault;
-      end;
-    end;
-  finally
-    SaveDialog.Free;
-  end;
 end;
 
 end.

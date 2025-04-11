@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于我们 - TransSuccess</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-top: 10px;
+            color: #ecf0f1;
+        }
+        nav {
+            background-color: #34495e;
+            padding: 10px 0;
+        }
+        nav ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        nav ul li {
+            display: inline-block;
+            margin: 0 15px;
+        }
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 1.1em;
+            transition: color 0.3s;
+        }
+        nav ul li a:hover {
+            color: #3498db;
+        }
+        .page-title {
+            text-align: center;
+            margin: 40px 0;
+        }
+        .page-title h2 {
+            font-size: 2.2em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .page-title p {
+            font-size: 1.2em;
+            color: #555;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .about-content {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .about-section {
+            margin-bottom: 40px;
+        }
+        .about-section:last-child {
+            margin-bottom: 0;
+        }
+        .about-section h3 {
+            color: #2c3e50;
+            font-size: 1.8em;
+            margin-top: 0;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .about-section p {
+            color: #555;
+            margin-bottom: 15px;
+            line-height: 1.8;
+        }
+        .about-section ul {
+            color: #555;
+            margin-bottom: 15px;
+            padding-left: 25px;
+        }
+        .about-section li {
+            margin-bottom: 8px;
+        }
+        .version-history {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .version-history th, .version-history td {
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        .version-history th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .version-history tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .version-history tr:hover {
+            background-color: #f1f1f1;
+        }
+        .contact-info {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0 -15px;
+        }
+        .contact-item {
+            flex: 0 0 50%;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        .contact-item h4 {
+            color: #3498db;
+            font-size: 1.4em;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .contact-item p {
+            margin-bottom: 0;
+        }
+        .license-box {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px 0;
+            margin-top: 40px;
+        }
+        @media (max-width: 768px) {
+            .contact-item {
+                flex: 0 0 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>TransSuccess</h1>
+            <div class="subtitle">高效、可靠的文件编码转换工具</div>
+        </div>
+    </header>
+    
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="index.html">首页</a></li>
+                <li><a href="features.html">功能介绍</a></li>
+                <li><a href="help.html">使用帮助</a></li>
+                <li><a href="about.html">关于我们</a></li>
+            </ul>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="page-title">
+            <h2>关于我们</h2>
+            <p>了解 TransSuccess 的开发团队、历史和使命。</p>
+        </div>
+        
+        <div class="about-content">
+            <section class="about-section">
+                <h3>我们的故事</h3>
+                <p>TransSuccess 项目起源于开发团队在日常工作中频繁遇到的文件编码问题。作为软件开发人员，我们经常需要处理来自不同系统、不同语言环境的文本文件，这些文件可能使用各种不同的字符编码。</p>
+                <p>在尝试了市场上的多款编码转换工具后，我们发现它们要么功能过于简单，要么操作复杂，要么收费昂贵。因此，我们决定开发一款既功能强大又易于使用的免费工具，以解决这一普遍问题。</p>
+                <p>经过数月的开发和测试，TransSuccess 于 2023 年正式发布。自发布以来，我们一直根据用户反馈不断改进和完善，力求打造最好的文件编码转换工具。</p>
+            </section>
+            
+            <section class="about-section">
+                <h3>我们的使命</h3>
+                <p>TransSuccess 的使命是简化文件编码转换过程，帮助用户轻松解决文本文件编码问题。我们致力于：</p>
+                <ul>
+                    <li>提供简单直观的用户界面，让任何人都能轻松上手</li>
+                    <li>支持广泛的编码格式，满足不同用户的需求</li>
+                    <li>确保转换过程安全可靠，不损坏原始文件</li>
+                    <li>持续改进和创新，提供更多实用功能</li>
+                    <li>保持软件免费开放，让所有人都能受益</li>
+                </ul>
+            </section>
+            
+            <section class="about-section">
+                <h3>版本历史</h3>
+                <table class="version-history">
+                    <thead>
+                        <tr>
+                            <th>版本</th>
+                            <th>发布日期</th>
+                            <th>主要更新</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1.0.0</td>
+                            <td>2023-01-15</td>
+                            <td>
+                                <ul>
+                                    <li>首次发布</li>
+                                    <li>支持基本的编码转换功能</li>
+                                    <li>支持批量转换</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>1.1.0</td>
+                            <td>2023-03-20</td>
+                            <td>
+                                <ul>
+                                    <li>添加文件预览功能</li>
+                                    <li>改进编码检测算法</li>
+                                    <li>修复多个 bug</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>1.2.0</td>
+                            <td>2023-06-10</td>
+                            <td>
+                                <ul>
+                                    <li>添加命令行支持</li>
+                                    <li>添加文件比较功能</li>
+                                    <li>优化界面布局</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>1.3.0</td>
+                            <td>2023-09-05</td>
+                            <td>
+                                <ul>
+                                    <li>添加语法高亮功能</li>
+                                    <li>支持更多编码格式</li>
+                                    <li>提高转换速度</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>1.4.0</td>
+                            <td>2023-12-18</td>
+                            <td>
+                                <ul>
+                                    <li>添加 SVG 转 ICO 功能</li>
+                                    <li>改进批量转换性能</li>
+                                    <li>添加详细的转换报告</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>1.5.0</td>
+                            <td>2024-03-25</td>
+                            <td>
+                                <ul>
+                                    <li>添加更多自定义选项</li>
+                                    <li>优化内存使用</li>
+                                    <li>修复多个稳定性问题</li>
+                                </ul>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>1.5.1</td>
+                            <td>2024-07-15</td>
+                            <td>
+                                <ul>
+                                    <li>修复 SVG 转 ICO 功能的问题</li>
+                                    <li>改进文件编码检测准确性</li>
+                                    <li>优化用户界面响应速度</li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+            
+            <section class="about-section">
+                <h3>技术支持</h3>
+                <p>如果您在使用 TransSuccess 过程中遇到任何问题，或者有任何建议和反馈，欢迎通过以下方式联系我们：</p>
+                
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <h4>电子邮件</h4>
+                        <p>support@transsuccess.example.com</p>
+                    </div>
+                    <div class="contact-item">
+                        <h4>官方网站</h4>
+                        <p><a href="https://www.transsuccess.example.com">www.transsuccess.example.com</a></p>
+                    </div>
+                    <div class="contact-item">
+                        <h4>问题报告</h4>
+                        <p>请通过 GitHub Issues 报告问题：<a href="https://github.com/transsuccess/issues">GitHub Issues</a></p>
+                    </div>
+                    <div class="contact-item">
+                        <h4>社区论坛</h4>
+                        <p>加入我们的用户社区：<a href="https://forum.transsuccess.example.com">TransSuccess 论坛</a></p>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="about-section">
+                <h3>许可协议</h3>
+                <p>TransSuccess 是免费软件，根据 MIT 许可证发布。您可以自由使用、复制、修改、合并、出版发行、散布、再授权和/或销售本软件的副本，但需要在所有副本上包含上述版权声明和本许可声明。</p>
+                
+                <div class="license-box">
+                    <p>MIT License</p>
+                    <p>Copyright (c) 2023-2024 TransSuccess Team</p>
+                    <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+                    <p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+                    <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+                </div>
+            </section>
+            
+            <section class="about-section">
+                <h3>致谢</h3>
+                <p>TransSuccess 的开发离不开以下开源项目和社区的支持：</p>
+                <ul>
+                    <li>Delphi VCL 框架</li>
+                    <li>SynEdit 文本编辑器组件</li>
+                    <li>Skia 图形库</li>
+                    <li>ICO 文件格式规范</li>
+                    <li>所有提供反馈和建议的用户</li>
+                </ul>
+                <p>特别感谢所有为 TransSuccess 项目贡献代码、报告问题和提供建议的开发者和用户。</p>
+            </section>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 TransSuccess. 保留所有权利。</p>
+        </div>
+    </footer>
+</body>
+</html>

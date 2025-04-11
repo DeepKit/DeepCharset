@@ -79,7 +79,6 @@ type
     btnClose: TButton;
     chkIncludeSubdirs: TCheckBox;
     btnSVG2ICON: TButton;
-    SkSvg1: TSkSvg;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
@@ -1959,6 +1958,19 @@ var
   SelectedFile, DestFile: string;
   FileExt: string;
   SaveDialog: TSaveDialog;
+  SVG: TSkSvg;
+  Canvas: ISkCanvas;
+  Surface: ISkSurface;
+  Image: ISkImage;
+  Data: TBytes;
+  IconSizes: array of Integer;
+  IconImages: array of ISkImage;
+  MS: TMemoryStream;
+  IconDir: TIconDir;
+  IconDirEntry: TIconDirEntry;
+  i: Integer;
+  IconData: TBytes;
+  IconStream: TMemoryStream;
 begin
   // 确保选中了有效的行
   if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
@@ -2003,18 +2015,135 @@ begin
         Screen.Cursor := crHourGlass;
 
         try
-          // 使用SkSvg1控件加载SVG文件
-          SkSvg1.Svg.Source := TFile.ReadAllText(SelectedFile);
+          // 使用Skia加载SVG文件
+          SVG := TSkSvg.Create;
+          try
+            if not SVG.LoadFromFile(SelectedFile) then
+            begin
+              ShowMessage('无法加载SVG文件，请确保SVG格式正确');
+              Exit;
+            end;
 
-          // 将SVG保存为ICO文件
-          TFile.WriteAllText(DestFile, SkSvg1.svg.Source);
+            // 定义图标大小
+            SetLength(IconSizes, 4);
+            IconSizes[0] := 16;  // 16x16
+            IconSizes[1] := 32;  // 32x32
+            IconSizes[2] := 48;  // 48x48
+            IconSizes[3] := 64;  // 64x64
 
-          // 显示成功消息
-          ShowMessage('转换成功！' + #13#10 + #13#10 +
-                     '源文件: ' + SelectedFile + #13#10 +
-                     '目标文件: ' + DestFile);
+            // 初始化图标图像数组
+            SetLength(IconImages, Length(IconSizes));
 
-          Log('文件转换成功: ' + DestFile);
+            // 将SVG渲染为不同大小的图像
+            for i := 0 to High(IconSizes) do
+            begin
+              // 创建Surface
+              Surface := TSkSurface.MakeRaster(IconSizes[i], IconSizes[i]);
+              Canvas := Surface.Canvas;
+
+              // 清除画布
+              Canvas.Clear(TAlphaColors.Transparent);
+
+              // 绘制SVG
+              Canvas.Save;
+              Canvas.Scale(IconSizes[i] / SVG.Width, IconSizes[i] / SVG.Height);
+              SVG.Draw(Canvas, 0, 0);
+              Canvas.Restore;
+
+              // 获取图像
+              IconImages[i] := Surface.MakeImageSnapshot;
+            end;
+          except
+            SVG.Free;
+            raise;
+          end;
+
+          try
+            // 创建ICO文件
+            IconStream := TMemoryStream.Create;
+            try
+              // 初始化ICO文件头
+              FillChar(IconDir, SizeOf(IconDir), 0);
+              IconDir.idReserved := 0;
+              IconDir.idType := 1; // ICO类型
+              IconDir.idCount := Length(IconImages);
+
+              // 写入ICO文件头
+              IconStream.WriteBuffer(IconDir, SizeOf(TIconDir) - SizeOf(TIconDirEntry));
+
+              // 初始化数据偏移量
+              MS := TMemoryStream.Create;
+              try
+                // 写入每个图像的目录项和数据
+                for i := 0 to High(IconImages) do
+                begin
+                  // 将图像转换为PNG数据
+                  Image := IconImages[i];
+                  // 将图像保存为PNG格式
+                  MS.Position := MS.Size; // 移动到流的末尾
+
+                  // 使用临时流保存PNG数据
+                  Image.EncodeToStream(MS, TSkEncodedImageFormat.PNG);
+
+                  // 获取当前图像数据的大小
+                  Data := nil;
+                  SetLength(Data, MS.Size - MS.Position);
+                  if Length(Data) > 0 then
+                    MS.ReadBuffer(Data[0], Length(Data));
+
+                  // 填充目录项
+                  FillChar(IconDirEntry, SizeOf(IconDirEntry), 0);
+                  IconDirEntry.bWidth := IconSizes[i];
+                  IconDirEntry.bHeight := IconSizes[i];
+                  IconDirEntry.bColorCount := 0; // 真彩色
+                  IconDirEntry.bReserved := 0;
+                  IconDirEntry.wPlanes := 1;
+                  IconDirEntry.wBitCount := 32;
+                  IconDirEntry.dwBytesInRes := Length(Data);
+                  IconDirEntry.dwImageOffset := SizeOf(TIconDir) - SizeOf(TIconDirEntry) +
+                                              IconDir.idCount * SizeOf(TIconDirEntry) +
+                                              MS.Size;
+
+                  // 写入目录项
+                  IconStream.WriteBuffer(IconDirEntry, SizeOf(TIconDirEntry));
+
+                  // 将图像数据添加到临时流
+                  if Length(Data) > 0 then
+                    MS.WriteBuffer(Data[0], Length(Data));
+                end;
+
+                // 将所有图像数据复制到主流
+                MS.Position := 0;
+                SetLength(IconData, MS.Size);
+                if MS.Size > 0 then
+                begin
+                  MS.ReadBuffer(IconData[0], MS.Size);
+                  IconStream.WriteBuffer(IconData[0], Length(IconData));
+                end;
+              finally
+                MS.Free;
+              end;
+
+              // 保存ICO文件
+              IconStream.SaveToFile(DestFile);
+
+              // 显示成功消息
+              ShowMessage('转换成功！' + #13#10 + #13#10 +
+                         '已生成以下尺寸的图标：' + #13#10 +
+                         '- 16x16' + #13#10 +
+                         '- 32x32' + #13#10 +
+                         '- 48x48' + #13#10 +
+                         '- 64x64' + #13#10 + #13#10 +
+                         '目标文件: ' + DestFile);
+
+              // 记录成功日志
+              Log('文件转换成功: ' + DestFile);
+            finally
+              IconStream.Free;
+            end;
+          finally
+            SVG.Free;
+          end;
         except
           on E: Exception do
           begin

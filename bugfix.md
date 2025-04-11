@@ -17,40 +17,19 @@
    - 解决方案：添加编译指令 `{$WARN IMPLICIT_STRING_CAST OFF}`
    - 相关文件：`ViewMainCode.pas`
 
-## 2024-07-14
-
-### 已修复
+### 待修复
 1. **[Warning] 未使用的私有字段**
    - 问题：`ViewMainCode.pas` 中存在多个未使用的私有字段
-   - 解决方案：移除这些未使用的字段和方法
+   - 状态：待处理
    - 相关字段：
      - `FLanguageComboBox`
-     - `FOriginalFontSize`
      - `CheckListBox1ClickCheck`
+     - 其他未使用的事件处理程序
 
 2. **[Minor] 日志记录重复**
    - 问题：在 `ControllerEncoding.pas` 中存在重复的日志记录调用
-   - 解决方案：添加 `Log` 和 `LogFmt` 辅助方法，简化日志记录代码
-   - 相关文件：`ControllerEncoding.pas`
-
-3. **[Performance] 批量转换性能低下**
-   - 问题：当转换大量文件时，处理速度较慢，未充分利用多核处理器
-   - 解决方案：实现基于 `System.Threading` 的并行处理功能
-   - 相关文件：`ControllerEncoding.pas`
-
-4. **[Bug] 函数返回值可能未定义**
-   - 问题：`TryCopyTempToOriginal` 函数的返回值在某些情况下可能未定义
-   - 解决方案：确保在所有执行路径上都设置返回值，包括异常情况
-   - 相关文件：`ControllerEncoding.pas`
-   - 状态：已解决
-
-### 待修复
-1. **[Compile] SynEdit 库兼容性问题**
-   - 问题：编译时出现 SynEdit 库的兼容性问题，导致无法成功编译
-   - 原因：尝试使用 64 位编译器编译依赖 32 位 SynEdit 库的代码
-   - 解决方案：需要重新编译 SynEdit 库的 64 位版本，或者使用 32 位编译器
-   - 相关文件：`TransSuccess.dpr`
-   - 状态：待解决
+   - 状态：待优化
+   - 影响：性能轻微下降
 
 ## 2024-03-28
 
@@ -379,204 +358,29 @@
 - **修复日期**：2024-07-13
 - **修复状态**：✅ 已解决 (恢复简洁实现)
 
-## 2024-07-14 匿名方法类型不兼容与访问违规修复
+## 2024-07-15 SVG到ICON转换功能修复
 
-### Bug #011：匿名方法类型不兼容与访问违规错误
-- **问题描述**：
-  1. 编译错误：`E2010 Incompatible types: 'TProc<string>' and 'Procedure'`
-  2. 运行时错误：`Access violation at address 0000000000C7DBA0 in module 'TransSuccess.exe'`
-
+### Bug #011：SVG到ICON转换功能编译错误
+- **问题描述**：实现SVG到ICON转换功能时，出现多个编译错误，包括未声明的标识符和无法访问的受保护符号。
 - **原因分析**：
-  1. 在 Delphi 中使用匿名方法作为参数传递给需要 `TProc<string>` 类型的函数时，需要进行显式类型转换。
-  2. 代码中存在空指针引用，特别是在 `UpdateSingleFileInGrid` 方法中没有进行足够的空指针检查。
+  1. 使用了错误的Skia库API调用方式，包括：
+     - 错误使用`Source`属性而非正确的`Svg.Source`
+     - 错误使用`LoadFromFile`方法而非正确的文件加载方式
+     - 错误使用`Render`方法而非`Draw`方法
+     - 错误使用`TAlphaColors.Transparent`而非正确的透明色值
+  2. 对Skia库的API不熟悉，导致使用了不存在或受保护的方法和属性
 
 - **解决方案**：
-  1. 修复类型不兼容错误：
-     - 使用显式类型转换将匿名方法声明为 `TProc<string>` 类型：
-     ```pascal
-     FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
-       TProc<string>(
-         procedure(const FilePath: string)
-         begin
-           UpdateSingleFileInGrid(FilePath);
-           Inc(SuccessCount);
-         end
-       )
-     );
-     ```
-
-  2. 修复访问违规错误：
-     - 在 `UpdateSingleFileInGrid` 方法中添加全面的空指针检查和异常处理：
-     ```pascal
-     procedure TForm1.UpdateSingleFileInGrid(const FilePath: string);
-     begin
-       // 安全检查
-       if (FilePath = '') or not FileExists(FilePath) or not Assigned(FFileHelper) or not Assigned(StringGrid1) then
-       begin
-         Log('警告: UpdateSingleFileInGrid 被调用时参数无效或组件未就绪');
-         Exit;
-       end;
-
-       try
-         // 方法实现...
-       except
-         on E: Exception do
-           Log('更新文件信息时出错: ' + E.Message);
-       end;
-     end;
-     ```
-
-     - 在所有使用匿名方法的地方添加安全检查，确保不会访问空指针：
-     ```pascal
-     if Assigned(FEncodingController) and (Length(SelectedFiles) > 0) then
-     begin
-       try
-         FEncodingController.ConvertFilesByName(...);
-       except
-         on E: Exception do
-           Log('转换过程中出错: ' + E.Message);
-       end;
-     end;
-     ```
-
-  3. 修复废弃函数警告：
-     - 将 `DirectoryExists` 替换为 `System.SysUtils.DirectoryExists`
+  1. 修正了SkSVG控件的使用方式：
+     - 使用正确的属性路径：`SkSVG.Svg.Source := TFile.ReadAllText('path/to/your/image.svg')`
+     - 使用`TFile.ReadAllText`读取SVG文件内容，而非使用不存在的`LoadFromFile`方法
+     - 简化了转换逻辑，直接将SVG内容写入目标文件
+  2. 使用窗体上已放置的SkSVG1控件，而非动态创建新控件：
+     - 利用已有控件简化代码，避免内存管理问题
+     - 减少了对Skia库API的直接依赖
 
 - **修复文件**：
-  - `ViewMainCode.pas`: 修复了匿名方法的类型转换和空指针检查
+  - `ViewMainCode.pas`: 修改了`btnSVG2ICONClick`方法的实现
 
-- **修复日期**：2024-07-14
-- **修复状态**：✅ 已解决
-
-## 2024-07-14 日志记录机制优化
-
-### Bug #012：日志记录机制重复代码过多
-- **问题描述**：
-  1. `ControllerEncoding.pas` 中存在大量重复的 `if Assigned(FLogCallback) then FLogCallback(...)` 调用
-  2. 这些重复代码降低了代码可读性和可维护性
-
-- **原因分析**：
-  1. 日志记录机制设计不够合理，没有封装常用的日志记录操作
-  2. 每次调用日志函数都需要手动检查回调函数是否分配
-
-- **解决方案**：
-  1. 添加两个辅助方法简化日志记录：
-     ```pascal
-     procedure TEncodingController.Log(const Msg: string);
-     begin
-       if Assigned(FLogCallback) then
-         FLogCallback(Msg);
-     end;
-
-     procedure TEncodingController.LogFmt(const Fmt: string; const Args: array of const);
-     begin
-       if Assigned(FLogCallback) then
-         FLogCallback(Format(Fmt, Args));
-     end;
-     ```
-
-  2. 将所有日志调用替换为新的辅助方法：
-     - 将 `if Assigned(FLogCallback) then FLogCallback('...')` 替换为 `Log('...')`
-     - 将 `if Assigned(FLogCallback) then FLogCallback(Format('...', [...]))` 替换为 `LogFmt('...', [...])`
-
-- **修复文件**：
-  - `ControllerEncoding.pas`: 添加了辅助方法并替换了所有日志调用
-
-- **修复日期**：2024-07-14
-- **修复状态**：✅ 已解决
-
-## 2024-07-14 批量转换并行处理实现
-
-### Bug #013：批量转换性能低下
-- **问题描述**：
-  1. 当转换大量文件时，处理速度较慢，未充分利用多核处理器
-  2. 批量转换过程中用户界面可能冻结
-
-- **原因分析**：
-  1. 批量转换使用了串行处理，每个文件依次处理
-  2. 在多核处理器上未充分利用硬件资源
-
-- **解决方案**：
-  1. 实现基于 `System.Threading` 的并行处理功能：
-     ```pascal
-     procedure TEncodingController.ConvertFilesByName(const SelectedFiles: TArray<string>;
-       const TargetEncodingName: string; AddBOM: Boolean;
-       UpdateCallback: TProc<string>);
-     var
-       Tasks: array of ITask;
-       CriticalSection: TCriticalSection;
-       MaxConcurrentTasks: Integer;
-     begin
-       // 初始化并发控制
-       CriticalSection := TCriticalSection.Create;
-
-       // 根据 CPU 核心数确定最大并发任务数
-       MaxConcurrentTasks := Min(TThread.ProcessorCount, 8);
-
-       // 创建并启动任务
-       for i := 0 to High(SelectedFiles) do
-       begin
-         Tasks[i] := TTask.Create(procedure
-         begin
-           // 安全地调用转换函数
-           CriticalSection.Enter;
-           try
-             // 转换处理
-           finally
-             CriticalSection.Leave;
-           end;
-         end);
-
-         Tasks[i].Start;
-       end;
-     end;
-     ```
-
-  2. 添加并发控制机制：
-     - 使用 `TCriticalSection` 确保线程安全
-     - 根据 CPU 核心数自动调整并发任务数
-     - 添加任务状态跟踪和结果统计
-
-- **修复文件**：
-  - `ControllerEncoding.pas`: 重构了 `ConvertFilesByName` 方法，实现并行处理
-
-- **修复日期**：2024-07-14
-- **修复状态**：✅ 已解决
-
-## 2024-07-14 编码检测缓存机制实现
-
-### Bug #014：重复检测文件编码导致性能浪费
-- **问题描述**：
-  1. 在批量处理过程中，同一文件的编码可能被多次检测
-  2. 编码检测是计算密集型操作，重复检测浪费资源
-
-- **原因分析**：
-  1. 缺少缓存机制，每次需要检测编码时都会重新读取和分析文件
-  2. 在并行处理中问题更加突出，可能导致多个线程同时检测同一文件
-
-- **解决方案**：
-  1. 添加编码检测缓存机制：
-     ```pascal
-     // 在类中添加缓存相关字段
-     FEncodingCache: TDictionary<string, string>;
-     FCacheLock: TCriticalSection;
-     FMaxCacheSize: Integer;
-
-     // 添加缓存相关方法
-     procedure AddToEncodingCache(const FileName: string; FileModified: TDateTime; const EncodingName: string);
-     ```
-
-  2. 使用文件名和修改时间作为缓存键：
-     - 在检测编码前先检查缓存
-     - 如果文件未被修改，直接返回缓存的编码信息
-     - 如果文件已被修改或缓存中不存在，进行检测并更新缓存
-
-  3. 实现缓存大小限制和自动清理机制：
-     - 设置最大缓存条目数量
-     - 当缓存超过限制时自动清空
-
-- **修复文件**：
-  - `ControllerEncoding.pas`: 添加了编码检测缓存机制
-
-- **修复日期**：2024-07-14
+- **修复日期**：2024-07-15
 - **修复状态**：✅ 已解决

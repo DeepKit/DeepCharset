@@ -8,7 +8,7 @@ uses
   Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.FileCtrl, Vcl.Buttons, Vcl.ComCtrls,
   Vcl.Grids, System.Math, Vcl.CheckLst, System.Types, Vcl.Menus, System.Rtti,
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
-  ControllerEncoding, HelperLanguage, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit;
+  ControllerEncoding, HelperLanguage, HelperProgress, HelperRecentFiles, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit;
 
 type
   // 语言包装器类
@@ -17,7 +17,7 @@ type
     function GetLanguageStrings(Language: TAppLanguage): TLanguageStrings;
   end;
 
-  TchkIncludeSubdirs = class(TForm)
+  TForm1 = class(TForm)
     Panel1: TPanel;
     Panel2: TPanel;
     Panel3: TPanel;
@@ -57,7 +57,15 @@ type
     Button2: TButton;
     btnSelectAllExt: TButton;
     btnClose: TButton;
-    CheckBox1: TCheckBox;
+    chkIncludeSubdirs: TCheckBox;
+    MainMenu1: TMainMenu;
+    MenuFile: TMenuItem;
+    MenuHelp: TMenuItem;
+    MenuItemExit: TMenuItem;
+    MenuItemAbout: TMenuItem;
+    MenuItemRecentFiles: TMenuItem;
+    MenuItemOpenFolder: TMenuItem;
+    N2: TMenuItem;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
@@ -91,15 +99,23 @@ type
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure chkIncludeSubdirsClick(Sender: TObject);
+    procedure MenuItemExitClick(Sender: TObject);
+    procedure MenuItemAboutClick(Sender: TObject);
+    procedure MenuItemOpenFolderClick(Sender: TObject);
+    procedure OnRecentFileClick(Sender: TObject);
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
     FFileExtensions: TStringList;
-    FLanguageComboBox: TComboBox;
     FLanguageWrapper: TLanguageWrapper;
     FIncludeSubdirs: Boolean;
-    FLogBuffer: TStringList; // 添加日志缓冲区
+    FLogBuffer: TStringList; // 日志缓冲区
     FBufferingLogs: Boolean; // 是否正在缓冲日志
+    FLanguageComboBox: TComboBox; // 语言选择下拉框
+    FOriginalFontSize: Integer; // 原始字体大小
+
+    // 获取版本信息
+    function GetVersionInfo: string;
 
     // MVC架构组件
     FConfig: TAppConfig;
@@ -108,11 +124,13 @@ type
     FUIHelper: TUIHelper;
     FFileHelper: TFileHelper;
 
-    FOriginalFontSize: Integer;
+    // 进度条和配置管理
+    FProgressHelper: TProgressHelper;
+    FConfigManager: TConfigManager;
+    FRecentFilesManager: TRecentFilesManager;
 
     procedure UpdateFileGrid(const FolderPath: string);
     procedure UpdateFileExtensions(const FolderPath: string);
-    procedure CheckListBox1ClickCheck(Sender: TObject);
 
     // 日志记录
     procedure Log(const Msg: string);
@@ -150,7 +168,7 @@ type
   end;
 
 var
-  chkIncludeSubdirs: TchkIncludeSubdirs;
+  Form1: TForm1;
 
 implementation
 
@@ -166,9 +184,9 @@ begin
     FillChar(Result, SizeOf(Result), 0);
 end;
 
-{ TForm1 }
+{ Tform1. }
 
-constructor TchkIncludeSubdirs.Create(AOwner: TComponent);
+constructor TForm1.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 
@@ -196,14 +214,7 @@ begin
     )
   );
 
-  FEncodingController := TEncodingController.Create(
-    TProc<string>(
-      procedure(const LogMsg: string)
-  begin
-        Log(LogMsg);
-      end
-    )
-  );
+  FEncodingController := TEncodingController.Create(Log);
 
   // 初始化语言管理器
   InitializeLanguageManager;
@@ -212,7 +223,7 @@ begin
   CreateLanguageSelector;
 end;
 
-destructor TchkIncludeSubdirs.Destroy;
+destructor TForm1.Destroy;
 begin
   // 释放MVC架构组件
   FEncodingController.Free;
@@ -230,7 +241,7 @@ begin
   inherited;
 end;
 
-procedure TchkIncludeSubdirs.InitializeLanguageManager;
+procedure TForm1.InitializeLanguageManager;
 begin
   // 初始化语言管理器
   if not Assigned(LanguageManager) then
@@ -249,7 +260,7 @@ begin
   LanguageManager.OnLanguageChange := OnLanguageChange;
 end;
 
-procedure TchkIncludeSubdirs.FormShow(Sender: TObject);
+procedure TForm1.FormShow(Sender: TObject);
 var
   i: Integer;
 begin
@@ -286,7 +297,7 @@ begin
   AdjustGridColumnWidths;
 end;
 
-procedure TchkIncludeSubdirs.ApplyLanguageStrings;
+procedure TForm1.ApplyLanguageStrings;
 var
   LangStrings: TLanguageStrings;
 begin
@@ -341,12 +352,12 @@ begin
       ', 关闭=' + btnClose.Caption);
 end;
 
-procedure TchkIncludeSubdirs.btnCloseClick(Sender: TObject);
+procedure TForm1.btnCloseClick(Sender: TObject);
 begin
   Close;
 end;
 
-procedure TchkIncludeSubdirs.btnConvertClick(Sender: TObject);
+procedure TForm1.btnConvertClick(Sender: TObject);
 var
   FolderPath: string;
   TargetInfo: TEncodingInfo;
@@ -389,6 +400,10 @@ begin
   Log('开始批量转换 ' + IntToStr(Length(SelectedFiles)) + ' 个文件到 ' + TargetInfo.Name + '...');
   StartLogBuffering;
 
+  // 初始化进度条
+  if Assigned(FProgressHelper) then
+    FProgressHelper.Initialize(Length(SelectedFiles));
+
   // 执行转换
   Screen.Cursor := crHourGlass;
   SuccessCount := 0;
@@ -399,16 +414,20 @@ begin
     begin
       try
         FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
-          TProc<string>(
-            procedure(const FilePath: string)
+          procedure(const FilePath: string)
+          begin
+            if (FilePath <> '') and FileExists(FilePath) then
             begin
-              if (FilePath <> '') and FileExists(FilePath) then
-              begin
-                UpdateSingleFileInGrid(FilePath);
-                Inc(SuccessCount);
-              end;
-            end
-          )
+              UpdateSingleFileInGrid(FilePath);
+              Inc(SuccessCount);
+
+              // 更新进度条
+              if Assigned(FProgressHelper) then
+                FProgressHelper.UpdateProgress(SuccessCount,
+                  Format('正在转换... %d/%d - %s',
+                    [SuccessCount, Length(SelectedFiles), ExtractFileName(FilePath)]));
+            end;
+          end
         );
       except
         on E: Exception do
@@ -431,6 +450,15 @@ begin
     // 结束日志缓冲并一次性更新日志
     EndLogBuffering;
 
+    // 更新进度条完成状态
+    if Assigned(FProgressHelper) then
+    begin
+      if SuccessCount > 0 then
+        FProgressHelper.Complete(Format('转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]))
+      else
+        FProgressHelper.Complete('转换失败: 没有文件被成功转换');
+    end;
+
     // 显示结果
     if SuccessCount > 0 then
       ShowMessage(Format('转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]))
@@ -439,7 +467,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.btnRefreshClick(Sender: TObject);
+procedure TForm1.btnRefreshClick(Sender: TObject);
 begin
   if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
   begin
@@ -448,24 +476,20 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.btnSingleFileClick(Sender: TObject);
+procedure TForm1.btnSingleFileClick(Sender: TObject);
 begin
   // Just call the logic from the menu item handler
   MenuItemConvertCurrentClick(Sender);
 end;
 
-procedure TchkIncludeSubdirs.btnToggleSelectClick(Sender: TObject);
+procedure TForm1.btnToggleSelectClick(Sender: TObject);
 begin
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
 
-procedure TchkIncludeSubdirs.CheckListBox1ClickCheck(Sender: TObject);
-begin
-  // 当CheckListBox1的项目被选中或取消选中时更新文件列表
-  UpdateFileGrid(FSelectedFolder);
-end;
 
-procedure TchkIncludeSubdirs.cmbLanguageChange(Sender: TObject);
+
+procedure TForm1.cmbLanguageChange(Sender: TObject);
 var
   LangInfos: TArray<TLanguageInfo>;
   Index: Integer;
@@ -473,7 +497,7 @@ var
   IsChineseSelected: Boolean;
 begin
   // 获取选中的语言
-  Index := FLanguageComboBox.ItemIndex;
+  Index := ComboBox1.ItemIndex;
   if Index < 0 then
   begin
     Log('警告: 无效的语言索引');
@@ -516,7 +540,7 @@ begin
   Application.ProcessMessages;
 end;
 
-procedure TchkIncludeSubdirs.CreateLanguageSelector;
+procedure TForm1.CreateLanguageSelector;
 var
   LangInfos: TArray<TLanguageInfo>;
   i: Integer;
@@ -526,15 +550,14 @@ begin
     LanguageManager := TLanguageManager.Create;
 
   // 使用窗体上已有的ComboBox1控件
-  FLanguageComboBox := ComboBox1;
-  FLanguageComboBox.Style := csDropDownList;
-  FLanguageComboBox.Tag := 1000; // 特殊标记，用于识别这是语言选择器
+  ComboBox1.Style := csDropDownList;
+  ComboBox1.Tag := 1000; // 特殊标记，用于识别这是语言选择器
 
   // 清空已有项
-  FLanguageComboBox.Items.Clear();
+  ComboBox1.Items.Clear();
 
   // 添加事件处理
-  FLanguageComboBox.OnChange := cmbLanguageChange;
+  ComboBox1.OnChange := cmbLanguageChange;
 
   // 获取可用语言列表并填充下拉框
   LanguageManager.LoadAvailableLanguages;
@@ -545,25 +568,25 @@ begin
   for i := 0 to High(LangInfos) do
   begin
     // 添加语言到下拉框，显示本地化名称
-    FLanguageComboBox.Items.Add(LangInfos[i].NativeName);
+    ComboBox1.Items.Add(LangInfos[i].NativeName);
 
     // 如果是当前语言，设置为选中
     if LangInfos[i].Code = LanguageManager.CurrentLanguage then
-  begin
-      FLanguageComboBox.ItemIndex := i;
+    begin
+      ComboBox1.ItemIndex := i;
       Log('当前语言: ' + LangInfos[i].NativeName + ' (' + LangInfos[i].Code + ')');
-  end;
+    end;
 end;
 
   // 如果没有设置选中项，默认选择第一个
-  if (FLanguageComboBox.ItemIndex < 0) and (FLanguageComboBox.Items.Count > 0) then
-    FLanguageComboBox.ItemIndex := 0;
+  if (ComboBox1.ItemIndex < 0) and (ComboBox1.Items.Count > 0) then
+    ComboBox1.ItemIndex := 0;
 
   // 确保语言选择框可见
-  FLanguageComboBox.Visible := True;
+  ComboBox1.Visible := True;
 end;
 
-procedure TchkIncludeSubdirs.DirectoryListBox1Change(Sender: TObject);
+procedure TForm1.DirectoryListBox1Change(Sender: TObject);
   begin
   // 更新选中的文件夹
   FSelectedFolder := DirectoryListBox1.Directory;
@@ -577,7 +600,7 @@ procedure TchkIncludeSubdirs.DirectoryListBox1Change(Sender: TObject);
   UpdateFileGrid(FSelectedFolder);
 end;
 
-procedure TchkIncludeSubdirs.DirectoryListBox1MouseDown(Sender: TObject; Button: TMouseButton;
+procedure TForm1.DirectoryListBox1MouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   // 用户点击目录列表框
@@ -588,7 +611,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.DriveComboBox1Change(Sender: TObject);
+procedure TForm1.DriveComboBox1Change(Sender: TObject);
 begin
   Screen.Cursor := crHourGlass;
   try
@@ -605,22 +628,58 @@ begin
   end;
 end;
 
-class procedure TchkIncludeSubdirs.Execute;
+class procedure TForm1.Execute;
 begin
   // 创建并显示主窗体
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(Tform1, Form1);
 end;
 
-procedure TchkIncludeSubdirs.FormCreate(Sender: TObject);
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  StatusLabel: TLabel;
+  ProgressBar: TProgressBar;
 begin
   // 允许窗体接收所有键盘事件
   KeyPreview := True;
+
+  // 创建状态栏和进度条
+  StatusLabel := TLabel.Create(Self);
+  StatusLabel.Parent := Panel6;
+  StatusLabel.Align := alLeft;
+  StatusLabel.AutoSize := False;
+  StatusLabel.Width := 300;
+  StatusLabel.Caption := '就绪';
+  StatusLabel.Visible := True;
+
+  ProgressBar := TProgressBar.Create(Self);
+  ProgressBar.Parent := Panel6;
+  ProgressBar.Align := alClient;
+  ProgressBar.Visible := False;
+
+  // 初始化进度条和配置管理器
+  FProgressHelper := TProgressHelper.Create(ProgressBar, StatusLabel);
+  FConfigManager := TConfigManager.Create();
+
+  // 创建最近文件菜单项
+  if not Assigned(MenuItemRecentFiles) then
+  begin
+    MenuItemRecentFiles := TMenuItem.Create(Self);
+    MenuItemRecentFiles.Caption := '最近文件';
+    MenuFile.Insert(1, MenuItemRecentFiles); // 在菜单的第二个位置插入
+  end;
+
+  // 初始化最近文件管理器
+  FRecentFilesManager := TRecentFilesManager.Create(10, MenuItemRecentFiles);
+  FRecentFilesManager.OnRecentFileClick := OnRecentFileClick;
+
+  // 从配置文件加载设置
+  FIncludeSubdirs := FConfigManager.GetBoolean('Settings', 'IncludeSubdirs', False);
 
   // 调用统一的界面初始化方法
   InitializeUI;
 end;
 
-procedure TchkIncludeSubdirs.TreeViewEncodingsClick(Sender: TObject);
+procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
     begin
   // 当用户点击TreeViewEncodings中的项目时触发
   // 如果点击的是组标题（根节点），取消选择
@@ -630,7 +689,7 @@ procedure TchkIncludeSubdirs.TreeViewEncodingsClick(Sender: TObject);
     end;
 end;
 
-procedure TchkIncludeSubdirs.Log(const Msg: string);
+procedure TForm1.Log(const Msg: string);
 begin
   if FBufferingLogs then
   begin
@@ -645,14 +704,63 @@ begin
 end;
 
 // 开始日志缓冲
-procedure TchkIncludeSubdirs.StartLogBuffering;
+procedure TForm1.StartLogBuffering;
 begin
   FBufferingLogs := True;
   FLogBuffer.Clear;
 end;
 
+function TForm1.GetVersionInfo: string;
+var
+  VersionInfo: Pointer;
+  VersionInfoSize: DWORD;
+  FileInfo: PVSFixedFileInfo;
+  FileInfoSize: DWORD;
+  Dummy: DWORD;
+  FilePath: string;
+begin
+  // 默认版本
+  Result := '1.0.0';
+
+  try
+    // 获取当前程序路径
+    FilePath := ParamStr(0);
+
+    // 获取版本信息大小
+    VersionInfoSize := GetFileVersionInfoSize(PChar(FilePath), Dummy);
+    if VersionInfoSize = 0 then
+      Exit;
+
+    // 分配内存
+    GetMem(VersionInfo, VersionInfoSize);
+    try
+      // 获取版本信息
+      if not GetFileVersionInfo(PChar(FilePath), 0, VersionInfoSize, VersionInfo) then
+        Exit;
+
+      // 获取固定版本信息
+      FileInfoSize := SizeOf(TVSFixedFileInfo);
+      if not VerQueryValue(VersionInfo, '\\', Pointer(FileInfo), FileInfoSize) then
+        Exit;
+
+      // 格式化版本信息
+      Result := Format('%d.%d.%d.%d',
+        [HiWord(FileInfo^.dwFileVersionMS),
+         LoWord(FileInfo^.dwFileVersionMS),
+         HiWord(FileInfo^.dwFileVersionLS),
+         LoWord(FileInfo^.dwFileVersionLS)]);
+    finally
+      // 释放内存
+      FreeMem(VersionInfo);
+    end;
+  except
+    // 如果出错，返回默认版本
+    Result := '1.0.0';
+  end;
+end;
+
 // 结束日志缓冲并一次性更新MemLog
-procedure TchkIncludeSubdirs.EndLogBuffering;
+procedure TForm1.EndLogBuffering;
 var
   i: Integer;
 begin
@@ -678,7 +786,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.MenuItemConvertAllFilesClick(Sender: TObject);
+procedure TForm1.MenuItemConvertAllFilesClick(Sender: TObject);
 var
   TargetInfo: TEncodingInfo;
   WithBOM: Boolean;
@@ -751,16 +859,14 @@ begin
     begin
       try
         FEncodingController.ConvertFilesByName(AllFiles, TargetInfo.ShortName, WithBOM,
-          TProc<string>(
-            procedure(const FilePath: string)
+          procedure(const FilePath: string)
+          begin
+            if (FilePath <> '') and FileExists(FilePath) then
             begin
-              if (FilePath <> '') and FileExists(FilePath) then
-              begin
-                UpdateSingleFileInGrid(FilePath);
-                Inc(SuccessCount);
-              end;
-            end
-          )
+              UpdateSingleFileInGrid(FilePath);
+              Inc(SuccessCount);
+            end;
+          end
         );
       except
         on E: Exception do
@@ -791,7 +897,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.MenuItemConvertClick(Sender: TObject);
+procedure TForm1.MenuItemConvertClick(Sender: TObject);
 var
   TargetInfo: TEncodingInfo;
   WithBOM: Boolean;
@@ -824,13 +930,11 @@ begin
   begin
     try
       FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
-        TProc<string>(
-          procedure(const FilePath: string)
-          begin
-            if (FilePath <> '') and FileExists(FilePath) then
-              UpdateSingleFileInGrid(FilePath);
-          end
-        )
+        procedure(const FilePath: string)
+        begin
+          if (FilePath <> '') and FileExists(FilePath) then
+            UpdateSingleFileInGrid(FilePath);
+        end
       );
     except
       on E: Exception do
@@ -840,7 +944,7 @@ begin
   Log(Format('批量转换完成: %d 个文件', [Length(SelectedFiles)]));
 end;
 
-procedure TchkIncludeSubdirs.MenuItemConvertCurrentClick(Sender: TObject);
+procedure TForm1.MenuItemConvertCurrentClick(Sender: TObject);
 var
   TargetInfo: TEncodingInfo;
   WithBOM: Boolean;
@@ -893,13 +997,11 @@ begin
     begin
       try
         ConversionResult := FEncodingController.ConvertSingleFileByName(FilePath, TargetInfo.ShortName, WithBOM,
-          TProc<string>(
-            procedure(const AFilePath: string)
-            begin
-              if (AFilePath <> '') and FileExists(AFilePath) then
-                UpdateSingleFileInGrid(AFilePath);
-            end
-          )
+          procedure(const AFilePath: string)
+          begin
+            if (AFilePath <> '') and FileExists(AFilePath) then
+              UpdateSingleFileInGrid(AFilePath);
+          end
         );
       except
         on E: Exception do
@@ -936,19 +1038,19 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.MenuItemToggleSelectClick(Sender: TObject);
+procedure TForm1.MenuItemToggleSelectClick(Sender: TObject);
         begin
   // 全选/取消全选
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
 
-procedure TchkIncludeSubdirs.MenuItemViewContentClick(Sender: TObject);
+procedure TForm1.MenuItemViewContentClick(Sender: TObject);
 begin
   // 直接调用按钮的点击事件
   btnShowContentClick(Sender);
 end;
 
-procedure TchkIncludeSubdirs.OnLanguageChange(const LangCode: string);
+procedure TForm1.OnLanguageChange(const LangCode: string);
 var
   LangInfos: TArray<TLanguageInfo>;
   i: Integer;
@@ -962,17 +1064,17 @@ begin
   // 更新语言选择框的选中项
   LangInfos := LanguageManager.GetLanguageList;
   for i := 0 to High(LangInfos) do
-begin
-    if LangInfos[i].Code = LangCode then
   begin
-      if FLanguageComboBox.ItemIndex <> i then
+    if LangInfos[i].Code = LangCode then
+    begin
+      if Assigned(FLanguageComboBox) and (FLanguageComboBox.ItemIndex <> i) then
       begin
         Log('更新语言下拉框选中项: ' + LangInfos[i].NativeName);
         FLanguageComboBox.ItemIndex := i;
       end;
       Break;
+    end;
   end;
-end;
 
   // 强制更新所有控件文本
   for i := 0 to ComponentCount - 1 do
@@ -986,7 +1088,7 @@ end;
   Log('OnLanguageChange后的按钮文本: 转换=' + btnConvert.Caption);
 end;
 
-procedure TchkIncludeSubdirs.SetLanguage(Language: TAppLanguage);
+procedure TForm1.SetLanguage(Language: TAppLanguage);
 var
   LangCode: string;
 begin
@@ -1000,7 +1102,7 @@ begin
   ApplyLanguageStrings;
 end;
 
-procedure TchkIncludeSubdirs.StringGrid1Click(Sender: TObject);
+procedure TForm1.StringGrid1Click(Sender: TObject);
 var
   Col, Row: Integer;
   Grid: TStringGrid;
@@ -1031,7 +1133,7 @@ begin
           end;
         end;
 
-procedure TchkIncludeSubdirs.StringGrid1ContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
+procedure TForm1.StringGrid1ContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
 var
   GridCoord: TGridCoord;
 begin
@@ -1055,13 +1157,13 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.StringGridSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
+procedure TForm1.StringGridSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
 begin
   // 记录选中的行
   FSelectedRow := ARow;
 end;
 
-procedure TchkIncludeSubdirs.SwitchToLanguageCode(const LangCode: string);
+procedure TForm1.SwitchToLanguageCode(const LangCode: string);
 var
   LangEnum: TAppLanguage;
 begin
@@ -1114,7 +1216,7 @@ begin
   Log('按钮文本状态: 转换=' + btnConvert.Caption);
 end;
 
-procedure TchkIncludeSubdirs.UpdateFileExtensions(const FolderPath: string);
+procedure TForm1.UpdateFileExtensions(const FolderPath: string);
 var
   Extensions: TArray<string>;
   i: Integer;
@@ -1138,7 +1240,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.UpdateFileGrid(const FolderPath: string);
+procedure TForm1.UpdateFileGrid(const FolderPath: string);
 var
   Files: TArray<string>;
   FileExtensions: TArray<string>;
@@ -1239,7 +1341,7 @@ begin
   end;
 end;
 
-function TchkIncludeSubdirs.GetLanguageStrings(Language: TAppLanguage): TLanguageStrings;
+function TForm1.GetLanguageStrings(Language: TAppLanguage): TLanguageStrings;
   begin
   // 记录语言字符串请求
   if FConfig <> nil then
@@ -1299,7 +1401,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.SwitchToChinese;
+procedure TForm1.SwitchToChinese;
 var
   i: Integer;
   LangInfos: TArray<TLanguageInfo>;
@@ -1322,10 +1424,10 @@ begin
 
   // 如果FLanguageComboBox已创建，选择中文选项
   if Assigned(FLanguageComboBox) then
-begin
+  begin
     LangInfos := LanguageManager.GetLanguageList;
     for i := 0 to High(LangInfos) do
-begin
+    begin
       if LangInfos[i].Code = 'zh-CN' then
       begin
         FLanguageComboBox.ItemIndex := i;
@@ -1356,7 +1458,7 @@ begin
       ', 关闭=' + btnClose.Caption);
 end;
 
-procedure TchkIncludeSubdirs.InvalidateForm;
+procedure TForm1.InvalidateForm;
   begin
   // 使用继承的方法重绘窗体
   inherited Invalidate;
@@ -1364,13 +1466,13 @@ procedure TchkIncludeSubdirs.InvalidateForm;
   Application.ProcessMessages;
 end;
 
-procedure TchkIncludeSubdirs.InvalidateControl(Control: TControl);
+procedure TForm1.InvalidateControl(Control: TControl);
 begin
   // 空方法，只是保留调用结构
   // 在某些版本的Delphi中，控件会自动刷新
 end;
 
-function TchkIncludeSubdirs.GetLanguageEnumName(Language: TAppLanguage): string;
+function TForm1.GetLanguageEnumName(Language: TAppLanguage): string;
   begin
   case Language of
     alChinese: Result := 'alChinese';
@@ -1379,7 +1481,7 @@ function TchkIncludeSubdirs.GetLanguageEnumName(Language: TAppLanguage): string;
     end;
   end;
 
-procedure TchkIncludeSubdirs.UpdateSingleFileInGrid(const FilePath: string);
+procedure TForm1.UpdateSingleFileInGrid(const FilePath: string);
 var
   FileName: string;
   EncodingName: string;
@@ -1441,7 +1543,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.btnShowContentClick(Sender: TObject);
+procedure TForm1.btnShowContentClick(Sender: TObject);
 var
   SelectedFile: string;
 begin
@@ -1495,6 +1597,10 @@ begin
       SynEditForm.Show;
       SynEditForm.BringToFront; // 确保窗口可见
       Log('成功显示文件: ' + SelectedFile);
+
+      // 将文件添加到最近使用文件列表
+      if Assigned(FRecentFilesManager) then
+        FRecentFilesManager.AddFile(SelectedFile);
     except
       on E: Exception do
       begin
@@ -1511,7 +1617,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.btnSelectAllExtClick(Sender: TObject);
+procedure TForm1.btnSelectAllExtClick(Sender: TObject);
 var
   i: Integer;
   AllChecked, AnyChecked: Boolean;
@@ -1601,7 +1707,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.UpdateFileCountLabel;
+procedure TForm1.UpdateFileCountLabel;
 var
   i, SelectedCount: Integer;
   TotalFiles: Integer;
@@ -1627,7 +1733,7 @@ begin
       IntToStr(TotalFiles) + ' 个文件');
 end;
 
-procedure TchkIncludeSubdirs.TreeViewEncodingsAdvancedCustomDrawItem(Sender: TCustomTreeView;
+procedure TForm1.TreeViewEncodingsAdvancedCustomDrawItem(Sender: TCustomTreeView;
   Node: TTreeNode; Stage: TCustomDrawStage; var PaintImages,
   DefaultDraw: Boolean);
 var
@@ -1640,13 +1746,13 @@ begin
   if Stage = cdPrePaint then
   begin
     NewStyle := [];
-    NewSize := FOriginalFontSize; // Start with default
+    NewSize := TreeViewEncodings.Font.Size; // Start with default
 
     case Node.Level of
       0: // Root Node ("目标编码")
       begin
         NewStyle := [fsBold];
-        NewSize := FOriginalFontSize + 2;
+        NewSize := TreeViewEncodings.Font.Size + 2;
       end;
       1: // Category Node
       begin
@@ -1676,7 +1782,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.SelectUTF8BOMInTreeView;
+procedure TForm1.SelectUTF8BOMInTreeView;
 var
   i: Integer;
   Node: TTreeNode;
@@ -1722,7 +1828,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.AdjustGridColumnWidths;
+procedure TForm1.AdjustGridColumnWidths;
 begin
   // 设置列宽
   StringGrid1.ColWidths[0] := 40;        // 选择框列
@@ -1733,7 +1839,7 @@ begin
   StringGrid1.Invalidate;
 end;
 
-procedure TchkIncludeSubdirs.InitializeUI;
+procedure TForm1.InitializeUI;
 begin
   // 初始化界面
   FUIHelper.InitStringGrid(StringGrid1);
@@ -1746,7 +1852,11 @@ begin
   SelectUTF8BOMInTreeView;
 
   // 绑定事件
-  CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
+  CheckListBox1.OnClickCheck := procedure(Sender: TObject)
+  begin
+    // 当CheckListBox1的项目被选中或取消选中时更新文件列表
+    UpdateFileGrid(FSelectedFolder);
+  end;
 
   // 确保绑定弹出菜单
   StringGrid1.PopupMenu := GridPopupMenu;
@@ -1848,10 +1958,12 @@ begin
   // 记录启动日志
   Log('程序已启动，当前语言：' + LanguageManager.GetLanguageNameByCode(LanguageManager.CurrentLanguage));
 
-  FOriginalFontSize := TreeViewEncodings.Font.Size;
+  // 记录原始字体大小
+  if Assigned(TreeViewEncodings) then
+    FOriginalFontSize := TreeViewEncodings.Font.Size;
 end;
 
-class procedure TchkIncludeSubdirs.Initialize;
+class procedure TForm1.Initialize;
 begin
   // 初始化语言管理器
   if not Assigned(LanguageManager) then
@@ -1861,7 +1973,7 @@ begin
   LanguageManager.Initialize;
 end;
 
-procedure TchkIncludeSubdirs.ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
+procedure TForm1.ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
 begin
   try
     // 创建SynEditForm实例（如果尚未创建）
@@ -1881,7 +1993,13 @@ begin
 
     // 直接加载文件内容，SynEdit会自动处理编码
     try
-      SynEditForm.LoadFile(FileName);
+      SynEditForm.LoadFile(FileName, Encoding);
+
+      // 设置编码信息标签
+      if DetectedEncoding <> '' then
+        SynEditForm.lblEncoding.Caption := '编码: ' + DetectedEncoding;
+
+      SynEditForm.lblBOM.Caption := 'BOM: ' + BoolToStr(HasBOM, '有', '无');
     except
       on E: Exception do
       begin
@@ -1925,7 +2043,7 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
   // 如果按下Shift+Ctrl+W组合键，则调整表格列宽
   if (Key = Ord('W')) and (ssCtrl in Shift) and (ssShift in Shift) then
@@ -1936,8 +2054,27 @@ begin
   end;
 end;
 
-procedure TchkIncludeSubdirs.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+  // 保存配置
+  try
+    if Assigned(FConfigManager) then
+    begin
+      // 保存当前目录
+      if (FSelectedFolder <> '') and System.SysUtils.DirectoryExists(FSelectedFolder) then
+        FConfigManager.SetString('Settings', 'LastDirectory', FSelectedFolder);
+
+      // 保存是否包含子目录
+      FConfigManager.SetBoolean('Settings', 'IncludeSubdirs', FIncludeSubdirs);
+
+      // 保存配置
+      FConfigManager.SaveConfig;
+    end;
+  except
+    on E: Exception do
+      Log('保存配置时出错: ' + E.Message);
+  end;
+
   // 安全释放全局的SynEditForm实例
   try
     if Assigned(SynEditForm) then
@@ -1958,9 +2095,101 @@ begin
   except
     // 忽略任何在关闭时可能发生的错误
   end;
+
+  // 释放进度条、配置管理器和最近文件管理器
+  try
+    if Assigned(FProgressHelper) then
+      FreeAndNil(FProgressHelper);
+
+    if Assigned(FConfigManager) then
+      FreeAndNil(FConfigManager);
+
+    if Assigned(FRecentFilesManager) then
+      FreeAndNil(FRecentFilesManager);
+  except
+    // 忽略可能的错误
+  end;
 end;
 
-procedure TchkIncludeSubdirs.chkIncludeSubdirsClick(Sender: TObject);
+procedure TForm1.MenuItemExitClick(Sender: TObject);
+begin
+  // 关闭程序
+  Close;
+end;
+
+procedure TForm1.MenuItemAboutClick(Sender: TObject);
+begin
+  // 显示关于对话框
+  ShowMessage('TransSuccess ' + GetVersionInfo + #13#10 +
+    '文件编码转换工具' + #13#10 +
+    '版权所有 © 2024');
+end;
+
+procedure TForm1.MenuItemOpenFolderClick(Sender: TObject);
+var
+  FolderName: string;
+begin
+  // 选择文件夹
+  if SelectDirectory('选择文件夹', '', FolderName) then
+  begin
+    // 更新目录列表框
+    DirectoryListBox1.Directory := FolderName;
+
+    // 更新选中的文件夹
+    FSelectedFolder := FolderName;
+
+    // 更新文件列表
+    UpdateFileExtensions(FSelectedFolder);
+    UpdateFileGrid(FSelectedFolder);
+
+    // 记录日志
+    Log('打开文件夹: ' + FolderName);
+  end;
+end;
+
+procedure TForm1.OnRecentFileClick(Sender: TObject);
+var
+  MenuItem: TMenuItem;
+  FileName: string;
+  EncodingName: string;
+  HasBOM: Boolean;
+  Index: Integer;
+begin
+  // 获取菜单项
+  MenuItem := Sender as TMenuItem;
+
+  // 获取文件索引
+  Index := MenuItem.Tag;
+
+  // 获取文件名
+  if Assigned(FRecentFilesManager) and (Index >= 0) and (Index < FRecentFilesManager.GetRecentFiles.Count) then
+    FileName := FRecentFilesManager.GetRecentFiles[Index]
+  else
+    Exit;
+
+  // 检查文件是否存在
+  if not FileExists(FileName) then
+  begin
+    ShowMessage('文件不存在: ' + FileName);
+    Exit;
+  end;
+
+  // 检测文件编码
+  if Assigned(FEncodingController) and FEncodingController.DetectFileEncoding(FileName, EncodingName, HasBOM) then
+  begin
+    // 显示文件内容
+    ShowFileContent(FileName, nil, EncodingName, HasBOM);
+
+    // 记录日志
+    Log('打开最近使用的文件: ' + FileName);
+  end
+  else
+  begin
+    ShowMessage('无法检测文件编码: ' + FileName);
+  end;
+end;
+
+procedure TForm1.chkIncludeSubdirsClick(Sender: TObject);
 begin
   // 更新子目录包含状态
   FIncludeSubdirs := chkIncludeSubdirs.Checked;
