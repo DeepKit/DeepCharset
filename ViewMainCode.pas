@@ -8,7 +8,7 @@ uses
   Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.FileCtrl, Vcl.Buttons, Vcl.ComCtrls,
   Vcl.Grids, System.Math, Vcl.CheckLst, System.Types, Vcl.Menus, System.Rtti,
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
-  ControllerEncoding, HelperLanguage, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit;
+  ControllerEncoding, HelperLanguage, HelperProgress, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit;
 
 type
   // 语言包装器类
@@ -99,6 +99,8 @@ type
     FIncludeSubdirs: Boolean;
     FLogBuffer: TStringList; // 日志缓冲区
     FBufferingLogs: Boolean; // 是否正在缓冲日志
+    FLanguageComboBox: TComboBox; // 语言选择下拉框
+    FOriginalFontSize: Integer; // 原始字体大小
 
     // MVC架构组件
     FConfig: TAppConfig;
@@ -106,6 +108,10 @@ type
     FEncodingController: TEncodingController;
     FUIHelper: TUIHelper;
     FFileHelper: TFileHelper;
+
+    // 进度条和配置管理
+    FProgressHelper: TProgressHelper;
+    FConfigManager: TConfigManager;
 
     procedure UpdateFileGrid(const FolderPath: string);
     procedure UpdateFileExtensions(const FolderPath: string);
@@ -385,6 +391,10 @@ begin
   Log('开始批量转换 ' + IntToStr(Length(SelectedFiles)) + ' 个文件到 ' + TargetInfo.Name + '...');
   StartLogBuffering;
 
+  // 初始化进度条
+  if Assigned(FProgressHelper) then
+    FProgressHelper.Initialize(Length(SelectedFiles));
+
   // 执行转换
   Screen.Cursor := crHourGlass;
   SuccessCount := 0;
@@ -402,6 +412,12 @@ begin
               begin
                 UpdateSingleFileInGrid(FilePath);
                 Inc(SuccessCount);
+
+                // 更新进度条
+                if Assigned(FProgressHelper) then
+                  FProgressHelper.UpdateProgress(SuccessCount,
+                    Format('正在转换... %d/%d - %s',
+                      [SuccessCount, Length(SelectedFiles), ExtractFileName(FilePath)]));
               end;
             end
           )
@@ -426,6 +442,15 @@ begin
 
     // 结束日志缓冲并一次性更新日志
     EndLogBuffering;
+
+    // 更新进度条完成状态
+    if Assigned(FProgressHelper) then
+    begin
+      if SuccessCount > 0 then
+        FProgressHelper.Complete(Format('转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]))
+      else
+        FProgressHelper.Complete('转换失败: 没有文件被成功转换');
+    end;
 
     // 显示结果
     if SuccessCount > 0 then
@@ -603,9 +628,33 @@ begin
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
+var
+  StatusLabel: TLabel;
+  ProgressBar: TProgressBar;
 begin
   // 允许窗体接收所有键盘事件
   KeyPreview := True;
+
+  // 创建状态栏和进度条
+  StatusLabel := TLabel.Create(Self);
+  StatusLabel.Parent := Panel6;
+  StatusLabel.Align := alLeft;
+  StatusLabel.AutoSize := False;
+  StatusLabel.Width := 300;
+  StatusLabel.Caption := '就绪';
+  StatusLabel.Visible := True;
+
+  ProgressBar := TProgressBar.Create(Self);
+  ProgressBar.Parent := Panel6;
+  ProgressBar.Align := alClient;
+  ProgressBar.Visible := False;
+
+  // 初始化进度条和配置管理器
+  FProgressHelper := TProgressHelper.Create(ProgressBar, StatusLabel);
+  FConfigManager := TConfigManager.Create();
+
+  // 从配置文件加载设置
+  FIncludeSubdirs := FConfigManager.GetBoolean('Settings', 'IncludeSubdirs', False);
 
   // 调用统一的界面初始化方法
   InitializeUI;
@@ -953,17 +1002,17 @@ begin
   // 更新语言选择框的选中项
   LangInfos := LanguageManager.GetLanguageList;
   for i := 0 to High(LangInfos) do
-begin
-    if LangInfos[i].Code = LangCode then
   begin
-      if FLanguageComboBox.ItemIndex <> i then
+    if LangInfos[i].Code = LangCode then
+    begin
+      if Assigned(FLanguageComboBox) and (FLanguageComboBox.ItemIndex <> i) then
       begin
         Log('更新语言下拉框选中项: ' + LangInfos[i].NativeName);
         FLanguageComboBox.ItemIndex := i;
       end;
       Break;
+    end;
   end;
-end;
 
   // 强制更新所有控件文本
   for i := 0 to ComponentCount - 1 do
@@ -1313,10 +1362,10 @@ begin
 
   // 如果FLanguageComboBox已创建，选择中文选项
   if Assigned(FLanguageComboBox) then
-begin
+  begin
     LangInfos := LanguageManager.GetLanguageList;
     for i := 0 to High(LangInfos) do
-begin
+    begin
       if LangInfos[i].Code = 'zh-CN' then
       begin
         FLanguageComboBox.ItemIndex := i;
@@ -1631,13 +1680,13 @@ begin
   if Stage = cdPrePaint then
   begin
     NewStyle := [];
-    NewSize := FOriginalFontSize; // Start with default
+    NewSize := TreeViewEncodings.Font.Size; // Start with default
 
     case Node.Level of
       0: // Root Node ("目标编码")
       begin
         NewStyle := [fsBold];
-        NewSize := FOriginalFontSize + 2;
+        NewSize := TreeViewEncodings.Font.Size + 2;
       end;
       1: // Category Node
       begin
@@ -1843,7 +1892,9 @@ begin
   // 记录启动日志
   Log('程序已启动，当前语言：' + LanguageManager.GetLanguageNameByCode(LanguageManager.CurrentLanguage));
 
-  FOriginalFontSize := TreeViewEncodings.Font.Size;
+  // 记录原始字体大小
+  if Assigned(TreeViewEncodings) then
+    FOriginalFontSize := TreeViewEncodings.Font.Size;
 end;
 
 class procedure TForm1.Initialize;
@@ -1933,6 +1984,25 @@ end;
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+  // 保存配置
+  try
+    if Assigned(FConfigManager) then
+    begin
+      // 保存当前目录
+      if (FSelectedFolder <> '') and DirectoryExists(FSelectedFolder) then
+        FConfigManager.SetString('Settings', 'LastDirectory', FSelectedFolder);
+
+      // 保存是否包含子目录
+      FConfigManager.SetBoolean('Settings', 'IncludeSubdirs', FIncludeSubdirs);
+
+      // 保存配置
+      FConfigManager.SaveConfig;
+    end;
+  except
+    on E: Exception do
+      Log('保存配置时出错: ' + E.Message);
+  end;
+
   // 安全释放全局的SynEditForm实例
   try
     if Assigned(SynEditForm) then
@@ -1952,6 +2022,17 @@ begin
     end;
   except
     // 忽略任何在关闭时可能发生的错误
+  end;
+
+  // 释放进度条和配置管理器
+  try
+    if Assigned(FProgressHelper) then
+      FreeAndNil(FProgressHelper);
+
+    if Assigned(FConfigManager) then
+      FreeAndNil(FConfigManager);
+  except
+    // 忽略可能的错误
   end;
 end;
 

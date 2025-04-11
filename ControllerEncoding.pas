@@ -1,28 +1,38 @@
 ﻿unit ControllerEncoding;
 
+{$DEFINE UNUSED} // 定义此条件编译标记以显示未使用的方法
+
 interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Generics.Collections, System.SyncObjs,
+  System.Types, System.TypInfo, // 添加这些单元以支持跨平台的文件属性
   ModelEncoding, Winapi.Windows, JclEncodingUtils;
 
 type
+  // 日志回调类型
+  TLogCallback = procedure(const Msg: string) of object;
+
   // 编码控制器类
   TEncodingController = class
   private
     // 日志记录回调
-    FLogCallback: TProc<string>;
+    FLogCallback: TLogCallback;
 
     // 日志记录辅助方法
     procedure Log(const Msg: string);
     procedure LogFmt(const Fmt: string; const Args: array of const);
 
     // 内部编码转换辅助函数
+    function TryCopyTempToOriginal(const TempFile, OriginalFile: string): Boolean;
+
+    // 以下方法已弃用，保留仅供参考
+    {$IFDEF UNUSED}
     function CheckFileAccessibility(const FileName: string; var UseTemp: Boolean): Boolean;
     procedure CreateBackupFile(const SourceFile: string; var BackupFile: string);
-    function TryCopyTempToOriginal(const TempFile, OriginalFile: string): Boolean;
     procedure LogConversionSuccess(const SourceFile: string);
     procedure RestoreFromBackup(const OriginalFile, BackupFile: string);
+    {$ENDIF}
 
     // 使用JCL进行编码转换
     function ConvertWithJCL(const SourceFile, TargetFile: string;
@@ -32,7 +42,7 @@ type
     function DoConvertSingleFileByName(const SourceFile, TargetEncodingName: string; AddBOM: Boolean = False; const TargetFile: string = ''): TConversionResult;
 
   public
-    constructor Create(ALogCallback: TProc<string>);
+    constructor Create(ALogCallback: TLogCallback);
     destructor Destroy; override;
 
     // 判断文件是否在不支持列表中
@@ -88,7 +98,7 @@ begin
     FLogCallback(Format(Fmt, Args));
 end;
 
-constructor TEncodingController.Create(ALogCallback: TProc<string>);
+constructor TEncodingController.Create(ALogCallback: TLogCallback);
 begin
   inherited Create;
   FLogCallback := ALogCallback;
@@ -420,7 +430,6 @@ end;
 function TEncodingController.DoConvertSingleFileByName(const SourceFile, TargetEncodingName: string; AddBOM: Boolean = False; const TargetFile: string = ''): TConversionResult;
 var
   TempFile: string;
-  SourceEncodingName: string;
   ActualFile: string;
 begin
   Result := crFailed;
@@ -901,9 +910,7 @@ end;
 // Existing ConvertFileEncoding (marked as incompatible)
 function TEncodingController.ConvertFileEncoding(const SourceFile, TargetFile: string;
   TargetEncoding: TEncoding; AddBOM: Boolean): TConversionResult;
-var
-  // Keep var block even if empty for structure
-  Dummy: Integer; // Placeholder
+// No local variables needed
 begin
   // This implementation uses Delphi's TEncoding.Convert
   // It needs significant rework to use JCL with TEncodingInfo.ShortName
@@ -933,9 +940,7 @@ end;
 procedure TEncodingController.ConvertFilesToEncoding(const FolderPath: string;
   const FileExtensions: TArray<string>; SelectedFiles: TArray<string>;
   TargetEncoding: TEncoding; AddBOM: Boolean);
-var
- // Keep var block even if empty for structure
-  Dummy: Integer; // Placeholder
+// No local variables needed
 begin
  // This implementation likely calls ConvertFileEncoding internally.
  // It needs similar rework as ConvertFileEncoding.
@@ -954,9 +959,7 @@ end;
 // Existing ConvertSelectedFilesToEncoding (marked as incompatible)
 procedure TEncodingController.ConvertSelectedFilesToEncoding(const SelectedFiles: TArray<string>;
   TargetEncoding: TEncoding; AddBOM: Boolean);
-var
- // Keep var block even if empty for structure
-  Dummy: Integer; // Placeholder
+// No local variables needed
 begin
  // This implementation likely calls ConvertFileEncoding internally.
  // It needs similar rework as ConvertFileEncoding.
@@ -1030,8 +1033,11 @@ var
   Success: Boolean;
   ErrCode: Cardinal;
 begin
+  // 初始化返回值为失败，确保即使出现意外情况也有定义的返回值
+  Result := False;
+
   RetryCount := 0;
-  Success := False; // 默认为失败，确保返回值始终被定义
+  Success := False; // 默认为失败
 
   try
     repeat
@@ -1051,6 +1057,7 @@ begin
       begin
         if Assigned(FLogCallback) then
           FLogCallback('错误: 临时文件不存在: ' + TempFile);
+        Success := False;
         Exit;
       end;
 
@@ -1058,16 +1065,23 @@ begin
       if FileExists(OriginalFile) then
       begin
         // 先尝试设置文件为可写
-        if FileGetAttr(OriginalFile) and faReadOnly <> 0 then
-        begin
-          if FileSetAttr(OriginalFile, FileGetAttr(OriginalFile) and not faReadOnly) <> 0 then
+        try
+          // 检查文件是否为只读
+          var Attrs := TFile.GetAttributes(OriginalFile);
+          if (TFileAttribute.faReadOnly in Attrs) then
+          begin
+            // 使用 IOUtils 中的跨平台方法
+            Attrs := Attrs - [TFileAttribute.faReadOnly];
+            TFile.SetAttributes(OriginalFile, Attrs);
+          end;
+        except
+          on E: Exception do
           begin
             ErrCode := GetLastError;
             if Assigned(FLogCallback) then
               FLogCallback(Format('警告: 无法设置文件为可写 (错误码: %d): %s', [ErrCode, OriginalFile]));
           end;
         end;
-
         // 然后删除文件
         if not DeleteFile(PChar(OriginalFile)) then
         begin
@@ -1084,7 +1098,10 @@ begin
             Continue;
           end
           else
+          begin
+            Success := False;
             Exit; // 其他错误直接退出
+          end;
         end;
       end;
 
@@ -1160,10 +1177,21 @@ begin
       if FileExists(OriginalFile) then
       begin
         // 先尝试设置文件为可写
-        if FileSetAttr(OriginalFile, FileGetAttr(OriginalFile) and not faReadOnly) <> 0 then
-        begin
-          if Assigned(FLogCallback) then
-            FLogCallback('警告: 无法设置文件为可写: ' + OriginalFile);
+        try
+          // 检查文件是否为只读
+          var Attrs := TFile.GetAttributes(OriginalFile);
+          if (TFileAttribute.faReadOnly in Attrs) then
+          begin
+            // 使用 IOUtils 中的跨平台方法
+            Attrs := Attrs - [TFileAttribute.faReadOnly];
+            TFile.SetAttributes(OriginalFile, Attrs);
+          end;
+        except
+          on E: Exception do
+          begin
+            if Assigned(FLogCallback) then
+              FLogCallback('警告: 无法设置文件为可写: ' + OriginalFile);
+          end;
         end;
 
         // 然后删除文件
