@@ -4,7 +4,8 @@ interface
 
 uses
   System.SysUtils, System.Classes, Winapi.Windows,
-  JclBOM, JclStrings, JclStringConversions, JclFileUtils, JclStreams;
+  JclBOM, JclStrings, JclStringConversions, JclFileUtils, JclStreams,
+  ModelLanguage;
 
 type
   // 编码分类枚举
@@ -38,8 +39,8 @@ type
     function GetItem(Index: Integer): TEncodingInfo;
   public
     constructor Create;
-    procedure Add(const Name, TechnicalName: string; CodePage: Integer; 
-                 Category: TEncodingCategory; HasBOM: Boolean; 
+    procedure Add(const Name, TechnicalName: string; CodePage: Integer;
+                 Category: TEncodingCategory; HasBOM: Boolean;
                  const Description: string = ''; IsPrimaryEncoding: Boolean = False);
     property Items[Index: Integer]: TEncodingInfo read GetItem; default;
     property Count: Integer read FCount;
@@ -88,7 +89,7 @@ const
   ENCODING_ISO_2022_JP = 'ISO-2022-JP';
   ENCODING_EUC_KR = 'EUC-KR';
   ENCODING_JOHAB = 'JOHAB';
-  
+
   // 显示名称常量 - 更友好的界面显示
   DISPLAY_ENCODING_UTF8 = 'UTF-8 (无BOM)';
   DISPLAY_ENCODING_UTF8_BOM = 'UTF-8 BOM';
@@ -108,56 +109,7 @@ function GetEncodingNameByCodePage(CodePage: Integer; HasBOM: Boolean = False): 
 // 检查字符串是否表示UTF-8 BOM编码
 function IsUTF8BOMEncodingName(const EncodingName: string): Boolean;
 
-// 应用程序支持的语言枚举
-type
-  TAppLanguage = (
-    alChinese,             // 简体中文
-    alEnglish,             // 英语
-    alJapanese,            // 日语
-    alKorean,              // 韩语
-    alSpanish,             // 西班牙语
-    alFrench,              // 法语
-    alGerman,              // 德语
-    alItalian,             // 意大利语
-    alChineseTraditional,  // 繁体中文
-    alRussian,             // 俄语
-    alPortuguese,          // 葡萄牙语
-    alArabic,              // 阿拉伯语
-    alDutch,               // 荷兰语
-    alThai,                // 泰语
-    alVietnamese,          // 越南语
-    alPolish               // 波兰语
-  );
-
-// 界面字符串结构体
-TLanguageStrings = record
-  WindowTitle: string;           // 窗口标题
-  BtnConvert: string;            // 转换所有按钮
-  BtnSingleFile: string;         // 单个文件按钮
-  BtnRefresh: string;            // 刷新按钮
-  BtnClose: string;              // 关闭按钮
-  BtnToggleSelect: string;       // 全选/取消全选按钮
-  LanguageGroupCaption: string;  // 语言组标题
-  DirectoryListBoxLabel: string; // 目录列表标签
-  FileListLabel: string;         // 文件列表标签
-  CurrentEncodingLabel: string;  // 当前编码标签
-  FileSelectColumn: string;      // 文件选择列
-  FileNameColumn: string;        // 文件名列
-  EncodingColumn: string;        // 编码列
-  PopupMenuConvert: string;      // 弹出菜单转换
-  PopupMenuToggleSelect: string; // 弹出菜单全选/取消全选
-  NoFilesText: string;           // 无文件文本
-  ReadErrorText: string;         // 读取错误文本
-  LogSelectedDirectory: string;  // 日志选择目录
-end;
-
-// 语言信息记录
-TLanguageInfo = record
-  Code: string;        // 语言代码 (zh-CN, zh-TW, en-US等)
-  Name: string;        // 显示名称 (简体中文, 繁體中文, English等)
-  FileName: string;    // 资源文件名
-  NativeName: string;  // 本地语言名称
-end;
+// 使用 ModelLanguage 单元中的 TAppLanguage 枚举
 
 // 语言映射记录
 TLanguageMapping = record
@@ -165,12 +117,6 @@ TLanguageMapping = record
   LanguageCode: string;
   DisplayName: string;
 end;
-
-// 语言变更事件
-TOnLanguageChangeEvent = procedure(const LangCode: string) of object;
-
-// 语言字符串获取回调函数
-TGetLanguageStringsCallback = function(Language: TAppLanguage): TLanguageStrings of object;
 
 // 语言代码映射表
 const
@@ -218,7 +164,7 @@ var
   Lang: TAppLanguage;
 begin
   Result := alEnglish; // 默认
-  
+
   for Lang := Low(TAppLanguage) to High(TAppLanguage) do
   begin
     if LANGUAGE_MAPPINGS[Lang].LanguageCode = Code then
@@ -266,13 +212,13 @@ begin
 
   // 如果没找到，使用传统的匹配方法
   UpperEncName := UpperCase(EncodingName);
-  
+
   // Unicode编码
   if (UpperEncName = 'UTF-8') or (UpperEncName = 'UTF8') then
     Result := CP_UTF8
   else if IsUTF8BOMEncodingName(EncodingName) then
     Result := CP_UTF8
-  else if (UpperEncName = 'UTF-16LE') or (UpperEncName = 'UTF16LE') or 
+  else if (UpperEncName = 'UTF-16LE') or (UpperEncName = 'UTF16LE') or
           (UpperEncName = 'UNICODE') then
     Result := CP_UTF16LE
   else if (UpperEncName = 'UTF-16BE') or (UpperEncName = 'UTF16BE') then
@@ -281,24 +227,24 @@ begin
     Result := CP_UTF32LE
   else if (UpperEncName = 'UTF-32BE') or (UpperEncName = 'UTF32BE') then
     Result := CP_UTF32BE
-  
+
   // 中文编码
-  else if (UpperEncName = 'GBK') or (UpperEncName = 'GB2312') or 
+  else if (UpperEncName = 'GBK') or (UpperEncName = 'GB2312') or
           (UpperEncName = '936') then
     Result := CP_GBK
   else if (UpperEncName = 'BIG5') or (UpperEncName = '950') then
     Result := CP_BIG5
   else if UpperEncName = 'GB18030' then
     Result := CP_GB18030
-  
+
   // 日文编码
   else if (UpperEncName = 'SHIFT-JIS') or (UpperEncName = 'SHIFT_JIS') then
     Result := CP_SHIFT_JIS
-  
+
   // 如果是数字格式的代码页
   else if TryStrToInt(EncodingName, Result) then
     // 已经转换为Integer了
-  
+
   // 未知的编码
   else
     Result := GetACP(); // 返回系统默认代码页
@@ -316,10 +262,10 @@ begin
     if Index >= 0 then
       Exit(GlobalEncodingList[Index].TechnicalName);
   end;
-  
+
   // 如果没找到，使用传统的匹配方法
   case CodePage of
-    CP_UTF8: 
+    CP_UTF8:
       if HasBOM then
         Result := ENCODING_UTF8_BOM  // 统一使用 'UTF-8 with BOM' 格式
       else
@@ -340,8 +286,8 @@ end;
 // 检查字符串是否表示UTF-8 BOM编码
 function IsUTF8BOMEncodingName(const EncodingName: string): Boolean;
 begin
-  Result := SameText(EncodingName, 'UTF-8') or 
-            SameText(EncodingName, 'UTF8') or 
+  Result := SameText(EncodingName, 'UTF-8') or
+            SameText(EncodingName, 'UTF8') or
             SameText(EncodingName, 'UTF-8 with BOM') or
             SameText(EncodingName, 'UTF8-BOM');
 end;
@@ -361,7 +307,7 @@ procedure TEncodingInfoList.Add(const Name, TechnicalName: string; CodePage: Int
 begin
   Inc(FCount);
   SetLength(FItems, FCount);
-  
+
   with FItems[FCount - 1] do
   begin
     Name := Name;
@@ -436,107 +382,107 @@ begin
   GlobalEncodingList := TEncodingInfoList.Create;
 
   // 添加Unicode编码
-  GlobalEncodingList.Add(DISPLAY_ENCODING_UTF8, ENCODING_UTF8, CP_UTF8, ecUnicode, False, 
+  GlobalEncodingList.Add(DISPLAY_ENCODING_UTF8, ENCODING_UTF8, CP_UTF8, ecUnicode, False,
     'Unicode 8位编码，兼容ASCII，适用于网络传输', True);
-  GlobalEncodingList.Add(DISPLAY_ENCODING_UTF8_BOM, ENCODING_UTF8_BOM, CP_UTF8, ecUnicode, True, 
+  GlobalEncodingList.Add(DISPLAY_ENCODING_UTF8_BOM, ENCODING_UTF8_BOM, CP_UTF8, ecUnicode, True,
     'Unicode 8位编码，带字节顺序标记(BOM)', True);
-  GlobalEncodingList.Add('UTF-16LE', ENCODING_UTF16_LE, CP_UTF16LE, ecUnicode, True, 
+  GlobalEncodingList.Add('UTF-16LE', ENCODING_UTF16_LE, CP_UTF16LE, ecUnicode, True,
     'Unicode 16位小端编码，Windows默认Unicode格式');
-  GlobalEncodingList.Add('UTF-16BE', ENCODING_UTF16_BE, CP_UTF16BE, ecUnicode, True, 
+  GlobalEncodingList.Add('UTF-16BE', ENCODING_UTF16_BE, CP_UTF16BE, ecUnicode, True,
     'Unicode 16位大端编码');
-  GlobalEncodingList.Add('UTF-32LE', ENCODING_UTF32_LE, CP_UTF32LE, ecUnicode, True, 
+  GlobalEncodingList.Add('UTF-32LE', ENCODING_UTF32_LE, CP_UTF32LE, ecUnicode, True,
     'Unicode 32位小端编码');
-  GlobalEncodingList.Add('UTF-32BE', ENCODING_UTF32_BE, CP_UTF32BE, ecUnicode, True, 
+  GlobalEncodingList.Add('UTF-32BE', ENCODING_UTF32_BE, CP_UTF32BE, ecUnicode, True,
     'Unicode 32位大端编码');
 
   // 添加中文编码
-  GlobalEncodingList.Add('ANSI/简体中文(GB2312)', ENCODING_GB2312, CP_GBK, ecChinese, False, 
+  GlobalEncodingList.Add('ANSI/简体中文(GB2312)', ENCODING_GB2312, CP_GBK, ecChinese, False,
     '简体中文编码，支持6763个汉字', True);
-  GlobalEncodingList.Add(DISPLAY_ENCODING_GBK, ENCODING_GBK, CP_GBK, ecChinese, False, 
+  GlobalEncodingList.Add(DISPLAY_ENCODING_GBK, ENCODING_GBK, CP_GBK, ecChinese, False,
     '中国国家标准编码，支持21003个汉字');
-  GlobalEncodingList.Add('GB18030', ENCODING_GB18030, CP_GB18030, ecChinese, False, 
+  GlobalEncodingList.Add('GB18030', ENCODING_GB18030, CP_GB18030, ecChinese, False,
     '中国国家标准编码，支持7万多个汉字，包括繁体');
-  GlobalEncodingList.Add(DISPLAY_ENCODING_BIG5, ENCODING_BIG5, CP_BIG5, ecChinese, False, 
+  GlobalEncodingList.Add(DISPLAY_ENCODING_BIG5, ENCODING_BIG5, CP_BIG5, ecChinese, False,
     '繁体中文编码，主要用于台湾、香港地区');
 
   // 添加日文编码
-  GlobalEncodingList.Add('Shift-JIS', ENCODING_SHIFT_JIS, CP_SHIFT_JIS, ecJapanese, False, 
+  GlobalEncodingList.Add('Shift-JIS', ENCODING_SHIFT_JIS, CP_SHIFT_JIS, ecJapanese, False,
     '日语编码，Windows日文版的默认编码');
-  GlobalEncodingList.Add('EUC-JP', ENCODING_EUC_JP, CP_EUC_JP, ecJapanese, False, 
+  GlobalEncodingList.Add('EUC-JP', ENCODING_EUC_JP, CP_EUC_JP, ecJapanese, False,
     '日语扩展Unix编码');
-  GlobalEncodingList.Add('ISO-2022-JP', ENCODING_ISO_2022_JP, CP_ISO_2022_JP, ecJapanese, False, 
+  GlobalEncodingList.Add('ISO-2022-JP', ENCODING_ISO_2022_JP, CP_ISO_2022_JP, ecJapanese, False,
     '日语JIS编码');
 
   // 添加韩文编码
-  GlobalEncodingList.Add('EUC-KR', ENCODING_EUC_KR, CP_EUC_KR, ecKorean, False, 
+  GlobalEncodingList.Add('EUC-KR', ENCODING_EUC_KR, CP_EUC_KR, ecKorean, False,
     '韩语扩展Unix编码');
-  GlobalEncodingList.Add('JOHAB', ENCODING_JOHAB, CP_JOHAB, ecKorean, False, 
+  GlobalEncodingList.Add('JOHAB', ENCODING_JOHAB, CP_JOHAB, ecKorean, False,
     '韩语Johab编码');
 
   // 添加Windows编码系列
-  GlobalEncodingList.Add('Windows-1250', 'Windows-1250', 1250, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1250', 'Windows-1250', 1250, ecWindows, False,
     '中欧语言编码');
-  GlobalEncodingList.Add('Windows-1251', 'Windows-1251', 1251, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1251', 'Windows-1251', 1251, ecWindows, False,
     '西里尔文编码');
-  GlobalEncodingList.Add('Windows-1252', 'Windows-1252', 1252, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1252', 'Windows-1252', 1252, ecWindows, False,
     '西欧语言编码', True);
-  GlobalEncodingList.Add('Windows-1253', 'Windows-1253', 1253, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1253', 'Windows-1253', 1253, ecWindows, False,
     '希腊文编码');
-  GlobalEncodingList.Add('Windows-1254', 'Windows-1254', 1254, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1254', 'Windows-1254', 1254, ecWindows, False,
     '土耳其文编码');
-  GlobalEncodingList.Add('Windows-1255', 'Windows-1255', 1255, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1255', 'Windows-1255', 1255, ecWindows, False,
     '希伯来文编码');
-  GlobalEncodingList.Add('Windows-1256', 'Windows-1256', 1256, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1256', 'Windows-1256', 1256, ecWindows, False,
     '阿拉伯文编码');
-  GlobalEncodingList.Add('Windows-1257', 'Windows-1257', 1257, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1257', 'Windows-1257', 1257, ecWindows, False,
     '波罗的海文编码');
-  GlobalEncodingList.Add('Windows-1258', 'Windows-1258', 1258, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-1258', 'Windows-1258', 1258, ecWindows, False,
     '越南文编码');
-  GlobalEncodingList.Add('Windows-874', 'Windows-874', 874, ecWindows, False, 
+  GlobalEncodingList.Add('Windows-874', 'Windows-874', 874, ecWindows, False,
     '泰文编码');
 
   // 添加ISO编码系列
-  GlobalEncodingList.Add('ISO-8859-1', 'ISO-8859-1', CP_ISO_8859_1, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-1', 'ISO-8859-1', CP_ISO_8859_1, ecISO, False,
     '拉丁文1，西欧语言编码');
-  GlobalEncodingList.Add('ISO-8859-2', 'ISO-8859-2', 28592, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-2', 'ISO-8859-2', 28592, ecISO, False,
     '拉丁文2，中欧语言编码');
-  GlobalEncodingList.Add('ISO-8859-3', 'ISO-8859-3', 28593, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-3', 'ISO-8859-3', 28593, ecISO, False,
     '拉丁文3，南欧语言编码');
-  GlobalEncodingList.Add('ISO-8859-4', 'ISO-8859-4', 28594, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-4', 'ISO-8859-4', 28594, ecISO, False,
     '拉丁文4，北欧语言编码');
-  GlobalEncodingList.Add('ISO-8859-5', 'ISO-8859-5', 28595, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-5', 'ISO-8859-5', 28595, ecISO, False,
     '拉丁文/西里尔文编码');
-  GlobalEncodingList.Add('ISO-8859-6', 'ISO-8859-6', 28596, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-6', 'ISO-8859-6', 28596, ecISO, False,
     '拉丁文/阿拉伯文编码');
-  GlobalEncodingList.Add('ISO-8859-7', 'ISO-8859-7', 28597, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-7', 'ISO-8859-7', 28597, ecISO, False,
     '拉丁文/希腊文编码');
-  GlobalEncodingList.Add('ISO-8859-8', 'ISO-8859-8', 28598, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-8', 'ISO-8859-8', 28598, ecISO, False,
     '拉丁文/希伯来文编码');
-  GlobalEncodingList.Add('ISO-8859-9', 'ISO-8859-9', 28599, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-9', 'ISO-8859-9', 28599, ecISO, False,
     '拉丁文5，土耳其文编码');
-  GlobalEncodingList.Add('ISO-8859-13', 'ISO-8859-13', 28603, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-13', 'ISO-8859-13', 28603, ecISO, False,
     '拉丁文7，波罗的海文编码');
-  GlobalEncodingList.Add('ISO-8859-15', 'ISO-8859-15', 28605, ecISO, False, 
+  GlobalEncodingList.Add('ISO-8859-15', 'ISO-8859-15', 28605, ecISO, False,
     '拉丁文9，西欧语言编码，带欧元符号');
 
   // 添加DOS/OEM编码
-  GlobalEncodingList.Add('IBM437/CP437', 'IBM437', 437, ecDOS, False, 
+  GlobalEncodingList.Add('IBM437/CP437', 'IBM437', 437, ecDOS, False,
     '美国编码');
-  GlobalEncodingList.Add('IBM850/CP850', 'IBM850', 850, ecDOS, False, 
+  GlobalEncodingList.Add('IBM850/CP850', 'IBM850', 850, ecDOS, False,
     '西欧语言编码');
-  GlobalEncodingList.Add('IBM852/CP852', 'IBM852', 852, ecDOS, False, 
+  GlobalEncodingList.Add('IBM852/CP852', 'IBM852', 852, ecDOS, False,
     '中欧语言编码');
-  GlobalEncodingList.Add('IBM855/CP855', 'IBM855', 855, ecDOS, False, 
+  GlobalEncodingList.Add('IBM855/CP855', 'IBM855', 855, ecDOS, False,
     'OEM西里尔文编码');
-  GlobalEncodingList.Add('IBM866/CP866', 'IBM866', 866, ecDOS, False, 
+  GlobalEncodingList.Add('IBM866/CP866', 'IBM866', 866, ecDOS, False,
     '西里尔文编码');
 
   // 添加其他区域编码
-  GlobalEncodingList.Add('KOI8-R', 'KOI8-R', 20866, ecOther, False, 
+  GlobalEncodingList.Add('KOI8-R', 'KOI8-R', 20866, ecOther, False,
     '俄文编码');
-  GlobalEncodingList.Add('KOI8-U', 'KOI8-U', 21866, ecOther, False, 
+  GlobalEncodingList.Add('KOI8-U', 'KOI8-U', 21866, ecOther, False,
     '乌克兰文编码');
-  GlobalEncodingList.Add('ASCII', ENCODING_ASCII, CP_ASCII, ecOther, False, 
+  GlobalEncodingList.Add('ASCII', ENCODING_ASCII, CP_ASCII, ecOther, False,
     '美国标准信息交换码，7位编码', True);
 end;
 
@@ -555,4 +501,4 @@ initialization
 finalization
   FinalizeEncodingList;
 
-end. 
+end.

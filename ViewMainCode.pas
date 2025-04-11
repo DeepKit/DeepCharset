@@ -1050,51 +1050,53 @@ end;
 
 procedure TForm1.SwitchToLanguageCode(const LangCode: string);
 var
-  LangEnum: TAppLanguage;
+  LangStrings: TLanguageStrings;
 begin
   // 输出详细日志帮助调试
   Log('尝试切换到语言: ' + LangCode + ' (' + LanguageManager.GetLanguageNameByCode(LangCode) + ')');
 
-  // 获取语言枚举
-  LangEnum := GetLanguageEnumByCode(LangCode);
-  Log('语言枚举值: ' + GetLanguageEnumName(LangEnum));
+  // 设置语言
+  LanguageManager.SetLanguage(LangCode);
 
-  // 确保我们有正确的语言字符串
-  if LangEnum = alChinese then
-    begin
-    // 设置语言
-    LanguageManager.SetLanguage(LangCode);
+  // 获取语言字符串
+  LangStrings := LanguageManager.GetLanguageStrings(LangCode);
 
-    // 强制中文设置 - 一种情况是直接显式设置字符串
-    Log('强制应用中文界面文本');
-    Self.Caption := 'UTF-8 BOM 编码转换器';
-    btnConvert.Caption := '转换所有';
-    btnSingleFile.Caption := '单个文件';
-    btnRefresh.Caption := '刷新';
-    btnClose.Caption := '关闭';
-    btnToggleSelect.Caption := '全选/取消全选';
-    Label1.Caption := '语言';
-    StringGrid1.Cells[0, 0] := '选择';
-    StringGrid1.Cells[1, 0] := '文件名';
-    StringGrid1.Cells[2, 0] := '当前编码';
+  // 应用语言字符串到界面
+  Self.Caption := LangStrings.WindowTitle;
+  btnConvert.Caption := LangStrings.BtnConvert;
+  btnSingleFile.Caption := LangStrings.BtnSingleFile;
+  btnRefresh.Caption := LangStrings.BtnRefresh;
+  btnClose.Caption := LangStrings.BtnClose;
+  btnToggleSelect.Caption := LangStrings.BtnToggleSelect;
+  if Assigned(btnSVG2ICON) then
+    btnSVG2ICON.Caption := LangStrings.BtnSVG2ICON;
 
-    MenuItemConvert.Caption := '转换选中文件';
-    MenuItemToggleSelect.Caption := '全选/取消全选';
-    MenuItemConvertCurrent.Caption := '单个文件';
-    MenuItemConvertAllFiles.Caption := '转换所有';
-    MenuItemViewContent.Caption := '查看内容';
-      end
-      else
-      begin
-    // 设置语言
-    LanguageManager.SetLanguage(LangCode);
+  // 设置标签
+  Label1.Caption := LangStrings.LanguageGroupCaption;
+  DirectoryListBox1.Caption := LangStrings.DirectoryListBoxLabel;
 
-    // 应用语言
-    ApplyLanguageStrings;
-  end;
+  // 设置表格标题
+  StringGrid1.Cells[0, 0] := LangStrings.FileSelectColumn;
+  StringGrid1.Cells[1, 0] := LangStrings.FileNameColumn;
+  StringGrid1.Cells[2, 0] := LangStrings.EncodingColumn;
+
+  // 设置菜单项
+  MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
+  MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
+  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile;
+  MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
+  MenuItemViewContent.Caption := LangStrings.BtnPreview;
 
   // 确保界面及时刷新
   Application.ProcessMessages;
+
+  // 强制重绘所有控件
+  for var i := 0 to ComponentCount - 1 do
+    if Components[i] is TControl then
+      TControl(Components[i]).Invalidate;
+
+  // 强制重绘窗体
+  InvalidateForm;
 
   // 记录日志
   Log('已切换到语言: ' + LanguageManager.GetLanguageNameByCode(LangCode));
