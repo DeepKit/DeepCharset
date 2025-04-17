@@ -8,34 +8,12 @@ uses
   Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.FileCtrl, Vcl.Buttons, Vcl.ComCtrls,
   Vcl.Grids, System.Math, Vcl.CheckLst, System.Types, Vcl.Menus, System.Rtti,
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
-  ControllerEncoding, HelperLanguage, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
-  System.UIConsts, Skia, Vcl.skia;
+  ControllerEncoding, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
+  System.UIConsts, Skia, Vcl.skia, System.IniFiles, ModelLanguage, ControllerLanguage,
+  System.TypInfo;
 
-type
-  // ICO文件格式结构
-  TIconDirEntry = packed record
-    bWidth: Byte;          // 图标宽度
-    bHeight: Byte;         // 图标高度
-    bColorCount: Byte;     // 色数（如果是真彩色图标，则为0）
-    bReserved: Byte;       // 保留，必须为0
-    wPlanes: Word;         // 色彩平面数
-    wBitCount: Word;       // 每像素位数
-    dwBytesInRes: DWORD;   // 图像数据大小
-    dwImageOffset: DWORD;  // 图像数据相对于文件开头的偏移量
-  end;
 
-  TIconDir = packed record
-    idReserved: Word;      // 保留，必须为0
-    idType: Word;          // 资源类型（1=ICO, 2=CUR）
-    idCount: Word;         // 图像数量
-    idEntries: array[0..0] of TIconDirEntry; // 图像目录项数组
-  end;
-
-  // 语言包装器类
-  TLanguageWrapper = class
-  public
-    function GetLanguageStrings(Language: TAppLanguage): TLanguageStrings;
-  end;
+Type
 
   TForm1 = class(TForm)
     Panel1: TPanel;
@@ -80,6 +58,11 @@ type
     chkIncludeSubdirs: TCheckBox;
     btnSVG2ICON: TButton;
     SkSvg1: TSkSvg;
+    btnBatchConvert: TButton;
+    btnSaveConfig: TButton;
+    btnLoadConfig: TButton;
+    cmbConfigs: TComboBox;
+    ProgressBar1: TProgressBar;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
@@ -119,7 +102,6 @@ type
     FSelectedRow: Integer;
     FFileExtensions: TStringList;
     FLanguageComboBox: TComboBox;
-    FLanguageWrapper: TLanguageWrapper;
     FIncludeSubdirs: Boolean;
     FLogBuffer: TStringList; // 添加日志缓冲区
     FBufferingLogs: Boolean; // 是否正在缓冲日志
@@ -132,6 +114,15 @@ type
     FFileHelper: TFileHelper;
 
     FOriginalFontSize: Integer;
+
+    // 国际化相关
+    FCurrentLanguage: string;
+
+    // 获取翻译后的消息
+    function GetLocalizedMessage(const MsgId: string): string;
+    function GetLocalizedMessageFmt(const MsgId: string; const Args: array of const): string;
+    procedure ShowLocalizedMessage(const MsgId: string);
+    procedure ShowLocalizedMessageFmt(const MsgId: string; const Args: array of const);
 
     procedure UpdateFileGrid(const FolderPath: string);
     procedure UpdateFileExtensions(const FolderPath: string);
@@ -146,15 +137,11 @@ type
     procedure InvalidateForm;
     procedure InvalidateControl(Control: TControl);
 
-    // 语言设置
-    {$WARNINGS OFF}
-    procedure SetLanguage(Language: TAppLanguage);
-    {$WARNINGS ON}
-    procedure ApplyLanguageStrings;
-    procedure CreateLanguageSelector;
-    procedure SwitchToLanguageCode(const LangCode: string);
+    // 语言设置相关方法
     procedure InitializeLanguageManager;
-    function GetLanguageEnumName(Language: TAppLanguage): string;
+    procedure CreateLanguageSelector;
+    procedure ApplyLanguageStrings;
+    procedure SwitchToLanguageCode(const LangCode: string);
 
     procedure UpdateSingleFileInGrid(const FilePath: string);
 
@@ -162,10 +149,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    // 语言相关公开方法
-    procedure OnLanguageChange(const LangCode: string);
-    function GetLanguageStrings(Language: TAppLanguage): TLanguageStrings;
-    procedure SwitchToChinese;
+    // 语言相关公开方法已移除
 
     class procedure Execute;
     class procedure Initialize;
@@ -178,16 +162,6 @@ var
 implementation
 
 {$R *.dfm}
-
-{ TLanguageWrapper }
-
-function TLanguageWrapper.GetLanguageStrings(Language: TAppLanguage): TLanguageStrings;
-begin
-  if Assigned(Form1) then
-    Result := Form1.GetLanguageStrings(Language)
-  else
-    FillChar(Result, SizeOf(Result), 0);
-end;
 
 { TForm1 }
 
@@ -206,8 +180,7 @@ begin
   FEncodingModel := TEncodingModel.Create;
   FUIHelper := TUIHelper.Create;
 
-  // 初始化语言包装器
-  FLanguageWrapper := TLanguageWrapper.Create;
+  // 语言包装器已移除
 
   // 创建适配器函数来处理TProc<string>和procedure之间的转换
   FFileHelper := TFileHelper.Create(
@@ -228,11 +201,17 @@ begin
     )
   );
 
+  // 设置根目录和INI目录
+  RootDir := FFileHelper.GetRootDir;
+  IniDir := RootDir + '\ini';
+  Log('设置根目录: ' + RootDir);
+  Log('设置INI目录: ' + IniDir);
+
   // 初始化语言管理器
-  InitializeLanguageManager;
+  InitializeLanguageManager();
 
   // 创建语言选择器
-  CreateLanguageSelector;
+  CreateLanguageSelector();
 end;
 
 destructor TForm1.Destroy;
@@ -244,8 +223,7 @@ begin
   FEncodingModel.Free;
   FConfig.Free;
 
-  // 释放语言包装器
-  FLanguageWrapper.Free;
+  // 语言包装器已移除
 
   // 释放其他资源
   FLogBuffer.Free;
@@ -253,46 +231,22 @@ begin
   inherited;
 end;
 
-procedure TForm1.InitializeLanguageManager;
-begin
-  // 初始化语言管理器
-  if not Assigned(LanguageManager) then
-    LanguageManager := TLanguageManager.Create;
-
-  // 初始化语言管理器
-  LanguageManager.Initialize;
-
-  // 确保强制重新加载语言
-  LanguageManager.LoadAvailableLanguages;
-
-  // 设置语言回调
-  LanguageManager.GetLanguageStringsCallback := FLanguageWrapper.GetLanguageStrings;
-
-  // 设置语言变更事件
-  LanguageManager.OnLanguageChange := OnLanguageChange;
-end;
+// 国际化相关方法已移除
 
 procedure TForm1.FormShow(Sender: TObject);
 var
   i: Integer;
 begin
-  // 再次初始化语言管理器
-  InitializeLanguageManager;
-
-  // 创建语言选择器
-  CreateLanguageSelector;
-
-  // 注意：不再强制切换到中文，保持设计时状态
-  // 应用当前语言，但不强制改变当前语言
+  // 应用当前语言
   ApplyLanguageStrings;
 
-  // 强制立即应用语言
+  // 强制立即应用界面更新
   Application.ProcessMessages;
 
   // 给窗体及组件一点点时间来处理更新请求
   Sleep(100);
 
-  // 再次强制更新所有UI元素
+  // 强制更新所有UI元素
   for i := 0 to ComponentCount - 1 do
     if Components[i] is TControl then
       TControl(Components[i]).Invalidate;
@@ -301,68 +255,21 @@ begin
   InvalidateForm;
 
   // 记录日志
-  Log('程序界面已显示，当前语言：' + LanguageManager.GetLanguageNameByCode(LanguageManager.CurrentLanguage));
+  Log('程序界面已显示');
+  Log('当前语言: ' + FCurrentLanguage);
   Log('主窗体标题: ' + Caption);
-  Log('按钮状态检查: ' + btnConvert.Caption);
+  Log('按钮状态检查:');
+  Log(' - 转换按钮: ' + btnConvert.Caption);
+  Log(' - 单文件按钮: ' + btnSingleFile.Caption);
+  Log(' - 刷新按钮: ' + btnRefresh.Caption);
+  Log(' - 全选类型按钮: ' + btnSelectAllExt.Caption);
+  Log(' - 查看内容按钮: ' + btnShowContent.Caption);
 
   // 应用列宽设置
   AdjustGridColumnWidths;
 end;
 
-procedure TForm1.ApplyLanguageStrings;
-var
-  LangStrings: TLanguageStrings;
-begin
-  // 获取当前语言的字符串
-  LangStrings := LanguageManager.GetLanguageStrings(LanguageManager.CurrentLanguage);
-
-  // 记录语言切换
-  Log('切换语言: ' + LanguageManager.GetLanguageNameByCode(LanguageManager.CurrentLanguage));
-
-  // 应用到界面
-  Self.Caption := LangStrings.WindowTitle;
-
-  // 按钮文本
-  btnConvert.Caption := LangStrings.BtnConvert;
-  btnSingleFile.Caption := LangStrings.BtnSingleFile;
-  btnRefresh.Caption := LangStrings.BtnRefresh;
-  btnClose.Caption := LangStrings.BtnClose;
-  btnToggleSelect.Caption := LangStrings.BtnToggleSelect;
-
-  // 标签文本
-  Label1.Caption := LangStrings.LanguageGroupCaption;
-
-  // 表格标题
-  StringGrid1.Cells[0, 0] := LangStrings.FileSelectColumn;
-  StringGrid1.Cells[1, 0] := LangStrings.FileNameColumn;
-  StringGrid1.Cells[2, 0] := LangStrings.EncodingColumn;
-
-  // 菜单项
-  MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
-  MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
-  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile;
-  MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
-  MenuItemViewContent.Caption := '查看内容';
-
-  // 强制更新控件文本
-  InvalidateControl(btnConvert);
-  InvalidateControl(btnSingleFile);
-  InvalidateControl(btnRefresh);
-  InvalidateControl(btnClose);
-  InvalidateControl(btnToggleSelect);
-
-  // 刷新表格
-  InvalidateControl(StringGrid1);
-
-  // 刷新整个界面
-  InvalidateForm;
-
-  // 在日志中显示所有可见按钮的文本状态，帮助调试
-  Log('按钮文本: 转换=' + btnConvert.Caption +
-      ', 单文件=' + btnSingleFile.Caption +
-      ', 刷新=' + btnRefresh.Caption +
-      ', 关闭=' + btnClose.Caption);
-end;
+// 国际化相关方法已移除
 
 procedure TForm1.btnCloseClick(Sender: TObject);
 begin
@@ -404,7 +311,7 @@ begin
 
   if Length(SelectedFiles) = 0 then
   begin
-    ShowMessage('请在表格中勾选至少一个文件进行转换。');
+    ShowLocalizedMessage('MsgSelectFiles');
     Exit;
   end;
 
@@ -482,101 +389,42 @@ end;
 
 procedure TForm1.cmbLanguageChange(Sender: TObject);
 var
-  LangInfos: TArray<TLanguageInfo>;
-  Index: Integer;
+  Index, LangIndex: Integer;
   LangCode: string;
-  IsChineseSelected: Boolean;
 begin
   // 获取选中的语言
-  Index := FLanguageComboBox.ItemIndex;
+  Index := ComboBox1.ItemIndex;
   if Index < 0 then
   begin
     Log('警告: 无效的语言索引');
     Exit;
   end;
 
-  // 获取语言代码
-  LangInfos := LanguageManager.GetLanguageList;
-  if Index >= Length(LangInfos) then
-  begin
-    Log('警告: 语言索引超出范围');
-    Exit;
-  end;
-
-  LangCode := LangInfos[Index].Code;
-
-  // 检查是否选择的是中文
-  IsChineseSelected := (LangCode = 'zh-CN');
+  // 获取语言索引
+  LangIndex := Integer(ComboBox1.Items.Objects[Index]);
 
   // 记录用户选择的语言
-  Log('用户选择语言: ' + LangInfos[Index].NativeName + ' (' + LangCode + ')');
+  Log('用户选择语言: ' + ComboBox1.Items[Index] + ' (Index: ' + IntToStr(LangIndex) + ')');
 
-  // 如果用户选择的是简体中文，则直接调用SwitchToChinese
-  if IsChineseSelected then
-begin
-    Log('直接调用SwitchToChinese方法');
-    SwitchToChinese;
+  // 获取语言代码
+  if (LangIndex >= 0) and (LangIndex <= High(LANGUAGE_MAPPINGS)) then
+  begin
+    LangCode := LANGUAGE_MAPPINGS[LangIndex].LanguageCode;
+    Log('切换到语言: ' + LangCode);
+
+    // 切换语言
+    SwitchToLanguageCode(LangCode);
   end
   else
   begin
-    // 否则使用常规的语言切换
-    Log('切换到其他语言: ' + LangCode);
-    SwitchToLanguageCode(LangCode);
+    Log('警告: 无效的语言索引: ' + IntToStr(LangIndex));
   end;
-
-  // 检查按钮文本是否已更新
-  Log('语言切换后的按钮文本: 转换=' + btnConvert.Caption);
 
   // 确保界面及时刷新
   Application.ProcessMessages;
 end;
 
-procedure TForm1.CreateLanguageSelector;
-var
-  LangInfos: TArray<TLanguageInfo>;
-  i: Integer;
-begin
-  // 初始化语言管理器
-  if not Assigned(LanguageManager) then
-    LanguageManager := TLanguageManager.Create;
-
-  // 使用窗体上已有的ComboBox1控件
-  FLanguageComboBox := ComboBox1;
-  FLanguageComboBox.Style := csDropDownList;
-  FLanguageComboBox.Tag := 1000; // 特殊标记，用于识别这是语言选择器
-
-  // 清空已有项
-  FLanguageComboBox.Items.Clear();
-
-  // 添加事件处理
-  FLanguageComboBox.OnChange := cmbLanguageChange;
-
-  // 获取可用语言列表并填充下拉框
-  LanguageManager.LoadAvailableLanguages;
-  LangInfos := LanguageManager.GetLanguageList;
-
-  Log('发现' + IntToStr(Length(LangInfos)) + '种语言');
-
-  for i := 0 to High(LangInfos) do
-  begin
-    // 添加语言到下拉框，显示本地化名称
-    FLanguageComboBox.Items.Add(LangInfos[i].NativeName);
-
-    // 如果是当前语言，设置为选中
-    if LangInfos[i].Code = LanguageManager.CurrentLanguage then
-  begin
-      FLanguageComboBox.ItemIndex := i;
-      Log('当前语言: ' + LangInfos[i].NativeName + ' (' + LangInfos[i].Code + ')');
-  end;
-end;
-
-  // 如果没有设置选中项，默认选择第一个
-  if (FLanguageComboBox.ItemIndex < 0) and (FLanguageComboBox.Items.Count > 0) then
-    FLanguageComboBox.ItemIndex := 0;
-
-  // 确保语言选择框可见
-  FLanguageComboBox.Visible := True;
-end;
+// 国际化相关方法已移除
 
 procedure TForm1.DirectoryListBox1Change(Sender: TObject);
   begin
@@ -631,8 +479,14 @@ begin
   // 允许窗体接收所有键盘事件
   KeyPreview := True;
 
+  // 初始化语言管理器
+  InitializeLanguageManager;
+
   // 调用统一的界面初始化方法
   InitializeUI;
+
+  // 应用当前语言字符串
+  ApplyLanguageStrings;
 end;
 
 procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
@@ -748,7 +602,7 @@ begin
 
   if Length(AllFiles) = 0 then
   begin
-    ShowMessage('在当前目录中未找到符合所选类型的文件。');
+    ShowLocalizedMessage('MsgNoMatchingFiles');
     Exit;
   end;
 
@@ -761,7 +615,7 @@ begin
   SuccessCount := 0;
 
   try
-    // (Fix Callback Type E2010 - Explicit Cast)
+    // 使用显式类型转换
     FEncodingController.ConvertFilesByName(AllFiles, TargetInfo.ShortName, WithBOM,
       TProc<string>(
         procedure(const FilePath: string)
@@ -791,9 +645,9 @@ begin
 
     // 显示结果
     if SuccessCount > 0 then
-      ShowMessage(Format('转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(AllFiles)]))
+      ShowLocalizedMessageFmt('MsgConversionComplete', [SuccessCount, Length(AllFiles)])
     else if Length(AllFiles) > 0 then
-      ShowMessage('转换失败: 没有文件被成功转换，请检查日志了解详情');
+      ShowLocalizedMessage('MsgConversionFailed');
   end;
 end;
 
@@ -809,7 +663,7 @@ begin
   // 获取选中的编码信息
   if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
   begin
-    ShowMessage('请选择一个目标编码。');
+    ShowLocalizedMessage('MsgSelectTargetEncoding');
     Exit;
   end;
   SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
@@ -867,14 +721,14 @@ begin
   // 检查文件是否存在
   if not FileExists(FilePath) then
   begin
-    ShowMessage('文件不存在: ' + FilePath);
+    ShowLocalizedMessageFmt('MsgFileNotExists', [FilePath]);
     Exit;
   end;
 
   // 检查是否为正常文本文件
   if not FFileHelper.IsNormalTextFile(FilePath) then
   begin
-    ShowMessage('文件 ' + FileName + ' 不是正常的文本文件，可能是二进制文件或其他不支持的格式。');
+    ShowLocalizedMessageFmt('MsgNotTextFile', [FileName]);
     Exit;
   end;
 
@@ -902,12 +756,12 @@ begin
       StringGrid1.Cells[2, FSelectedRow] := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
 
       // 显示成功消息
-      ShowMessage('文件 ' + FileName + ' 已成功转换为 ' + TargetInfo.Name);
+      ShowLocalizedMessageFmt('MsgSingleFileSuccess', [FileName, TargetInfo.Name]);
     end
     else
     begin
       Log('单个文件转换失败: ' + FileName);
-      ShowMessage('文件 ' + FileName + ' 转换失败，请检查日志了解详情');
+      ShowLocalizedMessageFmt('MsgSingleFileFailed', [FileName]);
     end;
 
     // 刷新文件列表
@@ -932,57 +786,9 @@ begin
   btnShowContentClick(Sender);
 end;
 
-procedure TForm1.OnLanguageChange(const LangCode: string);
-var
-  LangInfos: TArray<TLanguageInfo>;
-  i: Integer;
-begin
-  // 记录被调用
-  Log('OnLanguageChange被调用: ' + LangCode);
+// 语言相关方法已移除
 
-  // 立即应用界面文本更新
-  ApplyLanguageStrings;
-
-  // 更新语言选择框的选中项
-  LangInfos := LanguageManager.GetLanguageList;
-  for i := 0 to High(LangInfos) do
-begin
-    if LangInfos[i].Code = LangCode then
-  begin
-      if FLanguageComboBox.ItemIndex <> i then
-      begin
-        Log('更新语言下拉框选中项: ' + LangInfos[i].NativeName);
-        FLanguageComboBox.ItemIndex := i;
-      end;
-      Break;
-  end;
-end;
-
-  // 强制更新所有控件文本
-  for i := 0 to ComponentCount - 1 do
-    if Components[i] is TControl then
-      TControl(Components[i]).Invalidate;
-
-  // 更新客户区
-  InvalidateForm;
-
-  // 检查按钮文本
-  Log('OnLanguageChange后的按钮文本: 转换=' + btnConvert.Caption);
-end;
-
-procedure TForm1.SetLanguage(Language: TAppLanguage);
-var
-  LangCode: string;
-begin
-  // 获取语言代码
-  LangCode := GetLanguageCodeByEnum(Language);
-
-  // 设置语言
-  LanguageManager.SetLanguage(LangCode);
-
-  // 立即应用语言更新
-  ApplyLanguageStrings;
-end;
+// 注意：该方法已被移除，使用HelperLanguage单元中的TLanguageManager类代替
 
 procedure TForm1.StringGrid1Click(Sender: TObject);
 var
@@ -1048,60 +854,7 @@ begin
   FSelectedRow := ARow;
 end;
 
-procedure TForm1.SwitchToLanguageCode(const LangCode: string);
-var
-  LangStrings: TLanguageStrings;
-begin
-  // 输出详细日志帮助调试
-  Log('尝试切换到语言: ' + LangCode + ' (' + LanguageManager.GetLanguageNameByCode(LangCode) + ')');
-
-  // 设置语言
-  LanguageManager.SetLanguage(LangCode);
-
-  // 获取语言字符串
-  LangStrings := LanguageManager.GetLanguageStrings(LangCode);
-
-  // 应用语言字符串到界面
-  Self.Caption := LangStrings.WindowTitle;
-  btnConvert.Caption := LangStrings.BtnConvert;
-  btnSingleFile.Caption := LangStrings.BtnSingleFile;
-  btnRefresh.Caption := LangStrings.BtnRefresh;
-  btnClose.Caption := LangStrings.BtnClose;
-  btnToggleSelect.Caption := LangStrings.BtnToggleSelect;
-  if Assigned(btnSVG2ICON) then
-    btnSVG2ICON.Caption := LangStrings.BtnSVG2ICON;
-
-  // 设置标签
-  Label1.Caption := LangStrings.LanguageGroupCaption;
-  DirectoryListBox1.Caption := LangStrings.DirectoryListBoxLabel;
-
-  // 设置表格标题
-  StringGrid1.Cells[0, 0] := LangStrings.FileSelectColumn;
-  StringGrid1.Cells[1, 0] := LangStrings.FileNameColumn;
-  StringGrid1.Cells[2, 0] := LangStrings.EncodingColumn;
-
-  // 设置菜单项
-  MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
-  MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
-  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile;
-  MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
-  MenuItemViewContent.Caption := LangStrings.BtnPreview;
-
-  // 确保界面及时刷新
-  Application.ProcessMessages;
-
-  // 强制重绘所有控件
-  for var i := 0 to ComponentCount - 1 do
-    if Components[i] is TControl then
-      TControl(Components[i]).Invalidate;
-
-  // 强制重绘窗体
-  InvalidateForm;
-
-  // 记录日志
-  Log('已切换到语言: ' + LanguageManager.GetLanguageNameByCode(LangCode));
-  Log('按钮文本状态: 转换=' + btnConvert.Caption);
-end;
+// 国际化相关方法已移除
 
 procedure TForm1.UpdateFileExtensions(const FolderPath: string);
 var
@@ -1228,122 +981,7 @@ begin
   end;
 end;
 
-function TForm1.GetLanguageStrings(Language: TAppLanguage): TLanguageStrings;
-  begin
-  // 记录语言字符串请求
-  if FConfig <> nil then
-    Log('请求语言字符串: ' + GetLanguageEnumName(Language));
-
-  // 根据不同语言返回不同的界面字符串
-  case Language of
-    alChinese:
-      begin
-        Result.WindowTitle := 'UTF-8 BOM 编码转换器';
-        Result.BtnConvert := '转换所有';
-        Result.BtnSingleFile := '单个文件';
-        Result.BtnRefresh := '刷新';
-        Result.BtnClose := '关闭';
-        Result.BtnToggleSelect := '全选/取消全选';
-        Result.LanguageGroupCaption := '语言';
-        Result.DirectoryListBoxLabel := '目录';
-        Result.FileListLabel := '文件列表';
-        Result.CurrentEncodingLabel := '当前编码';
-        Result.FileSelectColumn := '选择';
-        Result.FileNameColumn := '文件名';
-        Result.EncodingColumn := '当前编码';
-        Result.PopupMenuConvert := '转换选中文件';
-        Result.PopupMenuToggleSelect := '全选/取消全选';
-        Result.NoFilesText := '(无文件)';
-        Result.ReadErrorText := '(读取错误)';
-        Result.LogSelectedDirectory := '选择的目录: ';
-      end;
-    alEnglish:
-begin
-        Result.WindowTitle := 'UTF-8 BOM Encoding Converter';
-        Result.BtnConvert := 'Convert All';
-        Result.BtnSingleFile := 'Single File';
-        Result.BtnRefresh := 'Refresh';
-        Result.BtnClose := 'Close';
-        Result.BtnToggleSelect := 'Select/Deselect All';
-        Result.LanguageGroupCaption := 'Language';
-        Result.DirectoryListBoxLabel := 'Directory';
-        Result.FileListLabel := 'File List';
-        Result.CurrentEncodingLabel := 'Current Encoding';
-        Result.FileSelectColumn := 'Select';
-        Result.FileNameColumn := 'Filename';
-        Result.EncodingColumn := 'Current Encoding';
-        Result.PopupMenuConvert := 'Convert Selected Files';
-        Result.PopupMenuToggleSelect := 'Select/Deselect All';
-        Result.NoFilesText := '(No Files)';
-        Result.ReadErrorText := '(Read Error)';
-        Result.LogSelectedDirectory := 'Selected Directory: ';
-      end;
-    else
-      // 输出未知语言的警告
-      if FConfig <> nil then
-        Log('警告: 未知语言类型，默认使用英语');
-
-      // 默认使用英语
-      Result := GetLanguageStrings(alEnglish);
-  end;
-end;
-
-procedure TForm1.SwitchToChinese;
-var
-  i: Integer;
-  LangInfos: TArray<TLanguageInfo>;
-begin
-  // 设置语言为中文
-  SetLanguage(alChinese);
-
-  // 直接设置按钮文本
-  btnConvert.Caption := '转换所有';
-  btnSingleFile.Caption := '单个文件';
-  btnRefresh.Caption := '刷新';
-  btnClose.Caption := '关闭';
-  btnToggleSelect.Caption := '全选/取消全选';
-  Label1.Caption := '语言';
-
-  // 表格标题
-  StringGrid1.Cells[0, 0] := '选择';
-  StringGrid1.Cells[1, 0] := '文件名';
-  StringGrid1.Cells[2, 0] := '当前编码';
-
-  // 如果FLanguageComboBox已创建，选择中文选项
-  if Assigned(FLanguageComboBox) then
-begin
-    LangInfos := LanguageManager.GetLanguageList;
-    for i := 0 to High(LangInfos) do
-begin
-      if LangInfos[i].Code = 'zh-CN' then
-      begin
-        FLanguageComboBox.ItemIndex := i;
-        Break;
-      end;
-    end;
-  end;
-
-  // 确保界面文本更新
-  ApplyLanguageStrings;
-
-  // 强制处理所有消息队列中的事件
-  Application.ProcessMessages;
-
-  // 强制重绘所有控件
-  for i := 0 to ComponentCount - 1 do
-    if Components[i] is TControl then
-      TControl(Components[i]).Invalidate;
-
-  // 强制重绘窗体
-  InvalidateForm;
-
-  // 记录日志
-  Log('已切换到中文界面');
-  Log('按钮文本: 转换=' + btnConvert.Caption +
-      ', 单文件=' + btnSingleFile.Caption +
-      ', 刷新=' + btnRefresh.Caption +
-      ', 关闭=' + btnClose.Caption);
-end;
+// 国际化相关方法已移除
 
 procedure TForm1.InvalidateForm;
   begin
@@ -1359,14 +997,70 @@ begin
   // 在某些版本的Delphi中，控件会自动刷新
 end;
 
-function TForm1.GetLanguageEnumName(Language: TAppLanguage): string;
-  begin
-  case Language of
-    alChinese: Result := 'alChinese';
-    alEnglish: Result := 'alEnglish';
-    else Result := '未知语言类型(' + IntToStr(Ord(Language)) + ')';
-    end;
+function TForm1.GetLocalizedMessage(const MsgId: string): string;
+var
+  LangStrings: TLanguageStrings;
+  Context: TRttiContext;
+  RttiType: TRttiType;
+  RttiField: TRttiField;
+begin
+  // 获取当前语言的字符串
+  LangStrings := ControllerLanguage.GetLanguageStrings(FCurrentLanguage);
+
+  // 使用现代RTTI获取属性值
+  Context := TRttiContext.Create;
+  try
+    RttiType := Context.GetType(TypeInfo(TLanguageStrings));
+    if Assigned(RttiType) then
+    begin
+      RttiField := RttiType.GetField(MsgId);
+      if Assigned(RttiField) then
+      begin
+        Result := RttiField.GetValue(@LangStrings).AsString;
+        if Result = '' then
+          Result := MsgId; // 如果字段值为空，返回消息ID
+      end
+      else
+        Result := MsgId; // 如果字段不存在，返回消息ID
+    end
+    else
+      Result := MsgId; // 如果类型信息不存在，返回消息ID
+  finally
+    Context.Free;
   end;
+end;
+
+function TForm1.GetLocalizedMessageFmt(const MsgId: string; const Args: array of const): string;
+begin
+  // 获取翻译后的消息，然后应用格式化
+  Result := Format(GetLocalizedMessage(MsgId), Args);
+end;
+
+// 显示本地化的消息对话框
+procedure TForm1.ShowLocalizedMessage(const MsgId: string);
+var
+  Title: string;
+begin
+  // 获取当前语言的窗口标题
+  Title := ControllerLanguage.GetLanguageStrings(FCurrentLanguage).WindowTitle;
+
+  // 显示消息对话框
+  Application.MessageBox(PChar(GetLocalizedMessage(MsgId)), PChar(Title), MB_OK + MB_ICONINFORMATION);
+end;
+
+// 显示格式化的本地化消息对话框
+procedure TForm1.ShowLocalizedMessageFmt(const MsgId: string; const Args: array of const);
+var
+  Title: string;
+begin
+  // 获取当前语言的窗口标题
+  Title := ControllerLanguage.GetLanguageStrings(FCurrentLanguage).WindowTitle;
+
+  // 显示格式化的消息对话框
+  Application.MessageBox(PChar(GetLocalizedMessageFmt(MsgId, Args)), PChar(Title), MB_OK + MB_ICONINFORMATION);
+end;
+
+// 注意：该方法已被移除，使用HelperLanguage单元中的TLanguageManager类代替
 
 procedure TForm1.UpdateSingleFileInGrid(const FilePath: string);
 var
@@ -1409,7 +1103,7 @@ begin
   // 确保选中了有效的行
   if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
   begin
-    ShowMessage('请先选择一个文件');
+    ShowLocalizedMessage('MsgSelectFile');
     Exit;
   end;
 
@@ -1417,56 +1111,120 @@ begin
   SelectedFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[1, FSelectedRow];
   if not FileExists(SelectedFile) then
   begin
-    ShowMessage('文件不存在: ' + SelectedFile);
+    ShowLocalizedMessageFmt('MsgFileNotExists', [SelectedFile]);
+    Exit;
+  end;
+
+  // 检查是否为文本文件
+  if not FFileHelper.IsNormalTextFile(SelectedFile) then
+  begin
+    ShowLocalizedMessageFmt('MsgNotTextFile', [ExtractFileName(SelectedFile)]);
     Exit;
   end;
 
   try
-    // 检查全局SynEditForm实例，如果不存在则创建
-    if not Assigned(SynEditForm) then
+    // 安全地处理先前的实例
+    if Assigned(SynEditForm) then
     begin
-      Log('全局 SynEditForm 不存在，正在创建...');
+      // 如果实例已存在，尝试隐藏而非释放
       try
-        Application.CreateForm(TSynEditForm, SynEditForm);
+        if SynEditForm.Visible then
+        begin
+          SynEditForm.Hide;
+          Log('隐藏先前的SynEditForm实例');
+        end;
       except
         on E: Exception do
         begin
-          ShowMessage('无法创建文件查看器: ' + E.Message);
+          Log('隐藏SynEditForm失败: ' + E.Message);
+          // 如果隐藏失败，尝试释放
+          try
+            FreeAndNil(SynEditForm);
+            Log('释放先前的SynEditForm实例');
+          except
+            on E2: Exception do
+            begin
+              Log('释放SynEditForm失败: ' + E2.Message);
+              // 忽略释放错误，继续创建新实例
+            end;
+          end;
+        end;
+      end;
+    end;
+
+    // 确保实例为空
+    if Assigned(SynEditForm) then
+    begin
+      // 如果实例仍然存在，尝试重用它
+      Log('重用现有SynEditForm实例');
+    end
+    else
+    begin
+      // 创建新的SynEditForm实例
+      Log('正在创建新的SynEditForm实例...');
+      try
+        Application.CreateForm(TSynEditForm, SynEditForm);
+        if not Assigned(SynEditForm) then
+        begin
+          ShowLocalizedMessage('MsgCannotCreateViewer');
+          Log('创建SynEditForm失败: 实例为空');
+          Exit;
+        end;
+        Log('成功创建新的SynEditForm实例');
+      except
+        on E: Exception do
+        begin
+          ShowLocalizedMessageFmt('MsgCannotCreateViewer', [E.Message]);
           Log('创建SynEditForm失败: ' + E.Message);
           Exit;
         end;
       end;
     end;
 
-    // 使用全局实例加载文件
+    // 使用实例加载文件
     Log('正在打开文件: ' + SelectedFile);
     try
       SynEditForm.LoadFile(SelectedFile);
+      Log('成功加载文件到SynEditForm');
     except
       on E: Exception do
       begin
-        ShowMessage('无法加载文件: ' + E.Message);
+        ShowLocalizedMessageFmt('MsgCannotLoadFile', [E.Message]);
         Log('LoadFile失败: ' + E.Message);
+        // 不释放实例，只是退出
         Exit;
       end;
     end;
 
+    // 定位窗体在主窗体右侧(如果屏幕空间足够)
     try
-      // 显示全局实例（非模态）
+      if Self.Left + Self.Width + 20 + 600 < Screen.Width then
+        SynEditForm.Left := Self.Left + Self.Width + 20
+      else
+        SynEditForm.Left := (Screen.Width - SynEditForm.Width) div 2;
+
+      SynEditForm.Top := Self.Top + 50; // 略微偏下
+
+      // 调整窗体大小为合理值
+      SynEditForm.Width := 800;
+      SynEditForm.Height := 600;
+
+      // 显示实例（非模态）
       SynEditForm.Show;
       SynEditForm.BringToFront; // 确保窗口可见
       Log('成功显示文件: ' + SelectedFile);
     except
       on E: Exception do
       begin
-        ShowMessage('无法显示窗体: ' + E.Message);
+        ShowLocalizedMessageFmt('MsgViewerError', [E.Message]);
         Log('显示SynEditForm失败: ' + E.Message);
+        // 不释放实例，只是记录错误
       end;
     end;
   except
     on E: Exception do
     begin
-      ShowMessage('查看文件时发生错误: ' + E.Message);
+      ShowLocalizedMessageFmt('MsgViewerError', [E.Message]);
       Log('查看文件失败: ' + E.Message);
     end;
   end;
@@ -1477,8 +1235,12 @@ var
   i: Integer;
   AllChecked, AnyChecked: Boolean;
   SelectedCount: Integer;
+  LangStrings: TLanguageStrings;
 begin
   try
+    // 获取当前语言字符串
+    LangStrings := ControllerLanguage.GetLanguageStrings(FCurrentLanguage);
+
     // 记录操作开始
     Log('选择/取消选择所有文件类型操作开始');
 
@@ -1516,7 +1278,7 @@ begin
         CheckListBox1.Checked[i] := False;
       end;
 
-      btnSelectAllExt.Caption := '全选类型';
+      btnSelectAllExt.Caption := '选择所有文件类型';
       Log('已取消选择所有文件类型');
     end
     else
@@ -1527,7 +1289,7 @@ begin
         CheckListBox1.Checked[i] := True;
       end;
 
-      btnSelectAllExt.Caption := '取消全选';
+      btnSelectAllExt.Caption := '取消选择所有文件类型';
       Log('已选择所有文件类型');
     end;
 
@@ -1716,19 +1478,27 @@ begin
   btnShowContent.OnClick := btnShowContentClick;
   btnSelectAllExt.OnClick := btnSelectAllExtClick;
 
-  // 初始化SVG转ICON按钮
+  // 初始化按钮提示信息
   if Assigned(btnSVG2ICON) then
   begin
-    btnSVG2ICON.Caption := 'SVG转ICON';
     btnSVG2ICON.Hint := '将选中的SVG文件转换为ICON格式';
     btnSVG2ICON.ShowHint := True;
     btnSVG2ICON.OnClick := btnSVG2ICONClick;
   end;
 
+  // 初始化其他按钮
+  btnShowContent.Hint := '查看选中文件的内容';
+  btnShowContent.ShowHint := True;
+
+  btnSelectAllExt.Hint := '选择或取消选择所有文件类型';
+  btnSelectAllExt.ShowHint := True;
+
+  // 应用语言字符串
+  ApplyLanguageStrings;
+
   // 初始化"包含子目录"复选框
   chkIncludeSubdirs.Checked := False;
   FIncludeSubdirs := False;
-  chkIncludeSubdirs.Caption := '包含子目录';
   chkIncludeSubdirs.OnClick := chkIncludeSubdirsClick;
 
   // 使用更安全的默认目录
@@ -1816,7 +1586,7 @@ begin
   CreateLanguageSelector;
 
   // 记录启动日志
-  Log('程序已启动，当前语言：' + LanguageManager.GetLanguageNameByCode(LanguageManager.CurrentLanguage));
+  Log('程序已启动，当前语言：' + FCurrentLanguage);
 
   FOriginalFontSize := TreeViewEncodings.Font.Size;
 end;
@@ -1824,15 +1594,147 @@ end;
 class procedure TForm1.Initialize;
 begin
   // 初始化语言管理器
-  if not Assigned(LanguageManager) then
-    LanguageManager := TLanguageManager.Create;
+  ControllerLanguage.InitializeLanguageManager;
+end;
 
+procedure TForm1.InitializeLanguageManager;
+begin
   // 初始化语言管理器
-  LanguageManager.Initialize;
+  ControllerLanguage.InitializeLanguageManager;
+
+  // 记录日志
+  Log('语言管理器已初始化');
+end;
+
+procedure TForm1.CreateLanguageSelector;
+var
+  i: Integer;
+  LangFile: string;
+  FoundLanguages: Integer;
+begin
+  // 清空语言选择框
+  ComboBox1.Items.Clear;
+  ComboBox1.Items.AddObject('English', TObject(1)); // 默认添加英语
+  FoundLanguages := 1;
+
+  // 记录日志
+  Log('开始搜索语言文件，目录: ' + IniDir);
+
+  // 根据LANGUAGE_MAPPINGS去查找相应的ini文件
+  for i := 0 to High(LANGUAGE_MAPPINGS) do
+  begin
+    LangFile := IniDir + '\' + LANGUAGE_MAPPINGS[i].LanguageCode + '.ini';
+
+    // 记录日志
+    Log('检查语言文件: ' + LangFile);
+
+    if FileExists(LangFile) then
+    begin
+      // 找到语言文件，添加到语言选择框
+      ComboBox1.Items.AddObject(LANGUAGE_MAPPINGS[i].DisplayName, TObject(i));
+      Inc(FoundLanguages);
+
+      // 记录日志
+      Log('找到语言文件: ' + LANGUAGE_MAPPINGS[i].LanguageCode + ' - ' + LANGUAGE_MAPPINGS[i].DisplayName);
+    end
+    else
+    begin
+      // 记录日志
+      Log('未找到语言文件: ' + LANGUAGE_MAPPINGS[i].LanguageCode);
+    end;
+  end;
+
+  // 选中第一项
+  if ComboBox1.Items.Count > 0 then
+    ComboBox1.ItemIndex := 0;
+
+  // 记录日志
+  Log('语言选择器已创建，找到 ' + IntToStr(FoundLanguages) + ' 种语言');
+  Log('当前选中语言: ' + ComboBox1.Text);
+end;
+
+procedure TForm1.ApplyLanguageStrings;
+var
+  LangStrings: TLanguageStrings;
+begin
+  // 获取当前语言的字符串
+  LangStrings := ControllerLanguage.GetLanguageStrings(FCurrentLanguage);
+
+  // 应用到界面
+  Self.Caption := LangStrings.WindowTitle;
+  btnConvert.Caption := LangStrings.BtnConvert;
+  btnSingleFile.Caption := LangStrings.BtnSingleFile;
+  btnRefresh.Caption := LangStrings.BtnRefresh;
+  btnClose.Caption := LangStrings.BtnClose;
+  btnToggleSelect.Caption := LangStrings.BtnToggleSelect;
+  if Assigned(btnSVG2ICON) then
+    btnSVG2ICON.Caption := LangStrings.BtnSVG2ICON;
+  Label1.Caption := LangStrings.LanguageGroupCaption;
+  StringGrid1.Cells[0, 0] := LangStrings.FileSelectColumn;
+  StringGrid1.Cells[1, 0] := LangStrings.FileNameColumn;
+  StringGrid1.Cells[2, 0] := LangStrings.EncodingColumn;
+
+  // 菜单项
+  MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
+  MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
+  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile;
+  MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
+  MenuItemViewContent.Caption := LangStrings.BtnPreview;
+
+  // 复选框
+  chkIncludeSubdirs.Caption := LangStrings.ChkIncludeSubdirs;
+
+  // 其他按钮
+  btnSelectAllExt.Caption := LangStrings.BtnAllFileTypes;
+  btnShowContent.Caption := LangStrings.BtnCheckContent;
+
+  // 记录日志
+  Log('已应用语言字符串: ' + FCurrentLanguage);
+end;
+
+procedure TForm1.SwitchToLanguageCode(const LangCode: string);
+var
+  LangInfo: TLanguageInfo;
+  i: Integer;
+begin
+  // 输出详细日志帮助调试
+  Log('尝试切换到语言: ' + LangCode);
+
+  // 设置语言
+  ControllerLanguage.SetLanguage(LangCode);
+  FCurrentLanguage := LangCode;
+
+  // 应用语言字符串
+  ApplyLanguageStrings;
+
+  // 更新语言选择器选中项
+  LangInfo := ControllerLanguage.GetLanguageInfo(LangCode);
+  for i := 0 to ComboBox1.Items.Count - 1 do
+  begin
+    if ComboBox1.Items[i] = LangInfo.NativeName then
+    begin
+      ComboBox1.ItemIndex := i;
+      Break;
+    end;
+  end;
 end;
 
 procedure TForm1.ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
 begin
+  // 检查文件是否存在
+  if not FileExists(FileName) then
+  begin
+    ShowMessage(GetLocalizedMessageFmt('MsgFileNotExists', [FileName]));
+    Exit;
+  end;
+
+  // 检查是否为文本文件
+  if not FFileHelper.IsNormalTextFile(FileName) then
+  begin
+    ShowMessage(GetLocalizedMessageFmt('MsgNotTextFile', [ExtractFileName(FileName)]));
+    Exit;
+  end;
+
   try
     // 创建SynEditForm实例（如果尚未创建）
     if not Assigned(SynEditForm) then
@@ -1912,21 +1814,50 @@ begin
   try
     if Assigned(SynEditForm) then
     begin
+      // 首先尝试隐藏窗体
       try
         if SynEditForm.Visible then
+        begin
           SynEditForm.Hide;
+          Log('已隐藏SynEditForm窗体');
+          Application.ProcessMessages; // 给系统一些时间处理隐藏操作
+          Sleep(100); // 等待一下，确保窗体已隐藏
+        end;
       except
-        // 忽略可能的错误
+        on E: Exception do
+        begin
+          Log('隐藏SynEditForm失败: ' + E.Message);
+          // 即使隐藏失败也继续尝试释放
+        end;
       end;
 
+      // 然后尝试释放实例
       try
-        FreeAndNil(SynEditForm);
+        // 使用Release而非Free，让VCL在下一个消息循环中释放实例
+        SynEditForm.Release;
+        SynEditForm := nil;
+        Log('已释放SynEditForm实例');
       except
-        // 忽略可能的错误
+        on E: Exception do
+        begin
+          Log('释放SynEditForm失败: ' + E.Message);
+          // 如果Release失败，尝试使用FreeAndNil
+          try
+            FreeAndNil(SynEditForm);
+            Log('使用FreeAndNil释放SynEditForm实例');
+          except
+            on E2: Exception do
+              Log('使用FreeAndNil释放SynEditForm也失败: ' + E2.Message);
+          end;
+        end;
       end;
     end;
   except
-    // 忽略任何在关闭时可能发生的错误
+    on E: Exception do
+    begin
+      Log('关闭时处理SynEditForm失败: ' + E.Message);
+      // 忽略最终错误，确保主窗体可以关闭
+    end;
   end;
 end;
 
@@ -1939,7 +1870,7 @@ begin
   if FIncludeSubdirs then
   begin
     Log('已启用子目录搜索 - 将包含所有子文件夹中的文件');
-    ShowMessage('已启用子目录搜索。这可能会增加文件列表加载时间，特别是对于包含大量子目录的文件夹。');
+    ShowLocalizedMessage('MsgSubdirEnabled');
   end
   else
     Log('已禁用子目录搜索 - 只搜索当前文件夹');
@@ -2012,15 +1943,18 @@ begin
           TFile.WriteAllText(DestFile, SkSvg1.svg.Source);
 
           // 显示成功消息
-          ShowMessage('转换成功！' + #13#10 + #13#10 +
-                     '源文件: ' + SelectedFile + #13#10 +
-                     '目标文件: ' + DestFile);
+          Application.MessageBox(
+            PChar(GetLocalizedMessage('MsgConversionSuccess') + #13#10 + #13#10 +
+                  '源文件: ' + SelectedFile + #13#10 +
+                  '目标文件: ' + DestFile),
+            PChar(ControllerLanguage.GetLanguageStrings(FCurrentLanguage).WindowTitle),
+            MB_OK + MB_ICONINFORMATION);
 
           Log('文件转换成功: ' + DestFile);
         except
           on E: Exception do
           begin
-            ShowMessage('转换过程中出错: ' + E.Message);
+            ShowLocalizedMessageFmt('MsgViewerError', [E.Message]);
             Log('转换错误: ' + E.Message);
           end;
         end;
@@ -2032,5 +1966,7 @@ begin
     SaveDialog.Free;
   end;
 end;
+
+
 
 end.

@@ -1,0 +1,3 @@
+﻿[2025-04-02 20:47:54] TEncodingController initialized. Log file: D:\SynologyDrive\Progs\_Delphi\TransSuccess\Win64\Debug\controller_log.txt
+[2025-04-02 20:47:54] iconv library initialized.
+[2025-04-02 20:48:08] TEncodingController destroying...

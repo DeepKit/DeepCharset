@@ -1,0 +1,156 @@
+﻿unit ViewSynEdit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  System.IOUtils, System.Generics.Collections, System.Math, System.StrUtils,
+  SynEdit,  SynEditHighlighter,
+  // 基础语言高亮
+  SynHighlighterPas, SynHighlighterCpp, SynHighlighterJava, SynHighlighterCS,
+  SynHighlighterPython, SynHighlighterRuby, SynHighlighterPerl,
+  // Web相关高亮
+  SynHighlighterHTML, SynHighlighterXML, SynHighlighterCSS, 
+  SynHighlighterJScript, SynHighlighterPHP, SynHighlighterJSON, SynHighlighterYAML,
+  // 数据库相关高亮
+  SynHighlighterSQL, SynHighlighterMySQL, SynHighlighterOracle,
+  // 脚本语言高亮
+  SynHighlighterBat, SynHighlighterInno, SynHighlighterVBScript,
+  // 配置文件高亮
+  SynHighlighterIni, SynHighlighterDfm, SynHighlighterRC,
+  // 其他语言高亮
+  SynHighlighterASM, SynHighlighterFortran, SynHighlighterPowerShell,
+  SynHighlighterTclTk, SynHighlighterTeX, SynHighlighterURI, SynHighlighterM3,
+  SynHighlighterModelica, SynHighlighterHaskell, SynHighlighterCPM,
+  SynHighlighterLDraw, SynHighlighterVrml97, SynHighlighterGalaxy,
+  SynHighlighterMsg, SynHighlighterUnreal, SynHighlighterST,
+  SynHighlighterIDL, SynHighlighterKix, SynHighlighterCAC;
+
+type
+  TSynEditForm = class(TForm)
+    SynEdit: TSynEdit;
+    Panel1: TPanel;
+    lblFileName: TLabel;
+    lblEncoding: TLabel;
+    lblBOM: TLabel;
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+  private
+    FHighlighter: TSynCustomHighlighter;
+    procedure ApplyHighlighter(const FileName: string);
+    procedure CreateHighlighter(const HighlighterClass: TSynCustomHighlighterClass);
+  public
+    procedure LoadFile(const FileName: string; Encoding: TEncoding);
+    procedure SetFileInfo(const FileName, DetectedEncoding: string; HasBOM: Boolean);
+  end;
+
+var
+  SynEditForm: TSynEditForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TSynEditForm.FormCreate(Sender: TObject);
+begin
+  // 设置SynEdit的属性
+  SynEdit.Font.Name := 'Consolas';
+  SynEdit.Font.Size := 10;
+  SynEdit.ScrollBars := ssBoth;
+  SynEdit.WordWrap := False;
+  SynEdit.ReadOnly := True;
+  SynEdit.UseCodeFolding := False;
+  SynEdit.Gutter.ShowLineNumbers := True;
+  SynEdit.Gutter.Bands := [
+    TSynGutterBand.Create(SynEdit.Gutter, gbkMarks, 13),
+    TSynGutterBand.Create(SynEdit.Gutter, gbkLineNumbers),
+    TSynGutterBand.Create(SynEdit.Gutter, gbkFold),
+    TSynGutterBand.Create(SynEdit.Gutter, gbkTrackChanges),
+    TSynGutterBand.Create(SynEdit.Gutter, gbkMargin, 3)
+  ];
+end;
+
+procedure TSynEditForm.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(FHighlighter);
+end;
+
+procedure TSynEditForm.CreateHighlighter(const HighlighterClass: TSynCustomHighlighterClass);
+begin
+  FreeAndNil(FHighlighter);
+  FHighlighter := HighlighterClass.Create(Self);
+  SynEdit.Highlighter := FHighlighter;
+end;
+
+procedure TSynEditForm.ApplyHighlighter(const FileName: string);
+var
+  Ext: string;
+begin
+  Ext := LowerCase(ExtractFileExt(FileName));
+  
+  // 根据文件扩展名选择合适的高亮器
+  case Ext of
+    '.pas', '.dpr', '.inc': CreateHighlighter(TSynPasSyn);
+    '.cpp', '.hpp', '.h', '.c': CreateHighlighter(TSynCppSyn);
+    '.java': CreateHighlighter(TSynJavaSyn);
+    '.cs': CreateHighlighter(TSynCSSyn);
+    '.py': CreateHighlighter(TSynPythonSyn);
+    '.rb': CreateHighlighter(TSynRubySyn);
+    '.pl': CreateHighlighter(TSynPerlSyn);
+    '.html', '.htm': CreateHighlighter(TSynHTMLSyn);
+    '.xml': CreateHighlighter(TSynXMLSyn);
+    '.css': CreateHighlighter(TSynCSSSyn);
+    '.js': CreateHighlighter(TSynJScriptSyn);
+    '.php': CreateHighlighter(TSynPHPSyn);
+    '.json': CreateHighlighter(TSynJSONSyn);
+    '.yml', '.yaml': CreateHighlighter(TSynYAMLSyn);
+    '.sql': CreateHighlighter(TSynSQLSyn);
+    '.bat', '.cmd': CreateHighlighter(TSynBatSyn);
+    '.iss': CreateHighlighter(TSynInnoSyn);
+    '.vbs': CreateHighlighter(TSynVBScriptSyn);
+    '.ini': CreateHighlighter(TSynIniSyn);
+    '.dfm': CreateHighlighter(TSynDfmSyn);
+    '.rc': CreateHighlighter(TSynRCSyn);
+    '.asm': CreateHighlighter(TSynASMSyn);
+    '.tex': CreateHighlighter(TSynTeXSyn);
+    '.ps1': CreateHighlighter(TSynPowerShellSyn);
+    '.tcl': CreateHighlighter(TSynTclTkSyn);
+    '.idl': CreateHighlighter(TSynIDLSyn);
+    '.kix': CreateHighlighter(TSynKixSyn);
+    '.cac': CreateHighlighter(TSynCACSyn);
+    else
+      SynEdit.Highlighter := nil; // 未知文件类型，不使用高亮
+  end;
+end;
+
+procedure TSynEditForm.LoadFile(const FileName: string; Encoding: TEncoding);
+var
+  FileStream: TFileStream;
+  Buffer: TBytes;
+  Size: Integer;
+begin
+  FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+  try
+    Size := FileStream.Size;
+    SetLength(Buffer, Size);
+    FileStream.ReadBuffer(Buffer[0], Size);
+    
+    // 使用指定的编码读取文件内容
+    SynEdit.Text := Encoding.GetString(Buffer);
+    
+    // 应用语法高亮
+    ApplyHighlighter(FileName);
+  finally
+    FileStream.Free;
+  end;
+end;
+
+procedure TSynEditForm.SetFileInfo(const FileName, DetectedEncoding: string; HasBOM: Boolean);
+begin
+  lblFileName.Caption := Format('文件: %s', [ExtractFileName(FileName)]);
+  lblEncoding.Caption := Format('编码: %s', [DetectedEncoding]);
+  lblBOM.Caption := Format('BOM: %s', [BoolToStr(HasBOM, True)]);
+end;
+
+end. 

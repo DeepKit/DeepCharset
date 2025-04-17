@@ -1,5 +1,45 @@
 ﻿# TransSuccess Bug修复记录
 
+## 2024-07-25
+
+### 已修复
+1. **[Major] 批量转换参数解析错误**
+   - 问题：在 BatchConversionTest.dpr 中，批量转换命令的参数解析逻辑存在问题，导致带空格的路径无法正确处理
+   - 原因：参数解析没有正确处理引号内的空格
+   - 解决方案：改进参数解析逻辑，正确处理引号内的空格字符
+   - 相关文件：BatchConversionTest.dpr
+
+2. **[Minor] 编码检测不准确**
+   - 问题：某些特殊情况下，混合编码文件的检测结果不准确
+   - 原因：编码检测算法对混合内容的处理逻辑不完善
+   - 解决方案：增强 TEncodingDetector 类的检测算法，提高对混合内容的识别准确率
+   - 相关文件：
+     - UtilsEncodingDetect.pas
+     - ControllerEncodingOptimized.pas
+
+### 待修复
+1. **[Enhancement] 批量转换性能优化**
+   - 问题：处理大量文件时性能较差
+   - 状态：计划中
+   - 建议：实现并行处理，使用多线程提高转换速度
+   - 相关文件：ControllerEncodingOptimized.pas
+
+2. **[Minor] 特殊字符处理**
+   - 问题：某些罕见的Unicode字符在转换过程中可能丢失
+   - 状态：调查中
+   - 相关文件：UtilsEncodingDetect.pas
+
+## 2024-07-20
+
+### 已修复
+1. **[Critical] 匿名方法类型转换错误**
+   - 问题：在 ViewMainCode.pas 文件中，在调用 ConvertFilesByName 方法时出现 "E2010 Incompatible types: 'TProc<string>' and 'Procedure'" 错误
+   - 原因：在修复类型转换问题时，没有正确处理参数类型
+   - 解决方案：使用显式类型转换 TProc<string>(...) 包装匿名方法
+   - 相关文件：
+     - ViewMainCode.pas
+     - ControllerEncoding.pas
+
 ## 2024-03-29
 
 ### 已修复
@@ -383,4 +423,32 @@
   - `ViewMainCode.pas`: 修改了`btnSVG2ICONClick`方法的实现
 
 - **修复日期**：2024-07-15
+- **修复状态**：✅ 已解决
+
+## 2024-07-20 语言切换功能修复
+
+### Bug #012：语言切换功能不完全
+- **问题描述**：切换到法语（Français）时，只有部分界面元素被正确更新，其他元素仍然显示为中文。
+- **原因分析**：
+  1. `fr.json` 文件中的部分字符串定义在 "messages" 对象中，而不是在 "ui" 对象中
+  2. `LoadFromJsonFile` 方法没有从 "messages" 对象中读取表格和菜单相关的字符串
+  3. `SwitchToLanguageCode` 方法在更新界面元素后没有强制刷新所有控件
+
+- **解决方案**：
+  1. 修改了 `HelperLanguage.pas` 中的 `LoadFromJsonFile` 方法：
+     - 增加了从 "messages" 对象中读取表格和菜单相关字符串的代码
+     - 添加了详细的日志记录，便于调试
+  2. 修改了 `ViewMainCode.pas` 中的 `SwitchToLanguageCode` 方法：
+     - 添加了更详细的日志记录
+     - 增强了界面刷新机制，包括对特定类型控件的额外刷新
+     - 添加了延时和多次消息处理，确保界面元素能够正确更新
+  3. 更新了 `fr.json` 文件：
+     - 在 "messages" 对象中添加了表格和菜单相关的字符串
+
+- **修复文件**：
+  - `HelperLanguage.pas`: 增强了语言字符串加载机制
+  - `ViewMainCode.pas`: 改进了语言切换和界面刷新机制
+  - `languages/fr.json`: 添加了缺失的字符串定义
+
+- **修复日期**：2024-07-20
 - **修复状态**：✅ 已解决

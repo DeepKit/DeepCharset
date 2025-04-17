@@ -3,7 +3,7 @@ unit JclSysUtils;
 interface
 
 uses
-  System.SysUtils, System.Classes;
+  System.SysUtils, System.Classes, Winapi.Windows;
 
 // 获取当前ANSI代码页
 function GetACP: Cardinal;
@@ -15,7 +15,7 @@ implementation
 // 获取当前ANSI代码页
 function GetACP: Cardinal;
 begin
-  Result := System.SysUtils.DefaultSystemCodePage;
+  Result := GetACP;
 end;
 
-end. 
+end.

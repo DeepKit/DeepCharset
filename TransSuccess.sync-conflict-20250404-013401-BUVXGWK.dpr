@@ -1,0 +1,26 @@
+﻿program TransSuccess;
+
+uses
+  Vcl.Forms,
+  System.SysUtils,
+  ViewMainCode in 'ViewMainCode.pas' {Form1},
+  ViewSynEdit in 'ViewSynEdit.pas' {FormSynEdit},
+  ModelEncoding in 'ModelEncoding.pas',
+  ModelConfig in 'ModelConfig.pas',
+  ControllerEncoding in 'ControllerEncoding.pas',
+  HelperUI in 'HelperUI.pas',
+  HelperFiles in 'HelperFiles.pas',
+  UtilsTypes in 'UtilsTypes.pas',
+  HelperLanguage in 'HelperLanguage.pas';
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  
+  // 创建并显示主窗体
+  Application.CreateForm(TForm1, Form1);
+  
+  Application.Run;
+end.

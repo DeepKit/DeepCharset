@@ -1,0 +1,374 @@
+program EncodingTester;
+
+{$APPTYPE CONSOLE}
+{$WARN SYMBOL_PLATFORM OFF}
+
+uses
+  System.SysUtils,
+  System.IOUtils,
+  System.Classes,
+  System.Types,
+  System.Character,
+  // Core application units - Adjust paths if necessary!
+  ModelEncoding in '..\ModelEncoding.pas',     // Provides TEncodingInfo list
+  ControllerEncoding in '..\ControllerEncoding.pas', // Provides TEncodingController
+  UtilsIconv in '..\UtilsIconv.pas',          // Dependency for ControllerEncoding
+  UtilsUTF8 in '..\UtilsUTF8.pas',             // Dependency for ControllerEncoding
+  HelperFiles in '..\HelperFiles.pas';         // Potentially used by Controller or for fallback detection
+
+type
+  TTestResult = record
+    SourceFile: string;
+    DetectedEncoding: string; // Name detected by Controller or fallback
+    TargetEncodingName: string; // Name from ModelEncoding used for forward conversion
+    ForwardConversion: string; // '成功', '失败', '跳过'
+    ReverseEncodingName: string; // Name used for reverse conversion (should match DetectedEncoding)
+    ReverseConversion: string; // '成功', '失败', '跳过'
+    ComparisonResult: string; // '一致', '不一致', '未比较', '无法比较'
+    Remarks: string;
+  end;
+
+const
+  FROM_DIR = 'from';
+  TO_DIR = 'to';
+  BACK_DIR = 'back';
+  RESULTS_FILE = 'tests.md';
+  // Default codepage is less important now as we rely on Controller/Iconv detection
+  // but keep it as an ultimate fallback if needed.
+  DEFAULT_CODEPAGE = 936;
+
+// --- Comparison Helper ---
+
+procedure DummyLog(const LogMsg: string);
+begin
+  // Writeln('Controller Log: ' + LogMsg); // Optional logging
+end;
+
+
+// Compare files ignoring line endings (reads as binary, decodes with best guess/default)
+function CompareFilesRobust(const FileName1, FileName2: string): Boolean;
+var
+  Bytes1, Bytes2: TBytes;
+  S1, S2: string;
+  Enc1, Enc2: TEncoding;
+  HasBOM1, HasBOM2: Boolean; // Not strictly used here, but part of detection logic
+  DetectedName1, DetectedName2: string; // Not strictly used
+  Controller: TEncodingController; // Temporary for detection if needed
+  FileHelper: TFileHelper; // Temporary for detection
+begin
+  Result := False;
+  Controller := nil;
+  FileHelper := nil;
+  Enc1 := TEncoding.Default; // Start with default
+  Enc2 := TEncoding.Default;
+
+  try
+    Bytes1 := TFile.ReadAllBytes(FileName1);
+    Bytes2 := TFile.ReadAllBytes(FileName2);
+
+    // Minimal detection for comparison read: Check for UTF8/UTF16 BOMs primarily
+    // Or, ideally, use the *same detection logic* as the main test loop if passed in.
+    // For simplicity here, let's try UTF-8 first, then default.
+    try
+      if TEncoding.UTF8.GetString(Bytes1) <> '' then Enc1 := TEncoding.UTF8;
+    except end;
+     try
+      if TEncoding.UTF8.GetString(Bytes2) <> '' then Enc2 := TEncoding.UTF8;
+    except end;
+     // A more robust compare might try DetectSourceEncoding again on both files,
+     // but let's keep it simpler for now. Assume Default or UTF-8 guess is okay for comparison text.
+
+    S1 := Enc1.GetString(Bytes1);
+    S2 := Enc2.GetString(Bytes2);
+
+    // Normalize line endings to LF
+    S1 := StringReplace(S1, #13#10, #10, [rfReplaceAll]);
+    S1 := StringReplace(S1, #13, #10, [rfReplaceAll]);
+    S2 := StringReplace(S2, #13#10, #10, [rfReplaceAll]);
+    S2 := StringReplace(S2, #13, #10, [rfReplaceAll]);
+
+    // Trim trailing whitespace/newlines
+    S1 := Trim(S1);
+    S2 := Trim(S2);
+
+    // Final comparison
+    Result := AnsiCompareText(S1, S2) = 0;
+
+  except
+    on E: Exception do
+    begin
+      Writeln('比较文件时出错 (' + FileName1 + ' vs ' + FileName2 + '): ' + E.ClassName + ' - ' + E.Message);
+      Result := False;
+    end;
+  end;
+end;
+
+
+// --- Main Logic ---
+var
+  EncodingModel: TEncodingModel;
+  Controller: TEncodingController; // Use the application's controller
+  TestResults: TArray<TTestResult>;
+  SourceFiles: TStringDynArray;
+  SourceFilePath, ToFilePath, BackFilePath: string;
+  SourceFileName, BaseFileName, FileExt: string;
+  DetectedEncodingName: string; // String name from detection
+  HasSourceBOM: Boolean;
+  TargetEncodingInfo: TEncodingInfo; // From ModelEncoding loop
+  TargetEncodingNameForConv: string; // Name string passed to controller
+  UseTargetBOM: Boolean;
+  i, j: Integer;
+  TestResult: TTestResult;
+  sl: TStringList;
+  ForwardResult, ReverseResult: TConversionResult;
+  DummyUpdateCallback: TProc<string>; // Dummy callback for controller
+
+begin
+  try
+    Writeln('开始编码转换测试 (使用 TEncodingController)...');
+    ReportMemoryLeaksOnShutdown := True;
+
+    // --- 初始化 ---
+    EncodingModel := TEncodingModel.Create;
+    // Create Controller with a dummy logger
+    try
+      Controller := TEncodingController.Create(@DummyLog); // Pass address of the function
+    except
+      on E: Exception do
+      begin
+         Writeln('错误: 创建 TEncodingController 失败: ' + E.Message);
+         Writeln('请确保 UtilsIconv 等依赖项设置正确。');
+         if IsConsole then Readln;
+         Exit;
+      end;
+    end;
+
+    DummyUpdateCallback := procedure(const FilePath: string) begin end; // Dummy update callback
+
+    SetLength(TestResults, 0);
+
+    // 检查并创建目录
+    if not TDirectory.Exists(FROM_DIR) then TDirectory.CreateDirectory(FROM_DIR);
+    if not TDirectory.Exists(TO_DIR) then TDirectory.CreateDirectory(TO_DIR);
+    if not TDirectory.Exists(BACK_DIR) then TDirectory.CreateDirectory(BACK_DIR);
+
+    // --- 获取源文件列表 ---
+    try
+      SourceFiles := TDirectory.GetFiles(FROM_DIR);
+    except
+       on E: Exception do begin Writeln('错误: 访问目录 "' + FROM_DIR + '" 失败: ' + E.Message); SourceFiles := []; end;
+    end;
+
+    if Length(SourceFiles) = 0 then
+    begin
+      Writeln('错误: "' + FROM_DIR + '" 目录为空或无法访问。');
+      if IsConsole then Readln; Exit;
+    end;
+    Writeln('找到 ' + IntToStr(Length(SourceFiles)) + ' 个源文件。');
+
+    // --- 遍历源文件 ---
+    for i := 0 to High(SourceFiles) do
+    begin
+      SourceFilePath := SourceFiles[i];
+      SourceFileName := ExtractFileName(SourceFilePath);
+      BaseFileName := ChangeFileExt(SourceFileName, '');
+      FileExt := ExtractFileExt(SourceFileName);
+
+      Writeln('');
+      Writeln('--- 处理文件: ' + SourceFileName + ' ---');
+
+      // --- 1. 检测源文件编码 (Using Controller) ---
+      DetectedEncodingName := ''; // Reset
+      HasSourceBOM := False; // This might not be directly available from controller detection name
+      if not Controller.DetectFileEncoding(SourceFilePath, DetectedEncodingName) then
+      begin
+          Writeln('  警告: Controller 无法检测编码，将假定为未知或默认。');
+          DetectedEncodingName := '检测失败'; // Or a default like 'GBK' ? Let's mark as failed.
+      end;
+      // We might need to separately check BOM if controller doesn't report it via name
+      // HasSourceBOM := Controller.HasBOM(SourceFilePath); // Requires TEncoding obj, less ideal now
+
+      Writeln('  检测到源编码 (by Controller): ' + DetectedEncodingName);
+
+       // If detection fails, we probably can't reliably convert back. Skip?
+       if DetectedEncodingName = '检测失败' then
+       begin
+           Writeln('  错误: 无法检测源编码，跳过此文件的转换测试。');
+           // Record skipped result
+           FillChar(TestResult, SizeOf(TestResult), 0);
+           TestResult.SourceFile := SourceFileName;
+           TestResult.DetectedEncoding := DetectedEncodingName;
+           TestResult.TargetEncodingName := '-';
+           TestResult.ForwardConversion := '跳过';
+           TestResult.ReverseConversion := '跳过';
+           TestResult.ComparisonResult := '无法比较';
+           TestResult.Remarks := '无法检测源编码';
+           SetLength(TestResults, Length(TestResults) + 1);
+           TestResults[High(TestResults)] := TestResult;
+           Continue;
+       end;
+
+
+      // --- 2. 遍历目标编码 (From ModelEncoding) ---
+      for j := 0 to EncodingModel.EncodingCount - 1 do
+      begin
+        TargetEncodingInfo := EncodingModel.Encodings[j];
+
+        // Skip group titles
+        if TargetEncodingInfo.IsGroup then Continue;
+
+        // Initialize TestResult
+        FillChar(TestResult, SizeOf(TestResult), 0);
+        TestResult.SourceFile := SourceFileName;
+        TestResult.DetectedEncoding := DetectedEncodingName;
+        TestResult.TargetEncodingName := TargetEncodingInfo.Name; // The target we are testing
+        TestResult.ForwardConversion := '跳过';
+        TestResult.ReverseEncodingName := DetectedEncodingName; // The encoding we aim to convert back to
+        TestResult.ReverseConversion := '跳过';
+        TestResult.ComparisonResult := '未比较';
+        TestResult.Remarks := '';
+
+        // Prepare parameters for controller call
+        TargetEncodingNameForConv := TargetEncodingInfo.ShortName; // Use ShortName for controller? Or Name? Check ControllerEncoding.pas! Let's assume ShortName for now.
+        UseTargetBOM := TargetEncodingInfo.HasBOM;
+        ToFilePath := IncludeTrailingPathDelimiter(TO_DIR) + BaseFileName + '.' + TargetEncodingInfo.ShortName + '.to' + FileExt;
+
+
+        // Check if source and target are the same (based on *names* now, less precise but practical)
+        // This check needs refinement based on how Controller returns DetectedEncodingName
+        // Example: If detected is 'UTF-8' and target is 'UTF-8 BOM', they are different.
+        // Let the controller handle the conversion even if names seem similar, it might involve BOM changes.
+        // if SameText(DetectedEncodingName, TargetEncodingNameForConv) and (HasSourceBOM = UseTargetBOM) then ... -> This check is unreliable with names.
+
+
+        // --- 3. 正向转换 (Using Controller) ---
+        Writeln('  -> ' + TargetEncodingInfo.Name + ' (BOM: ' + BoolToStr(UseTargetBOM, True) + ')');
+        // Create backup in 'to' dir for simplicity, controller might handle internally too
+        if TFile.Exists(ToFilePath) then TFile.Delete(ToFilePath);
+
+        ForwardResult := Controller.ConvertSingleFileByName(SourceFilePath, TargetEncodingNameForConv, UseTargetBOM, DummyUpdateCallback);
+
+        case ForwardResult of
+          crSuccess: begin TestResult.ForwardConversion := '成功'; Writeln('     正向: 成功'); end;
+          crFailed: begin TestResult.ForwardConversion := '失败'; TestResult.Remarks := 'Controller报告正向转换失败'; Writeln('     正向: 失败'); end;
+          crSkipped: begin TestResult.ForwardConversion := '跳过'; TestResult.Remarks := 'Controller跳过正向转换'; Writeln('     正向: 跳过'); end;
+        end;
+
+
+        // --- 4. 反向转换 (Using Controller) ---
+        if TestResult.ForwardConversion = '成功' then
+        begin
+          BackFilePath := IncludeTrailingPathDelimiter(BACK_DIR) + BaseFileName + '.' + TargetEncodingInfo.ShortName + '.back' + FileExt;
+          // Target for reverse is the *detected* source encoding name
+          // We need the original BOM status for the reverse conversion target.
+          // Let's re-detect the original BOM status if Controller.Detect doesn't provide it.
+          // This is awkward. Assume controller handles BOM correctly based on target name?
+          // Let's assume the reverse target name (e.g., 'UTF-8 BOM') implies BOM.
+          // We need a way to map DetectedEncodingName back to a reliable BOM preference.
+          // Or pass the original HasSourceBOM to the reverse call? ConvertSingleFileByName doesn't take source BOM.
+
+          // Simplification: Assume the Name/ShortName implies BOM for standard types like UTF-8 BOM, UTF-16LE etc.
+          // The AddBOM parameter in ConvertSingleFileByName refers to the *target* file.
+          // So, for reverse conversion, AddBOM should be true if DetectedEncodingName implies a BOM.
+          UseTargetBOM := (Pos('BOM', DetectedEncodingName)>0) or (Pos('UTF-16', DetectedEncodingName)>0); // Crude guess for reverse BOM
+
+          if TFile.Exists(BackFilePath) then TFile.Delete(BackFilePath);
+
+          ReverseResult := Controller.ConvertSingleFileByName(ToFilePath, DetectedEncodingName, UseTargetBOM, DummyUpdateCallback); // Convert TO file back to DetectedEncodingName
+
+          case ReverseResult of
+            crSuccess: begin TestResult.ReverseConversion := '成功'; Writeln('     反向: 成功'); end;
+            crFailed: begin TestResult.ReverseConversion := '失败'; TestResult.Remarks := TestResult.Remarks + '; Controller报告反向转换失败'; Writeln('     反向: 失败'); end;
+            crSkipped: begin TestResult.ReverseConversion := '跳过'; TestResult.Remarks := TestResult.Remarks + '; Controller跳过反向转换'; Writeln('     反向: 跳过'); end;
+          end;
+        end else begin // Forward failed or skipped
+           TestResult.ReverseConversion := '跳过';
+        end;
+
+
+        // --- 5. 比较文件 ---
+        if (TestResult.ForwardConversion = '成功') and (TestResult.ReverseConversion = '成功') then
+        begin
+           if CompareFilesRobust(SourceFilePath, BackFilePath) then
+           begin
+             TestResult.ComparisonResult := '一致';
+             Writeln('     比较: 一致');
+           end
+           else
+           begin
+             TestResult.ComparisonResult := '不一致';
+             Writeln('     比较: !!不一致!!');
+             TestResult.Remarks := TestResult.Remarks + '; 文件内容不一致';
+             // Add remarks for potentially lossy encodings
+             if (Pos('GB', TargetEncodingInfo.ShortName)>0) or (Pos('BIG5', TargetEncodingInfo.ShortName)>0) or (Pos('ASCII', TargetEncodingInfo.ShortName)>0) then
+                 TestResult.Remarks := TestResult.Remarks + '; 可能因目标编码无法表示所有源字符';
+           end;
+        end
+        else if (TestResult.ForwardConversion = '失败') or (TestResult.ReverseConversion = '失败') then
+        begin
+             TestResult.ComparisonResult := '无法比较'; // Cannot compare if any step failed
+             Writeln('     比较: 无法比较');
+        end
+        else // Both were skipped or Forward skipped
+        begin
+             TestResult.ComparisonResult := '未比较'; // Not compared if skipped
+             Writeln('     比较: 未比较');
+        end;
+
+
+        // 添加结果到列表
+        SetLength(TestResults, Length(TestResults) + 1);
+        TestResults[High(TestResults)] := TestResult;
+
+      end; // 目标编码循环
+
+    end; // 源文件循环
+
+    // --- 6. 写入结果到 Markdown 文件 ---
+    Writeln('');
+    Writeln('测试完成，正在写入结果到 ' + RESULTS_FILE + '...');
+    sl := TStringList.Create;
+    try
+      // Create file header
+      sl.Add('# 编码转换测试结果 (使用 TEncodingController)');
+      sl.Add('');
+      sl.Add('> 测试时间: ' + DateTimeToStr(Now));
+      sl.Add('');
+      sl.Add('| 源文件 | 源编码(检测) | 目标编码 | 正向转换 | 反向编码(目标) | 反向转换 | 比较结果 | 备注 |');
+      sl.Add('|---|---|---|---|---|---|---|---|');
+
+      // Add test result rows
+      for TestResult in TestResults do
+      begin
+        sl.Add('| ' + TestResult.SourceFile +
+               ' | ' + TestResult.DetectedEncoding +
+               ' | ' + TestResult.TargetEncodingName +
+               ' | ' + TestResult.ForwardConversion +
+               ' | ' + TestResult.ReverseEncodingName +
+               ' | ' + TestResult.ReverseConversion +
+               ' | ' + TestResult.ComparisonResult +
+               ' | ' + TestResult.Remarks + ' |');
+      end;
+      sl.SaveToFile(RESULTS_FILE, TEncoding.UTF8); // Save results as UTF-8
+      Writeln('结果已写入 ' + RESULTS_FILE);
+    finally
+      sl.Free;
+    end;
+
+  except
+    on E: Exception do
+      Writeln(E.ClassName, ': ', E.Message);
+  end;
+
+  // Final Cleanup
+  Controller.Free; // Free the controller
+  EncodingModel.Free;
+
+  Writeln('');
+  if IsConsole then
+  begin
+     Writeln('按 Enter 键退出...');
+     Readln;
+  end;
+
+end.

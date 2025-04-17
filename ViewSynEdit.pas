@@ -50,7 +50,7 @@ type
   end;
 
 var
-  SynEditForm: TSynEditForm;
+  SynEditForm: TSynEditForm = nil;
 
 implementation
 
@@ -62,7 +62,7 @@ begin
   Position := poDefaultPosOnly; // 使窗体位置由代码控制
   FormStyle := fsStayOnTop;     // 保持在其他窗体之上
   KeyPreview := True;           // 允许窗体接收所有键盘事件
-  
+
   // 设置SynEdit的属性
   SynEdit.Font.Name := 'Consolas';
   SynEdit.Font.Size := 10;
@@ -71,7 +71,7 @@ begin
   SynEdit.ReadOnly := True;
   SynEdit.Gutter.ShowLineNumbers := True;
   SynEdit.UseCodeFolding := True;
-  
+
   // 记录初始化日志
   LogMessage('SynEdit窗体已初始化');
 end;
@@ -85,6 +85,15 @@ procedure TSynEditForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   // 设置关闭时的行为
   Action := caHide; // 隐藏而非释放，因为我们使用全局变量SynEditForm
+
+  // 清空编辑器内容，减少内存占用
+  try
+    SynEdit.Lines.Clear;
+    LogMessage('已清空编辑器内容');
+  except
+    on E: Exception do
+      LogMessage('清空编辑器内容失败: ' + E.Message);
+  end;
 end;
 
 procedure TSynEditForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -123,7 +132,7 @@ var
   Ext: string;
 begin
   Ext := LowerCase(ExtractFileExt(FileName));
-  
+
   // 根据文件扩展名应用适当的语法高亮器
   if (Ext = '.pas') or (Ext = '.dpr') or (Ext = '.dpk') then
   begin
@@ -197,7 +206,7 @@ begin
   begin
     SynEdit.Highlighter := nil; // 未知文件类型，不使用高亮
   end;
-  
+
   // 确保立即重绘
   SynEdit.Invalidate;
 end;
@@ -215,52 +224,127 @@ procedure TSynEditForm.LoadFile(const FileName: string; Encoding: TEncoding = ni
 var
   DetectedEncoding: string;
   HasBOM: Boolean;
+  FileContent: TStringList;
+  FileStream: TFileStream;
+  Success: Boolean;
 begin
+  FileContent := TStringList.Create;
   try
-    // 直接使用SynEdit的Lines加载文件，简单可靠
-    if Assigned(Encoding) then
-      SynEdit.Lines.LoadFromFile(FileName, Encoding)
-    else
-      SynEdit.Lines.LoadFromFile(FileName);
-    
-    // 设置窗体标题
-    Caption := ExtractFileName(FileName);
-    
-    // 首先清除现有高亮器
-    SynEdit.Highlighter := nil;
-    
-    // 应用语法高亮
-    ApplyHighlighter(FileName);
-    
-    // 检测文件编码
-    DetectedEncoding := JclEncodingUtils.DetectFileEncoding(FileName);
-    HasBOM := Pos('BOM', DetectedEncoding) > 0;
-    
-    // 设置文件信息
-    SetFileInfo(FileName, DetectedEncoding, HasBOM);
-    
-  except
-    on E: Exception do
-    begin
-      SynEdit.Text := '无法打开文件: ' + E.Message;
+    Success := False;
+
+    // 首先尝试使用TStringList直接加载
+    try
+      LogMessage('尝试使用TStringList加载文件: ' + FileName);
+      if Assigned(Encoding) then
+        FileContent.LoadFromFile(FileName, Encoding)
+      else
+        FileContent.LoadFromFile(FileName);
+
+      Success := True;
+      LogMessage('使用TStringList加载成功');
+    except
+      on E: Exception do
+      begin
+        LogMessage('使用TStringList加载失败: ' + E.Message);
+
+        // 如果失败，尝试使用TFileStream加载
+        try
+          LogMessage('尝试使用TFileStream加载文件: ' + FileName);
+          FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+          try
+            FileContent.LoadFromStream(FileStream);
+            Success := True;
+            LogMessage('使用TFileStream加载成功');
+          finally
+            FileStream.Free;
+          end;
+        except
+          on E2: Exception do
+          begin
+            LogMessage('使用TFileStream加载失败: ' + E2.Message);
+            // 不抛出异常，继续尝试其他方法
+          end;
+        end;
+      end;
     end;
+
+    // 如果文件加载成功
+    if Success then
+    begin
+      // 将内容设置到SynEdit
+      try
+        LogMessage('将内容设置到SynEdit');
+        SynEdit.Lines.BeginUpdate;
+        try
+          SynEdit.Lines.Clear;
+          SynEdit.Lines.AddStrings(FileContent);
+        finally
+          SynEdit.Lines.EndUpdate;
+        end;
+
+        // 设置窗体标题
+        Caption := ExtractFileName(FileName);
+
+        // 首先清除现有高亮器
+        SynEdit.Highlighter := nil;
+
+        // 应用语法高亮
+        ApplyHighlighter(FileName);
+
+        // 检测文件编码
+        DetectedEncoding := JclEncodingUtils.DetectFileEncoding(FileName);
+        HasBOM := Pos('BOM', DetectedEncoding) > 0;
+
+        // 设置文件信息
+        SetFileInfo(FileName, DetectedEncoding, HasBOM);
+
+        LogMessage('成功加载文件: ' + FileName);
+      except
+        on E: Exception do
+        begin
+          LogMessage('设置文件内容到SynEdit失败: ' + E.Message);
+          Success := False;
+        end;
+      end;
+    end;
+
+    // 如果所有方法都失败
+    if not Success then
+    begin
+      // 显示错误消息
+      Application.MessageBox(
+        PChar('无法打开文件: ' + FileName),
+        PChar(Caption),
+        MB_OK + MB_ICONERROR);
+
+      // 设置错误消息到编辑器
+      SynEdit.Text := '无法打开文件: ' + FileName;
+    end;
+  finally
+    FileContent.Free;
   end;
 end;
 
 procedure TSynEditForm.SetFileInfo(const FileName, DetectedEncoding: string; HasBOM: Boolean);
 var
   BOMStr: string;
+  FileLabel, EncodingLabel, BOMLabel: string;
 begin
+  // 使用多语言标签
+  FileLabel := '文件'; // 默认中文
+  EncodingLabel := '编码';
+  BOMLabel := 'BOM';
+
   // 更新文件信息标签
-  lblFileName.Caption := 'File: ' + ExtractFileName(FileName);
-  lblEncoding.Caption := 'Encoding: ' + DetectedEncoding;
-  
+  lblFileName.Caption := FileLabel + ': ' + ExtractFileName(FileName);
+  lblEncoding.Caption := EncodingLabel + ': ' + DetectedEncoding;
+
   if HasBOM then
-    BOMStr := 'Yes'
+    BOMStr := '是'
   else
-    BOMStr := 'No';
-    
-  lblBOM.Caption := 'BOM: ' + BOMStr;
+    BOMStr := '否';
+
+  lblBOM.Caption := BOMLabel + ': ' + BOMStr;
 end;
 
 end.

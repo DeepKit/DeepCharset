@@ -1,11 +1,10 @@
-﻿unit HelperLanguage;
+unit HelperLanguage;
 
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Generics.Collections,
-  System.IOUtils, Winapi.Windows, Vcl.Forms, UtilsTypes, ModelLanguage,
-  System.JSON;
+  System.SysUtils, System.Classes, System.Generics.Collections, System.IniFiles,
+  System.IOUtils, Winapi.Windows, Vcl.Forms, ModelLanguage,UtilsTypes;
 
 type
   // 语言管理器类
@@ -16,12 +15,12 @@ type
     FLanguageInfoList: TList<TLanguageInfo>;
     FOnLanguageChange: TOnLanguageChangeEvent;
     FLanguagePath: string;
-    FGetLanguageStringsCallback: TGetLanguageStringsCallback;
 
-    function LoadFromJsonFile(const FileName: string): TLanguageStrings;
+    function LoadFromIniFile(const FileName: string): TLanguageStrings;
     procedure SaveUserPreference(const LangCode: string);
     function GetDefaultLanguage: string;
     procedure LoadLanguageList;
+    function GetSystemLanguage: string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -31,15 +30,12 @@ type
     function GetLanguageList: TArray<TLanguageInfo>;
     function GetLanguageStrings(const LangCode: string): TLanguageStrings;
     procedure SetLanguage(const LangCode: string);
-    function GetSystemLanguage: string;
     function GetLanguageNameByCode(const LangCode: string): string;
     function GetLanguageInfo(const LangCode: string): TLanguageInfo;
 
     property CurrentLanguage: string read FCurrentLanguage;
     property OnLanguageChange: TOnLanguageChangeEvent read FOnLanguageChange write FOnLanguageChange;
     property LanguagePath: string read FLanguagePath write FLanguagePath;
-    property GetLanguageStringsCallback: TGetLanguageStringsCallback
-             read FGetLanguageStringsCallback write FGetLanguageStringsCallback;
   end;
 
 var
@@ -47,193 +43,207 @@ var
 
 implementation
 
-uses
-  System.StrUtils, System.UITypes;
-
-const
-  // 支持的语言代码
-  SUPPORTED_LANGUAGES: array[0..15] of string = (
-    'zh-CN', // 简体中文
-    'zh-TW', // 繁体中文
-    'en',    // 英语
-    'es',    // 西班牙语
-    'fr',    // 法语
-    'de',    // 德语
-    'it',    // 意大利语
-    'pt',    // 葡萄牙语
-    'ru',    // 俄语
-    'ja',    // 日语
-    'ko',    // 韩语
-    'ar',    // 阿拉伯语
-    'nl',    // 荷兰语
-    'pl',    // 波兰语
-    'tr',    // 土耳其语
-    'vi'     // 越南语
-  );
-
-// 创建默认的语言字符串
-function CreateDefaultLanguageStrings: TLanguageStrings;
-var
-  LangStrings: TLanguageStrings;
-begin
-  // 初始化为英语界面
-  LangStrings.WindowTitle := 'TransSuccess - File Encoding Converter';
-  LangStrings.BtnConvert := 'Convert';
-  LangStrings.BtnSingleFile := 'Single File';
-  LangStrings.BtnRefresh := 'Refresh';
-  LangStrings.BtnClose := 'Close';
-  LangStrings.BtnToggleSelect := 'Select/Deselect All';
-  LangStrings.BtnSVG2ICON := 'SVG to ICON';
-  LangStrings.BtnPreview := 'Preview';
-  LangStrings.LanguageGroupCaption := 'Language';
-  LangStrings.DirectoryListBoxLabel := 'Directory';
-  LangStrings.FileListLabel := 'File List';
-  LangStrings.CurrentEncodingLabel := 'Current Encoding';
-  LangStrings.FileSelectColumn := 'Select';
-  LangStrings.FileNameColumn := 'Filename';
-  LangStrings.EncodingColumn := 'Current Encoding';
-  LangStrings.PopupMenuConvert := 'Convert Selected Files';
-  LangStrings.PopupMenuToggleSelect := 'Select/Deselect All';
-  LangStrings.NoFilesText := '(No Files)';
-  LangStrings.ReadErrorText := '(Read Error)';
-  LangStrings.LogSelectedDirectory := 'Selected Directory: ';
-
-  Result := LangStrings;
-end;
-
 { TLanguageManager }
 
 constructor TLanguageManager.Create;
 begin
   inherited Create;
+
+  // 初始化成员变量
   FLanguages := TDictionary<string, TLanguageStrings>.Create;
   FLanguageInfoList := TList<TLanguageInfo>.Create;
-  FCurrentLanguage := '';
-  FLanguagePath := ExtractFilePath(Application.ExeName) + 'languages';
-  FGetLanguageStringsCallback := nil;
+
+  // 设置语言文件路径
+  if IniDir <> '' then
+    FLanguagePath := IniDir
+  else
+    FLanguagePath := ExtractFilePath(Application.ExeName) + 'ini';
+
+  OutputDebugString(PChar('Language path set to: ' + FLanguagePath));
+
+  if not DirectoryExists(FLanguagePath) then
+  begin
+    ForceDirectories(FLanguagePath);
+    OutputDebugString(PChar('Created language directory: ' + FLanguagePath));
+  end;
+
+  // 默认使用英语
+  FCurrentLanguage := 'en-US';
 end;
 
 destructor TLanguageManager.Destroy;
 begin
   FLanguages.Free;
   FLanguageInfoList.Free;
-  inherited Destroy;
+  inherited;
 end;
 
 procedure TLanguageManager.Initialize;
 begin
-  // 清空语言列表和字典
-  FLanguageInfoList.Clear;
-  FLanguages.Clear;
-
   // 加载语言列表
   LoadLanguageList;
 
-  // 加载可用的语言文件
+  // 加载可用语言
   LoadAvailableLanguages;
 
-  // 设置默认语言
-  var DefaultLang := GetDefaultLanguage;
-  if DefaultLang <> '' then
-    FCurrentLanguage := DefaultLang
-  else if FLanguageInfoList.Count > 0 then
-    FCurrentLanguage := FLanguageInfoList[0].Code
-  else
-    FCurrentLanguage := 'en'; // 默认使用英语
+  // 尝试加载用户首选语言或系统语言
+  FCurrentLanguage := GetDefaultLanguage;
+end;
 
-  // 确保至少有一种语言可用
-  if FLanguages.Count = 0 then
+function TLanguageManager.GetDefaultLanguage: string;
+var
+  ConfigFile: string;
+begin
+  // 配置文件路径
+  ConfigFile := ExtractFilePath(Application.ExeName) + 'config\language.cfg';
+
+  // 检查是否存在用户首选语言配置
+  if FileExists(ConfigFile) then
   begin
-    // 创建默认英语字符串
-    var DefaultStrings := CreateDefaultLanguageStrings;
-    FLanguages.Add('en', DefaultStrings);
+    try
+      Result := TFile.ReadAllText(ConfigFile, TEncoding.UTF8).Trim;
+      if FLanguages.ContainsKey(Result) then
+        Exit;
+    except
+      // 忽略读取错误
+    end;
+  end;
 
-    // 添加英语到语言列表
-    var LangInfo: TLanguageInfo;
-    LangInfo.Code := 'en';
-    LangInfo.Name := 'English';
-    LangInfo.NativeName := 'English';
-    LangInfo.FileName := 'en.json';
-    FLanguageInfoList.Add(LangInfo);
+  // 尝试使用系统语言
+  Result := GetSystemLanguage;
 
-    // 设置当前语言为英语
-    FCurrentLanguage := 'en';
+  // 如果系统语言不可用，使用英语
+  if not FLanguages.ContainsKey(Result) then
+    Result := 'en-US';
+
+  // 如果英语不可用，使用第一个可用语言
+  if not FLanguages.ContainsKey(Result) and (FLanguages.Count > 0) then
+  begin
+    var Enumerator := FLanguages.Keys.GetEnumerator;
+    if Enumerator.MoveNext then
+      Result := Enumerator.Current;
   end;
 end;
 
-procedure TLanguageManager.LoadLanguageList;
+function TLanguageManager.GetLanguageInfo(const LangCode: string): TLanguageInfo;
 var
-  LanguageListFile: string;
-  JsonText: string;
-  JsonObj, LangObj: TJSONObject;
-  LangArray: TJSONArray;
-  LangInfo: TLanguageInfo;
   i: Integer;
 begin
-  // 清空语言列表
-  FLanguageInfoList.Clear;
+  // 初始化为空记录
+  Result.Code := '';
+  Result.Name := '';
+  Result.NativeName := '';
+  Result.FileName := '';
 
-  // 语言列表文件路径
-  LanguageListFile := FLanguagePath + PathDelim + 'languages.json';
-
-  // 检查文件是否存在
-  if not FileExists(LanguageListFile) then
+  // 查找语言信息
+  for i := 0 to FLanguageInfoList.Count - 1 do
   begin
-    // 如果文件不存在，添加默认语言
-    LangInfo.Code := 'en';
-    LangInfo.Name := 'English';
-    LangInfo.NativeName := 'English';
-    LangInfo.FileName := 'en.json';
-    FLanguageInfoList.Add(LangInfo);
+    if FLanguageInfoList[i].Code = LangCode then
+    begin
+      Result := FLanguageInfoList[i];
+      Break;
+    end;
+  end;
+end;
+
+function TLanguageManager.GetLanguageList: TArray<TLanguageInfo>;
+var
+  i: Integer;
+begin
+  SetLength(Result, FLanguageInfoList.Count);
+  for i := 0 to FLanguageInfoList.Count - 1 do
+    Result[i] := FLanguageInfoList[i];
+end;
+
+function TLanguageManager.GetLanguageNameByCode(const LangCode: string): string;
+var
+  LangInfo: TLanguageInfo;
+begin
+  LangInfo := GetLanguageInfo(LangCode);
+  if LangInfo.Name <> '' then
+    Result := LangInfo.Name
+  else
+    Result := LangCode;
+end;
+
+function TLanguageManager.GetLanguageStrings(const LangCode: string): TLanguageStrings;
+var
+  LangInfo: TLanguageInfo;
+  LangFile: string;
+begin
+  // 如果语言已在内存中，直接返回
+  if FLanguages.TryGetValue(LangCode, Result) then
+  begin
+    OutputDebugString(PChar('Language strings found in memory for: ' + LangCode));
     Exit;
   end;
 
-  try
-    // 读取JSON文件
-    JsonText := TFile.ReadAllText(LanguageListFile, TEncoding.UTF8);
-    JsonObj := TJSONObject.ParseJSONValue(JsonText) as TJSONObject;
+  OutputDebugString(PChar('Language strings not found in memory for: ' + LangCode + ', trying to load from file...'));
 
-    if JsonObj <> nil then
+  // 尝试查找语言信息
+  LangInfo := GetLanguageInfo(LangCode);
+
+  // 如果找到语言信息，尝试从文件加载
+  if LangInfo.Code <> '' then
+  begin
+    // 使用全局变量IniDir而非FLanguagePath
+    if IniDir <> '' then
+      LangFile := IniDir + PathDelim + LangInfo.FileName
+    else
+      LangFile := FLanguagePath + PathDelim + LangInfo.FileName;
+
+    OutputDebugString(PChar('Trying to load language file: ' + LangFile));
+
+    // 检查文件是否存在
+    if FileExists(LangFile) then
     begin
-      try
-        // 获取语言数组
-        LangArray := JsonObj.GetValue('languages') as TJSONArray;
+      OutputDebugString(PChar('Language file exists, loading...'));
 
-        if LangArray <> nil then
-        begin
-          // 遍历所有语言
-          for i := 0 to LangArray.Count - 1 do
-          begin
-            LangObj := LangArray.Items[i] as TJSONObject;
+      // 从文件加载语言字符串
+      Result := LoadFromIniFile(LangFile);
 
-            // 提取语言信息
-            LangInfo.Code := LangObj.GetValue('code').Value;
-            LangInfo.Name := LangObj.GetValue('name').Value;
-            LangInfo.NativeName := LangObj.GetValue('name').Value; // 使用name作为nativeName
-            LangInfo.FileName := LangObj.GetValue('file').Value;
+      // 将加载的语言字符串添加到字典中
+      FLanguages.Add(LangCode, Result);
+      OutputDebugString(PChar('Language strings loaded and added to dictionary: ' + LangCode));
+      Exit;
+    end
+    else
+      OutputDebugString(PChar('Language file does not exist: ' + LangFile));
+  end
+  else
+    OutputDebugString(PChar('Language info not found for: ' + LangCode));
 
-            // 添加到语言列表
-            FLanguageInfoList.Add(LangInfo);
-          end;
-        end;
-      finally
-        JsonObj.Free;
-      end;
-    end;
-  except
-    on E: Exception do
-    begin
-      // 处理异常，添加默认语言
-      FLanguageInfoList.Clear;
+  // 如果无法加载，返回默认字符串
+  OutputDebugString(PChar('Returning default language strings for: ' + LangCode));
+  Result := CreateDefaultLanguageStrings;
+end;
 
-      LangInfo.Code := 'en';
-      LangInfo.Name := 'English';
-      LangInfo.NativeName := 'English';
-      LangInfo.FileName := 'en.json';
-      FLanguageInfoList.Add(LangInfo);
+function TLanguageManager.GetSystemLanguage: string;
+var
+  LangID: Word;
+  LangCode: string;
+  Buffer: array[0..255] of Char;
+  BufferLen: Integer;
+begin
+  // 默认为英语
+  Result := 'en-US';
 
-      OutputDebugString(PChar('Error loading language list: ' + E.Message));
-    end;
+  // 获取系统语言ID
+  LangID := GetUserDefaultLCID;
+
+  // 获取语言代码
+  BufferLen := GetLocaleInfo(LangID, LOCALE_SISO639LANGNAME, Buffer, Length(Buffer));
+  if BufferLen > 0 then
+  begin
+    LangCode := Buffer;
+
+    // 获取国家/地区代码
+    BufferLen := GetLocaleInfo(LangID, LOCALE_SISO3166CTRYNAME, Buffer, Length(Buffer));
+    if BufferLen > 0 then
+      LangCode := LangCode + '-' + Buffer;
+
+    // 转换为大写国家/地区代码
+    Result := LangCode;
   end;
 end;
 
@@ -247,28 +257,49 @@ begin
   // 清空语言字典
   FLanguages.Clear;
 
+  // 输出调试信息
+  OutputDebugString(PChar('Loading available languages, language list count: ' + IntToStr(FLanguageInfoList.Count)));
+
   // 遍历所有语言信息
   for i := 0 to FLanguageInfoList.Count - 1 do
   begin
     LangInfo := FLanguageInfoList[i];
 
+    // 输出调试信息
+    OutputDebugString(PChar('Processing language: ' + LangInfo.Code + ', file: ' + LangInfo.FileName));
+
     // 检查语言文件是否存在
-    LangFile := FLanguagePath + PathDelim + LangInfo.FileName;
+    // 使用全局变量IniDir而非FLanguagePath
+    if IniDir <> '' then
+      LangFile := IniDir + PathDelim + LangInfo.FileName
+    else
+      LangFile := FLanguagePath + PathDelim + LangInfo.FileName;
 
     if FileExists(LangFile) then
     begin
+      // 输出调试信息
+      OutputDebugString(PChar('Language file exists: ' + LangFile));
+
       try
         // 加载语言文件
-        LangStrings := LoadFromJsonFile(LangFile);
+        LangStrings := LoadFromIniFile(LangFile);
 
         // 添加到语言字典
         FLanguages.Add(LangInfo.Code, LangStrings);
+
+        // 输出调试信息
+        OutputDebugString(PChar('Added language to dictionary: ' + LangInfo.Code));
       except
         on E: Exception do
         begin
           OutputDebugString(PChar('Error loading language file ' + LangFile + ': ' + E.Message));
         end;
       end;
+    end
+    else
+    begin
+      // 输出调试信息
+      OutputDebugString(PChar('Language file does not exist: ' + LangFile));
     end;
   end;
 
@@ -277,221 +308,146 @@ begin
   begin
     // 创建默认英语字符串
     LangStrings := CreateDefaultLanguageStrings;
-    FLanguages.Add('en', LangStrings);
+    FLanguages.Add('en-US', LangStrings);
   end;
 end;
 
-function TLanguageManager.LoadFromJsonFile(const FileName: string): TLanguageStrings;
+procedure TLanguageManager.LoadLanguageList;
 var
-  JsonText: string;
-  JsonObj, UiObj: TJSONObject;
-  LangStrings: TLanguageStrings;
+  SearchRec: TSearchRec;
+  LangInfo: TLanguageInfo;
+  IniFile: TMemIniFile;
+  FilePath: string;
+  FindResult: Integer;
+begin
+  // 清空语言列表
+  FLanguageInfoList.Clear;
+
+  // 使用全局变量IniDir而非FLanguagePath
+  if IniDir <> '' then
+  begin
+    OutputDebugString(PChar('Searching for language files in: ' + IniDir));
+    FindResult := FindFirst(IniDir + PathDelim + '*.ini', faAnyFile, SearchRec);
+  end
+  else
+  begin
+    OutputDebugString(PChar('Searching for language files in: ' + FLanguagePath));
+    FindResult := FindFirst(FLanguagePath + PathDelim + '*.ini', faAnyFile, SearchRec);
+  end;
+  try
+    while FindResult = 0 do
+    begin
+      // 使用全局变量IniDir而非FLanguagePath
+      if IniDir <> '' then
+        FilePath := IniDir + PathDelim + SearchRec.Name
+      else
+        FilePath := FLanguagePath + PathDelim + SearchRec.Name;
+
+      // 输出调试信息
+      OutputDebugString(PChar('Found language file: ' + FilePath));
+
+      // 使用TMemIniFile读取语言信息
+      IniFile := TMemIniFile.Create(FilePath, TEncoding.UTF8);
+      try
+        // 读取语言元数据
+        LangInfo.Code := IniFile.ReadString('Meta', 'LanguageCode', '');
+        LangInfo.Name := IniFile.ReadString('Meta', 'LanguageName', '');
+        LangInfo.NativeName := IniFile.ReadString('Meta', 'NativeName', '');
+        LangInfo.FileName := SearchRec.Name;
+
+        // 输出调试信息
+        OutputDebugString(PChar('Language info: Code=' + LangInfo.Code + ', Name=' + LangInfo.Name + ', NativeName=' + LangInfo.NativeName));
+
+        // 如果有有效的语言代码，添加到列表
+        if LangInfo.Code <> '' then
+        begin
+          FLanguageInfoList.Add(LangInfo);
+          OutputDebugString(PChar('Added language to list: ' + LangInfo.Code));
+        end
+        else
+          OutputDebugString(PChar('Invalid language code in file: ' + FilePath));
+      finally
+        IniFile.Free;
+      end;
+
+      // 查找下一个文件
+      FindResult := FindNext(SearchRec);
+    end;
+  finally
+    System.SysUtils.FindClose(SearchRec);
+  end;
+
+  // 如果没有找到任何语言文件，添加默认语言
+  if FLanguageInfoList.Count = 0 then
+  begin
+    LangInfo.Code := 'en-US';
+    LangInfo.Name := 'English';
+    LangInfo.NativeName := 'English';
+    LangInfo.FileName := 'en-US.ini';
+    FLanguageInfoList.Add(LangInfo);
+  end;
+end;
+
+function TLanguageManager.LoadFromIniFile(const FileName: string): TLanguageStrings;
+var
+  IniFile: TMemIniFile;
 begin
   // 初始化为默认字符串
-  LangStrings := CreateDefaultLanguageStrings;
+  Result := CreateDefaultLanguageStrings;
 
   try
-    // 读取JSON文件
-    JsonText := TFile.ReadAllText(FileName, TEncoding.UTF8);
-    JsonObj := TJSONObject.ParseJSONValue(JsonText) as TJSONObject;
+    // 使用TMemIniFile读取语言文件
+    IniFile := TMemIniFile.Create(FileName, TEncoding.UTF8);
+    try
+      // 读取字符串部分
+      Result.WindowTitle := IniFile.ReadString('Strings', 'WindowTitle', Result.WindowTitle);
+      Result.BtnConvert := IniFile.ReadString('Strings', 'BtnConvert', Result.BtnConvert);
+      Result.BtnSingleFile := IniFile.ReadString('Strings', 'BtnSingleFile', Result.BtnSingleFile);
+      Result.BtnRefresh := IniFile.ReadString('Strings', 'BtnRefresh', Result.BtnRefresh);
+      Result.BtnClose := IniFile.ReadString('Strings', 'BtnClose', Result.BtnClose);
+      Result.BtnToggleSelect := IniFile.ReadString('Strings', 'BtnToggleSelect', Result.BtnToggleSelect);
+      Result.BtnSVG2ICON := IniFile.ReadString('Strings', 'BtnSVG2ICON', Result.BtnSVG2ICON);
+      Result.BtnPreview := IniFile.ReadString('Strings', 'BtnPreview', Result.BtnPreview);
+      Result.LanguageGroupCaption := IniFile.ReadString('Strings', 'LanguageGroupCaption', Result.LanguageGroupCaption);
+      Result.DirectoryListBoxLabel := IniFile.ReadString('Strings', 'DirectoryListBoxLabel', Result.DirectoryListBoxLabel);
+      Result.FileListLabel := IniFile.ReadString('Strings', 'FileListLabel', Result.FileListLabel);
+      Result.CurrentEncodingLabel := IniFile.ReadString('Strings', 'CurrentEncodingLabel', Result.CurrentEncodingLabel);
+      Result.FileSelectColumn := IniFile.ReadString('Strings', 'FileSelectColumn', Result.FileSelectColumn);
+      Result.FileNameColumn := IniFile.ReadString('Strings', 'FileNameColumn', Result.FileNameColumn);
+      Result.EncodingColumn := IniFile.ReadString('Strings', 'EncodingColumn', Result.EncodingColumn);
+      Result.PopupMenuConvert := IniFile.ReadString('Strings', 'PopupMenuConvert', Result.PopupMenuConvert);
+      Result.PopupMenuToggleSelect := IniFile.ReadString('Strings', 'PopupMenuToggleSelect', Result.PopupMenuToggleSelect);
+      Result.NoFilesText := IniFile.ReadString('Strings', 'NoFilesText', Result.NoFilesText);
+      Result.ReadErrorText := IniFile.ReadString('Strings', 'ReadErrorText', Result.ReadErrorText);
+      Result.LogSelectedDirectory := IniFile.ReadString('Strings', 'LogSelectedDirectory', Result.LogSelectedDirectory);
+      Result.BtnAllFileTypes := IniFile.ReadString('Strings', 'BtnAllFileTypes', Result.BtnAllFileTypes);
+      Result.BtnCheckContent := IniFile.ReadString('Strings', 'BtnCheckContent', Result.BtnCheckContent);
+      Result.ChkIncludeSubdirs := IniFile.ReadString('Strings', 'ChkIncludeSubdirs', Result.ChkIncludeSubdirs);
 
-    if JsonObj <> nil then
-    begin
-      try
-        // 获取UI字符串部分
-        UiObj := JsonObj.GetValue('ui') as TJSONObject;
-
-        if UiObj <> nil then
-        begin
-          // 读取所有UI字符串
-          if UiObj.TryGetValue('main_window_title', LangStrings.WindowTitle) then;
-          if UiObj.TryGetValue('btn_convert', LangStrings.BtnConvert) then;
-          if UiObj.TryGetValue('btn_single_file', LangStrings.BtnSingleFile) then;
-          if UiObj.TryGetValue('btn_refresh', LangStrings.BtnRefresh) then;
-          if UiObj.TryGetValue('btn_close', LangStrings.BtnClose) then;
-          if UiObj.TryGetValue('btn_toggle_select', LangStrings.BtnToggleSelect) then;
-          if UiObj.TryGetValue('btn_svg2icon', LangStrings.BtnSVG2ICON) then;
-          if UiObj.TryGetValue('btn_preview', LangStrings.BtnPreview) then;
-          if UiObj.TryGetValue('lbl_language_group', LangStrings.LanguageGroupCaption) then;
-          if UiObj.TryGetValue('lbl_directory', LangStrings.DirectoryListBoxLabel) then;
-          if UiObj.TryGetValue('lbl_file_list', LangStrings.FileListLabel) then;
-          if UiObj.TryGetValue('lbl_current_encoding', LangStrings.CurrentEncodingLabel) then;
-          if UiObj.TryGetValue('lbl_file_select', LangStrings.FileSelectColumn) then;
-          if UiObj.TryGetValue('lbl_file_name', LangStrings.FileNameColumn) then;
-          if UiObj.TryGetValue('lbl_encoding', LangStrings.EncodingColumn) then;
-          if UiObj.TryGetValue('menu_convert_selected', LangStrings.PopupMenuConvert) then;
-          if UiObj.TryGetValue('menu_toggle_select', LangStrings.PopupMenuToggleSelect) then;
-          if UiObj.TryGetValue('msg_no_files', LangStrings.NoFilesText) then;
-          if UiObj.TryGetValue('msg_read_error', LangStrings.ReadErrorText) then;
-          if UiObj.TryGetValue('msg_selected_directory', LangStrings.LogSelectedDirectory) then;
-        end;
-      finally
-        JsonObj.Free;
-      end;
+      // 弹窗消息
+      Result.MsgSelectTargetEncoding := IniFile.ReadString('Messages', 'MsgSelectTargetEncoding', Result.MsgSelectTargetEncoding);
+      Result.MsgSelectFiles := IniFile.ReadString('Messages', 'MsgSelectFiles', Result.MsgSelectFiles);
+      Result.MsgNoMatchingFiles := IniFile.ReadString('Messages', 'MsgNoMatchingFiles', Result.MsgNoMatchingFiles);
+      Result.MsgConversionComplete := IniFile.ReadString('Messages', 'MsgConversionComplete', Result.MsgConversionComplete);
+      Result.MsgConversionFailed := IniFile.ReadString('Messages', 'MsgConversionFailed', Result.MsgConversionFailed);
+      Result.MsgFileNotExists := IniFile.ReadString('Messages', 'MsgFileNotExists', Result.MsgFileNotExists);
+      Result.MsgNotTextFile := IniFile.ReadString('Messages', 'MsgNotTextFile', Result.MsgNotTextFile);
+      Result.MsgSingleFileSuccess := IniFile.ReadString('Messages', 'MsgSingleFileSuccess', Result.MsgSingleFileSuccess);
+      Result.MsgSingleFileFailed := IniFile.ReadString('Messages', 'MsgSingleFileFailed', Result.MsgSingleFileFailed);
+      Result.MsgSelectFile := IniFile.ReadString('Messages', 'MsgSelectFile', Result.MsgSelectFile);
+      Result.MsgCannotCreateViewer := IniFile.ReadString('Messages', 'MsgCannotCreateViewer', Result.MsgCannotCreateViewer);
+      Result.MsgCannotLoadFile := IniFile.ReadString('Messages', 'MsgCannotLoadFile', Result.MsgCannotLoadFile);
+      Result.MsgViewerError := IniFile.ReadString('Messages', 'MsgViewerError', Result.MsgViewerError);
+      Result.MsgSubdirEnabled := IniFile.ReadString('Messages', 'MsgSubdirEnabled', Result.MsgSubdirEnabled);
+      Result.MsgConversionSuccess := IniFile.ReadString('Messages', 'MsgConversionSuccess', Result.MsgConversionSuccess);
+    finally
+      IniFile.Free;
     end;
   except
     on E: Exception do
     begin
-      OutputDebugString(PChar('Error parsing language file ' + FileName + ': ' + E.Message));
+      OutputDebugString(PChar('Error loading language file ' + FileName + ': ' + E.Message));
     end;
-  end;
-
-  Result := LangStrings;
-end;
-
-function TLanguageManager.GetDefaultLanguage: string;
-var
-  SysLang: string;
-  i: Integer;
-begin
-  // 尝试获取系统语言
-  SysLang := GetSystemLanguage;
-
-  // 检查系统语言是否在支持列表中
-  for i := 0 to FLanguageInfoList.Count - 1 do
-  begin
-    if FLanguageInfoList[i].Code = SysLang then
-    begin
-      Result := SysLang;
-      Exit;
-    end;
-  end;
-
-  // 如果系统语言不可用，尝试使用英语
-  for i := 0 to FLanguageInfoList.Count - 1 do
-  begin
-    if FLanguageInfoList[i].Code = 'en' then
-    begin
-      Result := 'en';
-      Exit;
-    end;
-  end;
-
-  // 如果英语也不可用，使用第一个可用语言
-  if FLanguageInfoList.Count > 0 then
-    Result := FLanguageInfoList[0].Code
-  else
-    Result := 'en'; // 默认使用英语
-end;
-
-function TLanguageManager.GetLanguageList: TArray<TLanguageInfo>;
-var
-  LResult: TArray<TLanguageInfo>;
-  i: Integer;
-begin
-  SetLength(LResult, FLanguageInfoList.Count);
-  for i := 0 to FLanguageInfoList.Count - 1 do
-    LResult[i] := FLanguageInfoList[i];
-  Result := LResult;
-end;
-
-function TLanguageManager.GetLanguageNameByCode(const LangCode: string): string;
-var
-  i: Integer;
-begin
-  Result := '';
-  for i := 0 to FLanguageInfoList.Count - 1 do
-  begin
-    if FLanguageInfoList[i].Code = LangCode then
-    begin
-      Result := FLanguageInfoList[i].Name;
-      Exit;
-    end;
-  end;
-end;
-
-function TLanguageManager.GetLanguageInfo(const LangCode: string): TLanguageInfo;
-var
-  i: Integer;
-  EmptyInfo: TLanguageInfo;
-begin
-  for i := 0 to FLanguageInfoList.Count - 1 do
-  begin
-    if FLanguageInfoList[i].Code = LangCode then
-    begin
-      Result := FLanguageInfoList[i];
-      Exit;
-    end;
-  end;
-
-  // 返回空信息
-  EmptyInfo.Code := '';
-  EmptyInfo.Name := '';
-  EmptyInfo.FileName := '';
-  EmptyInfo.NativeName := '';
-  Result := EmptyInfo;
-end;
-
-function TLanguageManager.GetLanguageStrings(const LangCode: string): TLanguageStrings;
-var
-  Enumerator: TDictionary<string, TLanguageStrings>.TPairEnumerator;
-begin
-  if FLanguages.ContainsKey(LangCode) then
-    Result := FLanguages[LangCode]
-  else
-    // 返回英语作为后备语言
-    if FLanguages.ContainsKey('en') then
-      Result := FLanguages['en']
-    // 如果连英语都没有，返回第一个可用语言
-    else if FLanguages.Count > 0 then
-    begin
-      Enumerator := FLanguages.GetEnumerator;
-      try
-        if Enumerator.MoveNext then
-          Result := Enumerator.Current.Value
-        else
-          Result := CreateDefaultLanguageStrings;
-      finally
-        Enumerator.Free;
-      end;
-    end
-    // 最后的防御：返回默认字符串
-    else
-      Result := CreateDefaultLanguageStrings;
-end;
-
-procedure TLanguageManager.SetLanguage(const LangCode: string);
-var
-  LangStrings: TLanguageStrings;
-begin
-  // 如果没有变化，直接返回
-  if FCurrentLanguage = LangCode then
-    Exit;
-
-  // 检查是否支持该语言
-  if not FLanguages.ContainsKey(LangCode) then
-    Exit;
-
-  // 确保能获取到语言字符串
-  LangStrings := GetLanguageStrings(LangCode);
-
-  // 设置当前语言
-  FCurrentLanguage := LangCode;
-
-  // 保存用户偏好
-  SaveUserPreference(LangCode);
-
-  // 立即触发语言变更事件，确保UI更新
-  if Assigned(FOnLanguageChange) then
-  begin
-    try
-      // 传递语言代码到事件处理器
-      FOnLanguageChange(LangCode);
-
-      // 记录语言切换成功
-      OutputDebugString(PChar('语言已切换到: ' + LangCode));
-    except
-      on E: Exception do
-      begin
-        // 记录异常但不中断流程
-        OutputDebugString(PChar('语言切换异常: ' + E.Message));
-      end;
-    end;
-  end
-  else
-  begin
-    // 记录没有事件处理器的情况
-    OutputDebugString(PChar('警告：未设置OnLanguageChange事件处理器'));
   end;
 end;
 
@@ -519,57 +475,31 @@ begin
   end;
 end;
 
-function TLanguageManager.GetSystemLanguage: string;
-var
-  LangID: LANGID;
-  LangCode: string;
+procedure TLanguageManager.SetLanguage(const LangCode: string);
 begin
-  // 默认为英语
-  Result := 'en';
+  // 如果语言没有变化，直接返回
+  if FCurrentLanguage = LangCode then
+    Exit;
 
-  // 获取系统语言ID
-  LangID := GetUserDefaultLCID;
+  // 检查语言是否可用
+  if not FLanguages.ContainsKey(LangCode) then
+    Exit;
 
-  // 基于Windows语言ID设置语言代码
-  case LangID and $00FF of
-    $04: // Chinese
-      if (LangID and $F000) = $0000 then
-        LangCode := 'zh-CN' // Simplified Chinese
-      else
-        LangCode := 'zh-TW'; // Traditional Chinese
-    $09: LangCode := 'en';    // English
-    $0A: LangCode := 'es';    // Spanish
-    $0C: LangCode := 'fr';    // French
-    $07: LangCode := 'de';    // German
-    $10: LangCode := 'it';    // Italian
-    $16: LangCode := 'pt';    // Portuguese
-    $19: LangCode := 'ru';    // Russian
-    $11: LangCode := 'ja';    // Japanese
-    $12: LangCode := 'ko';    // Korean
-    $01: LangCode := 'ar';    // Arabic
-    $13: LangCode := 'nl';    // Dutch
-    $15: LangCode := 'pl';    // Polish
-    $1F: LangCode := 'tr';    // Turkish
-    $2A: LangCode := 'vi';    // Vietnamese
-    else LangCode := 'en';    // Default to English
-  end;
+  // 设置当前语言
+  FCurrentLanguage := LangCode;
 
-  // 检查语言代码是否在支持列表中
-  for var i := 0 to High(SUPPORTED_LANGUAGES) do
-  begin
-    if SUPPORTED_LANGUAGES[i] = LangCode then
-    begin
-      Result := LangCode;
-      Exit;
-    end;
-  end;
+  // 保存用户首选语言
+  SaveUserPreference(LangCode);
+
+  // 触发语言变更事件
+  if Assigned(FOnLanguageChange) then
+    FOnLanguageChange(LangCode);
 end;
 
 initialization
   LanguageManager := TLanguageManager.Create;
 
 finalization
-  if Assigned(LanguageManager) then
-    LanguageManager.Free;
+  LanguageManager.Free;
 
 end.

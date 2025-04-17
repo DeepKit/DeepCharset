@@ -1,0 +1,143 @@
+unit ModelConfig;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.IniFiles, System.IOUtils;
+
+const
+  INI_SECTION_GENERAL = 'General';
+  INI_KEY_LAST_DIR = 'LastDirectory';
+  INI_KEY_LAST_ENCODING = 'LastEncoding';
+  INI_KEY_LAST_ADD_BOM = 'LastAddBOM';
+  INI_KEY_INCLUDE_SUBDIRS = 'IncludeSubdirs';
+  INI_KEY_LAST_LANGUAGE = 'LastLanguage';
+
+
+
+type
+  // 转换配置结构体
+  TConversionConfig = record
+    Name: string;                // 配置名称
+    TargetEncoding: string;      // 目标编码
+    AddBOM: Boolean;             // 是否添加BOM
+    IncludeSubdirs: Boolean;     // 是否包含子目录
+    FileExtensions: TArray<string>; // 文件扩展名列表
+    LastDirectory: string;       // 上次使用的目录
+  end;
+
+  // 应用程序配置类
+  TAppConfig = class
+  private
+    FIniFile: TIniFile;
+    FLastDirectory: string;
+    FLastEncoding: string;
+    FLastAddBOM: Boolean;
+    FIncludeSubdirs: Boolean;
+    FLastLanguage: string;
+    FSavedConfigs: TArray<TConversionConfig>;
+    
+    procedure LoadSavedConfigs;
+    procedure SaveConfigsToIni;
+    
+  public
+    constructor Create;
+    destructor Destroy; override;
+    
+    // 保存和加载配置
+    procedure SaveConfig(const Config: TConversionConfig);
+    function LoadConfig(const ConfigName: string; out Config: TConversionConfig): Boolean;
+    function GetConfigNames: TArray<string>;
+    procedure DeleteConfig(const ConfigName: string);
+    
+    // 应用程序设置
+    property LastDirectory: string read FLastDirectory write FLastDirectory;
+    property LastEncoding: string read FLastEncoding write FLastEncoding;
+    property LastAddBOM: Boolean read FLastAddBOM write FLastAddBOM;
+    property IncludeSubdirs: Boolean read FIncludeSubdirs write FIncludeSubdirs;
+    property LastLanguage: string read FLastLanguage write FLastLanguage;
+    property SavedConfigs: TArray<TConversionConfig> read FSavedConfigs;
+  end;
+  
+implementation
+
+{ TAppConfig }
+
+procedure TAppConfig.LoadSavedConfigs;
+begin
+  // TODO: 实现加载保存的配置
+end;
+
+procedure TAppConfig.SaveConfigsToIni;
+begin
+  // TODO: 实现保存配置到INI
+end;
+
+procedure TAppConfig.SaveConfig(const Config: TConversionConfig);
+begin
+  // TODO: 实现保存单个配置
+end;
+
+function TAppConfig.LoadConfig(const ConfigName: string; out Config: TConversionConfig): Boolean;
+begin
+  // TODO: 实现加载单个配置
+  Result := False;
+end;
+
+function TAppConfig.GetConfigNames: TArray<string>;
+begin
+  // TODO: 实现获取配置名称列表
+  Result := nil;
+end;
+
+procedure TAppConfig.DeleteConfig(const ConfigName: string);
+begin
+  // TODO: 实现删除配置
+end;
+
+{ TAppConfig }
+
+constructor TAppConfig.Create;
+var
+  IniPath: string;
+begin
+  inherited Create;
+  
+  // 确保INI目录存在
+  IniPath := ExtractFilePath(ParamStr(0)) + 'ini';
+  if not DirectoryExists(IniPath) then
+    ForceDirectories(IniPath);
+  
+  // 创建INI文件
+  FIniFile := TIniFile.Create(IniPath + '\TransSuccess.ini');
+  
+  // 加载设置
+  FLastDirectory := FIniFile.ReadString(INI_SECTION_GENERAL, INI_KEY_LAST_DIR, '');
+  FLastEncoding := FIniFile.ReadString(INI_SECTION_GENERAL, INI_KEY_LAST_ENCODING, 'UTF-8');
+  FLastAddBOM := FIniFile.ReadBool(INI_SECTION_GENERAL, INI_KEY_LAST_ADD_BOM, True);
+  FIncludeSubdirs := FIniFile.ReadBool(INI_SECTION_GENERAL, INI_KEY_INCLUDE_SUBDIRS, False);
+  FLastLanguage := FIniFile.ReadString(INI_SECTION_GENERAL, INI_KEY_LAST_LANGUAGE, 'zh-CN');
+  
+  // 加载保存的配置
+  LoadSavedConfigs;
+end;
+
+destructor TAppConfig.Destroy;
+begin
+  // 保存设置
+  FIniFile.WriteString(INI_SECTION_GENERAL, INI_KEY_LAST_DIR, FLastDirectory);
+  FIniFile.WriteString(INI_SECTION_GENERAL, INI_KEY_LAST_ENCODING, FLastEncoding);
+  FIniFile.WriteBool(INI_SECTION_GENERAL, INI_KEY_LAST_ADD_BOM, FLastAddBOM);
+  FIniFile.WriteBool(INI_SECTION_GENERAL, INI_KEY_INCLUDE_SUBDIRS, FIncludeSubdirs);
+  FIniFile.WriteString(INI_SECTION_GENERAL, INI_KEY_LAST_LANGUAGE, FLastLanguage);
+  
+  // 保存配置列表
+  SaveConfigsToIni;
+  
+  // 释放INI文件
+  FIniFile.Free;
+  
+  inherited;
+end;
+
+end.

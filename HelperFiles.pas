@@ -3,9 +3,9 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, Vcl.Dialogs, Vcl.Controls, 
-  System.Math, System.StrUtils, System.Generics.Collections, 
-  JclBOM, JclStrings, JclStringConversions, JclEncodingUtils;
+  System.SysUtils, System.Classes, System.IOUtils, Vcl.Dialogs, Vcl.Controls,
+  System.Math, System.StrUtils, System.Generics.Collections, Vcl.Forms,
+  JclBOM, JclStrings, JclStringConversions, JclEncodingUtils, UtilsTypes;
 
 type
   // 文件辅助类
@@ -16,38 +16,41 @@ type
   public
     constructor Create(ALogCallback: TProc<string>);
     destructor Destroy; override;
-    
+
     // 获取文件扩展名列表
     function GetFileExtensions(const FolderPath: string): TArray<string>;
-    
+
     // 获取指定文件夹中的文件
-    function GetFilesInFolder(const FolderPath: string; 
+    function GetFilesInFolder(const FolderPath: string;
       const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False): TArray<string>;
-    
+
     // 检测文件编码
     function DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
-    
+
     // 判断文件是否是正常的文本文件
     function IsNormalTextFile(const FileName: string): Boolean;
-    
+
     // 转换文件编码
-    function ConvertFile(const SourceFile, TargetFile: string; 
+    function ConvertFile(const SourceFile, TargetFile: string;
       TargetEncoding: TEncoding; AddBOM: Boolean): Boolean;
-      
+
     // 批量转换文件
-    function BatchConvert(const Files: TArray<string>; 
+    function BatchConvert(const Files: TArray<string>;
       TargetEncoding: TEncoding; AddBOM: Boolean): Integer;
-      
+
     // 文件路径处理
     function PathWithSeparator(const Path: string): string;
-    
+
     // 检查路径是否存在，不存在则创建
     function EnsurePathExists(const Path: string): Boolean;
-    
+
     // 获取用户文档路径
     function GetMyDocumentsPath: string;
+
+    // 获取应用程序根目录
+    function GetRootDir: string;
   end;
-  
+
 implementation
 
 uses
@@ -55,7 +58,7 @@ uses
 
 const
   CSIDL_PERSONAL = $0005; // My Documents
-  
+
   // 添加最大文本文件大小常量 (5MB)
   MAX_TEXT_FILE_SIZE = 5 * 1024 * 1024;
   // 添加二进制检测阈值 (超过5%的字节是二进制则判定为二进制文件)
@@ -71,7 +74,7 @@ constructor TFileHelper.Create(ALogCallback: TProc<string>);
 begin
   inherited Create;
   FLogCallback := ALogCallback;
-  
+
   if Assigned(FLogCallback) then
     FLogCallback('文件助手已初始化，使用JCL编码支持');
 end;
@@ -81,16 +84,16 @@ begin
   inherited;
 end;
 
-function TFileHelper.BatchConvert(const Files: TArray<string>; 
+function TFileHelper.BatchConvert(const Files: TArray<string>;
   TargetEncoding: TEncoding; AddBOM: Boolean): Integer;
 var
   i: Integer;
 begin
   Result := 0;
-  
+
   if Length(Files) = 0 then
     Exit;
-    
+
   for i := 0 to High(Files) do
   begin
     if ConvertFile(Files[i], Files[i], TargetEncoding, AddBOM) then
@@ -98,7 +101,7 @@ begin
   end;
 end;
 
-function TFileHelper.ConvertFile(const SourceFile, TargetFile: string; 
+function TFileHelper.ConvertFile(const SourceFile, TargetFile: string;
   TargetEncoding: TEncoding; AddBOM: Boolean): Boolean;
 var
   SourceEncoding: string;
@@ -115,7 +118,7 @@ begin
         FLogCallback('跳过非文本文件: ' + SourceFile);
       Exit;
     end;
-    
+
     // 检测源文件编码
     SourceEncoding := DetectFileEncoding(SourceFile, HasBOM);
     if SourceEncoding = '未知' then
@@ -124,7 +127,7 @@ begin
         FLogCallback('无法检测文件编码: ' + SourceFile);
       Exit;
     end;
-    
+
     // 确定目标编码名称
     case TargetEncoding.CodePage of
       65001: begin
@@ -139,12 +142,12 @@ begin
       1201: TargetEncodingName := ENCODING_UTF16_BE;
       else TargetEncodingName := ENCODING_ANSI;
     end;
-    
+
     // 使用JCL进行转换
     if ConvertFileByName(SourceFile, TargetFile, SourceEncoding, TargetEncodingName, AddBOM) then
     begin
       Result := True;
-      
+
       if Assigned(FLogCallback) then
         FLogCallback('成功转换: ' + SourceFile + ' -> ' + TargetEncodingName);
     end
@@ -169,24 +172,24 @@ var
 begin
   Result := '未知';
   HasBOM := False;
-  
+
   if not FileExists(FileName) then
     Exit;
-    
+
   try
     // 使用JCL检测编码
     EncodingName := JclEncodingUtils.DetectFileEncoding(FileName);
     if EncodingName <> 'Unknown' then
     begin
       Result := EncodingName;
-      
+
       // 检查是否有BOM
-      HasBOM := (Result = ENCODING_UTF8_BOM) or 
-                (Result = ENCODING_UTF16_LE) or 
+      HasBOM := (Result = ENCODING_UTF8_BOM) or
+                (Result = ENCODING_UTF16_LE) or
                 (Result = ENCODING_UTF16_BE) or
                 (Result = ENCODING_UTF32_LE) or
                 (Result = ENCODING_UTF32_BE);
-                
+
       if Assigned(FLogCallback) then
         FLogCallback('检测到文件编码: ' + FileName + ' -> ' + Result);
     end;
@@ -202,12 +205,12 @@ end;
 function TFileHelper.EnsurePathExists(const Path: string): Boolean;
 begin
   Result := True;
-  
+
   if not DirectoryExists(Path) then
   begin
     try
       Result := ForceDirectories(Path);
-      
+
       if Result and Assigned(FLogCallback) then
         FLogCallback('创建目录: ' + Path);
     except
@@ -232,7 +235,7 @@ begin
   try
     Extensions.Sorted := True;
     Extensions.Duplicates := TDuplicates.dupIgnore;
-    
+
     // 安全检查：确保目录存在
     if not DirectoryExists(FolderPath) then
     begin
@@ -241,25 +244,25 @@ begin
       SetLength(Result, 0);
       Exit;
     end;
-    
+
     try
       // 仅搜索当前目录，不再使用soAllDirectories
       Files := TDirectory.GetFiles(FolderPath, '*.*', TSearchOption.soTopDirectoryOnly);
-      
+
       if Assigned(FLogCallback) then
         FLogCallback('找到 ' + IntToStr(Length(Files)) + ' 个文件，正在提取扩展名');
-      
+
       for i := 0 to High(Files) do
       begin
         Ext := ExtractFileExt(Files[i]);
         if Ext <> '' then
           Extensions.Add(Ext);
       end;
-      
+
       SetLength(Result, Extensions.Count);
       for i := 0 to Extensions.Count - 1 do
         Result[i] := Extensions[i];
-        
+
       if Assigned(FLogCallback) then
         FLogCallback('成功获取 ' + IntToStr(Extensions.Count) + ' 个不同的文件扩展名');
     except
@@ -275,7 +278,7 @@ begin
   end;
 end;
 
-function TFileHelper.GetFilesInFolder(const FolderPath: string; 
+function TFileHelper.GetFilesInFolder(const FolderPath: string;
   const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False): TArray<string>;
 var
   Files: TArray<string>;
@@ -290,26 +293,26 @@ begin
     SetLength(Result, 0);
     Exit;
   end;
-  
+
   // 根据参数决定是否搜索子目录
   if IncludeSubdirs then
     SearchOption := TSearchOption.soAllDirectories
   else
     SearchOption := TSearchOption.soTopDirectoryOnly;
-    
+
   if Assigned(FLogCallback) then
-    FLogCallback('开始搜索文件: ' + FolderPath + 
-                 ', 包含子目录: ' + BoolToStr(IncludeSubdirs, True) + 
+    FLogCallback('开始搜索文件: ' + FolderPath +
+                 ', 包含子目录: ' + BoolToStr(IncludeSubdirs, True) +
                  ', 扩展名: ' + Integer(Length(Extensions)).ToString + '个');
-  
+
   FilteredFiles := TList<string>.Create;
   try
     // 使用SearchOption参数来控制是否搜索子目录
     Files := TDirectory.GetFiles(FolderPath, '*.*', SearchOption);
-    
+
     if Assigned(FLogCallback) then
       FLogCallback('找到' + Integer(Length(Files)).ToString + '个文件');
-    
+
     for i := 0 to High(Files) do
     begin
       if Length(Extensions) = 0 then
@@ -320,7 +323,7 @@ begin
       begin
         Ext := ExtractFileExt(Files[i]);
         IsMatch := False;
-        
+
         for j := 0 to High(Extensions) do
         begin
           if SameText(Ext, Extensions[j]) then
@@ -329,19 +332,19 @@ begin
             Break;
           end;
         end;
-        
+
         if IsMatch then
           FilteredFiles.Add(Files[i]);
       end;
     end;
-    
+
     SetLength(Result, FilteredFiles.Count);
     for i := 0 to FilteredFiles.Count - 1 do
       Result[i] := FilteredFiles[i];
-    
+
     if Assigned(FLogCallback) then
       FLogCallback('筛选后有' + Integer(Length(Result)).ToString + '个符合条件的文件');
-      
+
   finally
     FilteredFiles.Free;
   end;
@@ -367,17 +370,17 @@ var
   Ext: string;
 begin
   Result := False;
-  
+
   // 检查文件是否存在
   if not FileExists(FileName) then
     Exit;
-    
+
   // 获取文件扩展名
   Ext := LowerCase(ExtractFileExt(FileName));
-  
+
   // 跳过已知的二进制文件类型
   if (Ext = '.exe') or (Ext = '.dll') or (Ext = '.obj') or
-     (Ext = '.bin') or (Ext = '.o') or (Ext = '.a') or 
+     (Ext = '.bin') or (Ext = '.o') or (Ext = '.a') or
      (Ext = '.so') or (Ext = '.lib') or (Ext = '.pdb') or
      (Ext = '.com') or (Ext = '.sys') or (Ext = '.ocx') or
      (Ext = '.ico') or (Ext = '.bmp') or (Ext = '.jpg') or
@@ -389,29 +392,29 @@ begin
      (Ext = '.ppt') or (Ext = '.pptx') or (Ext = '.db') or
      (Ext = '.sqlite') or (Ext = '.mdb') or (Ext = '.accdb') then
     Exit;
-    
+
   try
     // 打开文件
     FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
     try
       // 获取文件大小
       FileSize := FileStream.Size;
-      
+
       // 文件太大或太小，不是正常文本文件
       if (FileSize > MAX_TEXT_FILE_SIZE) or (FileSize < MIN_TEXT_FILE_SIZE) then
         Exit;
-        
+
       // 分配缓冲区
       SetLength(Buffer, BUFFER_SIZE);
-      
+
       // 初始化计数器
       TotalBytes := 0;
       BinaryCount := 0;
-      
+
       // 检查前4KB数据
       BytesRead := FileStream.Read(Buffer[0], BUFFER_SIZE);
       TotalBytes := BytesRead;
-      
+
       // 检查每个字节是否为二进制数据
       for i := 0 to BytesRead - 1 do
       begin
@@ -419,21 +422,21 @@ begin
         if (Buffer[i] < 9) or ((Buffer[i] > 13) and (Buffer[i] < 32)) then
           Inc(BinaryCount);
       end;
-      
+
       // 计算二进制字节占比
       if TotalBytes > 0 then
         BinaryRatio := BinaryCount / TotalBytes
       else
         BinaryRatio := 0;
-        
+
       // 如果二进制字节比例高于阈值，认为是二进制文件
       Result := BinaryRatio <= BINARY_THRESHOLD;
-      
+
       // 记录分析结果
       if Assigned(FLogCallback) and not Result then
-        FLogCallback('跳过非文本文件: ' + FileName + ' (二进制比例: ' + 
+        FLogCallback('跳过非文本文件: ' + FileName + ' (二进制比例: ' +
                      FormatFloat('0.00%', BinaryRatio * 100) + ')');
-                     
+
     finally
       FileStream.Free;
     end;
@@ -453,4 +456,38 @@ begin
   Result := IncludeTrailingPathDelimiter(Path);
 end;
 
-end. 
+function TFileHelper.GetRootDir: string;
+var
+  ExeDir, ParentDir, GrandParentDir: string;
+  IniDirPath: string;
+begin
+  // 1. 取得执行文件目录
+  ExeDir := ExtractFilePath(Application.ExeName);
+  ExeDir := ExcludeTrailingPathDelimiter(ExeDir);
+
+  // 2. 回退两级
+  ParentDir := ExtractFilePath(ExcludeTrailingPathDelimiter(ExeDir));
+  ParentDir := ExcludeTrailingPathDelimiter(ParentDir);
+
+  GrandParentDir := ExtractFilePath(ExcludeTrailingPathDelimiter(ParentDir));
+  GrandParentDir := ExcludeTrailingPathDelimiter(GrandParentDir);
+
+  // 3. 若找到子目录 .\ini
+  IniDirPath := GrandParentDir + '\ini';
+
+  if DirectoryExists(IniDirPath) then
+  begin
+    Result := GrandParentDir;
+    if Assigned(FLogCallback) then
+      FLogCallback('找到根目录: ' + Result);
+  end
+  else
+  begin
+    // 如果没有找到ini目录，则使用当前目录
+    Result := ExeDir;
+    if Assigned(FLogCallback) then
+      FLogCallback('未找到ini目录，使用当前目录作为根目录: ' + Result);
+  end;
+end;
+
+end.

@@ -1,0 +1,559 @@
+program EncodingTester;
+
+{$APPTYPE CONSOLE}
+{$WARN SYMBOL_PLATFORM OFF} // Turn off platform warnings for console app if needed
+
+uses
+  System.SysUtils,
+  System.IOUtils,
+  System.Classes,
+  System.Types,
+  System.Character, // For IsControl
+  // 包含ModelEncoding单元以获取编码列表和相关函数
+  ModelEncoding in '..\ModelEncoding.pas', // 确认路径!
+  HelperFiles in '..\HelperFiles.pas';     // 确认路径!
+
+type
+  TTestResult = record
+    SourceFile: string;
+    DetectedEncoding: string; // Added field for detected source encoding
+    TargetEncodingName: string;
+    ForwardConversion: string; // '成功', '失败', '跳过'
+    ReverseEncodingName: string;
+    ReverseConversion: string; // '成功', '失败', '跳过'
+    ComparisonResult: string; // '一致', '不一致', '未比较', '无法比较'
+    Remarks: string;
+  end;
+
+const
+  FROM_DIR = 'from';
+  TO_DIR = 'to';
+  BACK_DIR = 'back';
+  RESULTS_FILE = 'tests.md';
+  DEFAULT_CODEPAGE = 936; // Default to GBK if detection fails
+
+// --- 辅助函数 ---
+
+// 清理字符串中的控制字符 (除了 Tab, LF, CR)
+function CleanStringForComparison(const S: string): string;
+var
+  I: Integer;
+  Builder: TStringBuilder;
+begin
+  Builder := TStringBuilder.Create;
+  try
+    for I := 1 to Length(S) do
+    begin
+      if CharInSet(S[I], [#0..#8, #11, #12, #14..#31]) then // Exclude Tab, LF, CR
+        Continue // Skip control characters
+      else
+        Builder.Append(S[I]);
+    end;
+    Result := Builder.ToString;
+  finally
+    Builder.Free;
+  end;
+end;
+
+
+// 比较两个文件内容（忽略换行符差异和常见控制字符）
+function CompareFilesIgnoringLineEndingsAndControlChars(const FileName1, FileName2: string; SourceEncoding1, SourceEncoding2: TEncoding): Boolean;
+var
+  S1, S2: string;
+  Bytes1, Bytes2: TBytes;
+begin
+  Result := False; // Default to false
+  try
+    // Read raw bytes first to avoid potential read errors with incorrect encoding guess
+    Bytes1 := TFile.ReadAllBytes(FileName1);
+    Bytes2 := TFile.ReadAllBytes(FileName2);
+
+    // Decode using the provided encodings
+    S1 := SourceEncoding1.GetString(Bytes1);
+    S2 := SourceEncoding2.GetString(Bytes2);
+
+    // Normalize line endings to LF
+    S1 := StringReplace(S1, #13#10, #10, [rfReplaceAll]);
+    S1 := StringReplace(S1, #13, #10, [rfReplaceAll]);
+    S2 := StringReplace(S2, #13#10, #10, [rfReplaceAll]);
+    S2 := StringReplace(S2, #13, #10, [rfReplaceAll]);
+
+    // Remove control characters (optional, can be noisy)
+    // S1 := CleanStringForComparison(S1);
+    // S2 := CleanStringForComparison(S2);
+
+    // Trim trailing whitespace/newlines which can differ
+    S1 := Trim(S1);
+    S2 := Trim(S2);
+
+    // Final comparison
+    Result := AnsiCompareText(S1, S2) = 0; // Case-insensitive comparison
+
+  except
+    on E: EEncodingError do
+    begin
+      Writeln('比较文件时编码错误 (' + FileName1 + ' vs ' + FileName2 + '): ' + E.Message);
+      Result := False; // Encoding error means they likely differ
+    end;
+    on E: Exception do
+    begin
+      Writeln('比较文件时出错 (' + FileName1 + ' vs ' + FileName2 + '): ' + E.ClassName + ' - ' + E.Message);
+      Result := False; // Other errors also mean failure
+    end;
+  end;
+end;
+
+
+// 获取 TEncoding 实例 (Robust version)
+function GetTargetEncoding(const EncodingInfo: TEncodingInfo; out TargetEncoding: TEncoding; out UseBOM: Boolean): Boolean;
+begin
+  Result := True;
+  UseBOM := EncodingInfo.HasBOM;
+  TargetEncoding := nil; // Initialize to nil
+
+  case EncodingInfo.CodePage of
+    0 : TargetEncoding := TEncoding.Default; // Handle '未知' or default cases
+    1200: TargetEncoding := TEncoding.Unicode; // UTF-16LE
+    1201: TargetEncoding := TEncoding.BigEndianUnicode; // UTF-16BE
+    65001: TargetEncoding := TEncoding.UTF8; // UTF-8
+    20127: TargetEncoding := TEncoding.ASCII; // ASCII
+    65000: TargetEncoding := TEncoding.UTF7; // UTF-7
+    12000: TargetEncoding := TEncoding.UTF32; // UTF-32LE (Default in Delphi)
+    12001: TargetEncoding := TEncoding.BigEndianUTF32; // UTF-32BE
+  else
+      try
+        // Use GetEncoding for other codepages
+        TargetEncoding := TEncoding.GetEncoding(EncodingInfo.CodePage);
+      except
+        on E: Exception do
+        begin
+          Writeln('警告: 无法获取 CodePage ' + IntToStr(EncodingInfo.CodePage) + ' (' + EncodingInfo.Name + ') 的 TEncoding 实例: ' + E.Message);
+          TargetEncoding := nil; // Ensure it's nil on failure
+          Result := False;
+        end;
+      end;
+  end;
+
+  // Final check if TargetEncoding was assigned
+  if TargetEncoding = nil then
+  begin
+    // This case should ideally be caught by the 'except' block above
+    // but added as a safeguard if CodePage was valid but GetEncoding failed silently
+    // or if codepage 0 was intended but not handled explicitly.
+     if EncodingInfo.CodePage <> 0 then // Don't warn for explicit 'Default' case if CodePage was 0
+       Writeln('警告: 未能为 CodePage ' + IntToStr(EncodingInfo.CodePage) + ' (' + EncodingInfo.Name + ') 获取有效的 TEncoding 对象。');
+     Result := False;
+  end;
+end;
+
+
+// Simplified Encoding Detection (using HelperFiles if available and robust)
+function DetectSourceEncoding(const FilePath: string; FileHelper: TFileHelper; out DetectedEncoding: TEncoding; out DetectedEncodingName: string; out HasBOM: Boolean): Boolean;
+var
+  EncodingBytes: TBytes;
+  LocalHelper: TFileHelper; // Local instance if needed
+  LogDummy: TProc<string>; // Dummy logger for local instance
+begin
+  Result := True; // Assume success initially
+  HasBOM := False;
+  DetectedEncoding := nil; // Start fresh
+  LocalHelper := nil; // Initialize local helper
+
+  try
+     // --- Option 1: Use Passed-in FileHelper if available ---
+     if Assigned(FileHelper) then
+     begin
+       DetectedEncodingName := FileHelper.DetectFileEncoding(FilePath, HasBOM); // Use the helper
+     end
+     else
+     begin
+       // --- Option 2: Create a temporary local FileHelper instance ---
+        LogDummy := procedure(const LogMsg: string) begin end;
+        try
+           LocalHelper := TFileHelper.Create(LogDummy);
+           DetectedEncodingName := LocalHelper.DetectFileEncoding(FilePath, HasBOM);
+        except
+           on E: Exception do
+           begin
+              Writeln('警告: 创建本地 TFileHelper 实例失败: ' + E.Message + '. 将使用手动BOM检测。');
+              DetectedEncodingName := ''; // Reset name if helper failed
+           end;
+        end;
+     end;
+
+     // --- Map Detected Name to TEncoding (if detection occurred) ---
+     if DetectedEncodingName <> '' then
+     begin
+         if Pos('UTF-8', DetectedEncodingName) > 0 then DetectedEncoding := TEncoding.UTF8
+         else if Pos('UTF-16LE', DetectedEncodingName) > 0 then DetectedEncoding := TEncoding.Unicode
+         else if Pos('UTF-16BE', DetectedEncodingName) > 0 then DetectedEncoding := TEncoding.BigEndianUnicode
+         else if Pos('GBK', DetectedEncodingName) > 0 then DetectedEncoding := TEncoding.GetEncoding(936)
+         else if Pos('GB2312', DetectedEncodingName) > 0 then DetectedEncoding := TEncoding.GetEncoding(936)
+         else if Pos('ASCII', DetectedEncodingName) > 0 then DetectedEncoding := TEncoding.ASCII
+         // Add more mappings based on HelperFiles output formats...
+         else
+         begin
+            // If helper detected something but we couldn't map it, try default
+            Writeln('警告: 检测到编码 \"' + DetectedEncodingName + '\" 但无法映射到 TEncoding，尝试默认编码。');
+            DetectedEncoding := TEncoding.GetEncoding(DEFAULT_CODEPAGE); // Fallback to GBK
+            DetectedEncodingName := 'Default ('+IntToStr(DEFAULT_CODEPAGE)+')';
+         end;
+     end
+     else
+     begin
+        // --- Fallback: Manual BOM Check (If Helper was unavailable or failed) ---
+        EncodingBytes := TFile.ReadAllBytes(FilePath); // Read bytes only if needed
+        if Length(EncodingBytes) >= 3 then
+        begin
+          if (EncodingBytes[0] = $EF) and (EncodingBytes[1] = $BB) and (EncodingBytes[2] = $BF) then
+          begin
+            DetectedEncoding := TEncoding.UTF8;
+            HasBOM := True;
+            DetectedEncodingName := 'UTF-8 BOM';
+          end;
+        end;
+        if (DetectedEncoding = nil) and (Length(EncodingBytes) >= 2) then
+        begin
+           if (EncodingBytes[0] = $FF) and (EncodingBytes[1] = $FE) then
+           begin
+             DetectedEncoding := TEncoding.Unicode; // Assume UTF-16 LE
+             HasBOM := True;
+             DetectedEncodingName := 'UTF-16LE BOM';
+           end
+           else if (EncodingBytes[0] = $FE) and (EncodingBytes[1] = $FF) then
+           begin
+             DetectedEncoding := TEncoding.BigEndianUnicode; // UTF-16 BE
+             HasBOM := True;
+             DetectedEncodingName := 'UTF-16BE BOM';
+           end;
+        end;
+
+        // If no BOM detected, guess based on content (very unreliable)
+        if DetectedEncoding = nil then
+        begin
+          // Basic guess: Try UTF-8 first, then default codepage
+          try
+            TEncoding.UTF8.GetString(EncodingBytes); // Check if decodes ok
+            DetectedEncoding := TEncoding.UTF8;
+            DetectedEncodingName := 'UTF-8 (无BOM猜测)'; // Indicate it's a guess
+          except
+            on E: EEncodingError do
+            begin
+              DetectedEncoding := TEncoding.GetEncoding(DEFAULT_CODEPAGE); // Fallback to GBK
+              DetectedEncodingName := 'Default ('+IntToStr(DEFAULT_CODEPAGE)+')';
+            end;
+            on E: Exception do // Catch other errors
+            begin
+               Writeln('手动检测源编码时出错: '+ E.Message);
+               DetectedEncoding := TEncoding.GetEncoding(DEFAULT_CODEPAGE);
+               DetectedEncodingName := '检测错误';
+               Result := False;
+            end;
+          end;
+        end;
+     end;
+
+  except
+     on E: Exception do
+     begin
+       Writeln('检测源文件编码时发生严重错误: ' + FilePath + ' - ' + E.Message);
+       DetectedEncoding := TEncoding.GetEncoding(DEFAULT_CODEPAGE); // Fallback
+       DetectedEncodingName := '读取/检测错误';
+       Result := False;
+     end;
+  end;
+
+  // Final check and assignment if nil
+  if DetectedEncoding = nil then
+  begin
+      Writeln('警告: 未能确定源文件的有效 TEncoding 对象: ' + FilePath + '. 使用默认编码 ' + IntToStr(DEFAULT_CODEPAGE));
+      DetectedEncoding := TEncoding.GetEncoding(DEFAULT_CODEPAGE);
+      if DetectedEncodingName = '' then // Assign a name if none was set
+          DetectedEncodingName := '最终回退 ('+IntToStr(DEFAULT_CODEPAGE)+')';
+      // Optionally set Result = False here if fallback is considered a failure
+  end;
+
+  // Cleanup local helper if created
+  if Assigned(LocalHelper) then
+     LocalHelper.Free;
+
+end;
+
+
+// --- 主逻辑 ---
+var
+  EncodingModel: TEncodingModel;
+  FileHelper: TFileHelper; // Keep the declaration, but might be nil
+  TestResults: TArray<TTestResult>;
+  SourceFiles: TStringDynArray;
+  SourceFilePath, ToFilePath, BackFilePath: string;
+  SourceFileName, BaseFileName, FileExt: string;
+  SourceEncoding: TEncoding; // The TEncoding object used for reading source
+  DetectedEncodingName: string; // String name from detection
+  HasSourceBOM, UseTargetBOM: Boolean;
+  TargetEncodingInfo: TEncodingInfo;
+  TargetEncoding: TEncoding; // The TEncoding object for writing to 'to' dir
+  ReverseEncoding: TEncoding; // The TEncoding object for writing back (should match SourceEncoding)
+  i, j: Integer;
+  TestResult: TTestResult;
+  FS: TFileStream;
+  SR: TStreamReader;
+  SW: TStreamWriter;
+  FileContent: string;
+  sl: TStringList;
+  DetectionSuccess: Boolean;
+
+begin
+  try
+    Writeln('开始编码转换测试...');
+    ReportMemoryLeaksOnShutdown := True; // Enable memory leak detection
+
+    // --- 初始化 ---
+    EncodingModel := TEncodingModel.Create;
+    FileHelper := nil; // Initialize as nil
+    // Attempt to create FileHelper, but allow failure
+    try
+       // Assume HelperFiles.Create exists and needs a dummy logger
+       FileHelper := TFileHelper.Create(procedure(const LogMsg: string) begin end);
+    except
+      on E: Exception do
+         Writeln('警告: 创建 TFileHelper 失败: ' + E.Message + '. 将使用内置编码检测。');
+    end;
+
+    SetLength(TestResults, 0);
+
+    // 检查并创建目录
+    if not TDirectory.Exists(FROM_DIR) then TDirectory.CreateDirectory(FROM_DIR);
+    if not TDirectory.Exists(TO_DIR) then TDirectory.CreateDirectory(TO_DIR);
+    if not TDirectory.Exists(BACK_DIR) then TDirectory.CreateDirectory(BACK_DIR);
+
+    // --- 获取源文件列表 ---
+    SourceFiles := TDirectory.GetFiles(FROM_DIR);
+    if Length(SourceFiles) = 0 then
+    begin
+      Writeln('错误: \"' + FROM_DIR + '\" 目录为空或无法访问。请确认文件存在且程序有权限读取。');
+      Readln; // Wait for user
+      Exit;
+    end;
+    Writeln('找到 ' + IntToStr(Length(SourceFiles)) + ' 个源文件。');
+
+    // --- 遍历源文件和目标编码 ---
+    for i := 0 to High(SourceFiles) do
+    begin
+      SourceFilePath := SourceFiles[i];
+      SourceFileName := ExtractFileName(SourceFilePath);
+      BaseFileName := ChangeFileExt(SourceFileName, '');
+      FileExt := ExtractFileExt(SourceFileName);
+
+      Writeln('');
+      Writeln('--- 处理文件: ' + SourceFileName + ' ---');
+
+      // --- 1. 检测源文件编码 ---
+      SourceEncoding := nil; // Ensure reset before detection
+      DetectionSuccess := DetectSourceEncoding(SourceFilePath, FileHelper, SourceEncoding, DetectedEncodingName, HasSourceBOM);
+      Writeln('  检测到源编码: ' + DetectedEncodingName + ' (BOM: ' + BoolToStr(HasSourceBOM, True) + ')');
+      if not DetectionSuccess then
+          Writeln('  警告: 源文件编码检测可能不准确或失败。');
+
+      if SourceEncoding = nil then // Critical check
+      begin
+          Writeln('  错误: 无法获取源文件的 TEncoding 对象，跳过此文件。');
+          Continue;
+      end;
+
+
+      // --- 2. 遍历目标编码 ---
+      for j := 0 to EncodingModel.EncodingCount - 1 do
+      begin
+        TargetEncodingInfo := EncodingModel.Encodings[j];
+
+        // 跳过分组标题
+        if TargetEncodingInfo.IsGroup then Continue;
+
+        // Initialize TestResult for this combination
+        FillChar(TestResult, SizeOf(TestResult), 0); // Clear record
+        TestResult.SourceFile := SourceFileName;
+        TestResult.DetectedEncoding := DetectedEncodingName;
+        TestResult.TargetEncodingName := TargetEncodingInfo.Name;
+        TestResult.ForwardConversion := '跳过';
+        TestResult.ReverseEncodingName := DetectedEncodingName;
+        TestResult.ReverseConversion := '跳过';
+        TestResult.ComparisonResult := '未比较';
+        TestResult.Remarks := '';
+
+        TargetEncoding := nil; // Ensure TargetEncoding is reset
+
+        // --- 3. 正向转换 (Source -> To) ---
+        ToFilePath := IncludeTrailingPathDelimiter(TO_DIR) + BaseFileName + '.' + TargetEncodingInfo.ShortName + '.to' + FileExt;
+        if GetTargetEncoding(TargetEncodingInfo, TargetEncoding, UseTargetBOM) then
+        begin
+          if TargetEncoding = nil then
+          begin
+              TestResult.Remarks := '无法获取目标编码对象';
+              TestResult.ForwardConversion := '失败';
+              Writeln('  -> ' + TargetEncodingInfo.Name + ': 正向转换失败 (内部错误)');
+          end
+          else
+          begin
+              try
+                // 读取源文件内容（使用检测到的编码 SourceEncoding）
+                FileContent := TFile.ReadAllText(SourceFilePath, SourceEncoding);
+
+                // 写入目标文件 (使用 TargetEncoding)
+                SW := TStreamWriter.Create(ToFilePath, UseTargetBOM, TargetEncoding);
+                try
+                  SW.Write(FileContent);
+                  TestResult.ForwardConversion := '成功';
+                finally
+                  SW.Free;
+                end;
+              except
+                on E: EEncodingError do
+                begin
+                   TestResult.ForwardConversion := '失败';
+                   TestResult.Remarks := '正向转换编码错误: ' + E.Message;
+                   Writeln('  -> ' + TargetEncodingInfo.Name + ': 正向转换失败 (编码错误) - ' + E.Message);
+                end;
+                on E: Exception do
+                begin
+                  TestResult.ForwardConversion := '失败';
+                  TestResult.Remarks := '正向转换失败: ' + E.ClassName + ' - ' + E.Message;
+                  Writeln('  -> ' + TargetEncodingInfo.Name + ': 正向转换失败 - ' + E.Message);
+                end;
+              end;
+          end; // End if TargetEncoding <> nil
+        end else begin // GetTargetEncoding failed
+            TestResult.Remarks := '不支持/无效的目标编码: ' + TargetEncodingInfo.Name + ' (CodePage: ' + IntToStr(TargetEncodingInfo.CodePage)+ ')';
+            TestResult.ForwardConversion := '跳过';
+            Writeln('  -> ' + TargetEncodingInfo.Name + ': 跳过 (不支持的目标编码)');
+        end;
+
+
+        // --- 4. 反向转换 (To -> Back) ---
+        if TestResult.ForwardConversion = '成功' then
+        begin
+          BackFilePath := IncludeTrailingPathDelimiter(BACK_DIR) + BaseFileName + '.' + TargetEncodingInfo.ShortName + '.back' + FileExt;
+          ReverseEncoding := SourceEncoding; // Use the initially detected encoding object
+          TestResult.ReverseEncodingName := DetectedEncodingName;
+
+          if ReverseEncoding = nil then
+          begin
+             TestResult.ReverseConversion := '失败';
+             TestResult.Remarks := TestResult.Remarks + '; 无法获取反向编码对象';
+             Writeln('  -> ' + TargetEncodingInfo.Name + ': 反向转换失败 (内部错误 - 源编码对象丢失)');
+          end
+          else
+          begin
+              try
+                // 读取To目录的文件（使用转换时用的 TargetEncoding）
+                FileContent := TFile.ReadAllText(ToFilePath, TargetEncoding);
+
+                // 写入Back目录的文件 (使用 ReverseEncoding, 带原始BOM状态 HasSourceBOM)
+                SW := TStreamWriter.Create(BackFilePath, HasSourceBOM, ReverseEncoding);
+                 try
+                  SW.Write(FileContent);
+                  TestResult.ReverseConversion := '成功';
+                finally
+                  SW.Free;
+                end;
+              except
+                on E: EEncodingError do
+                begin
+                   TestResult.ReverseConversion := '失败';
+                   TestResult.Remarks := TestResult.Remarks + '; 反向转换编码错误: ' + E.Message;
+                   Writeln('  -> ' + TargetEncodingInfo.Name + ': 反向转换失败 (编码错误) - ' + E.Message);
+                end;
+                on E: Exception do
+                begin
+                  TestResult.ReverseConversion := '失败';
+                  TestResult.Remarks := TestResult.Remarks + '; 反向转换失败: ' + E.ClassName + ' - ' + E.Message;
+                  Writeln('  -> ' + TargetEncodingInfo.Name + ': 反向转换失败 - ' + E.Message);
+                end;
+              end;
+          end; // End if ReverseEncoding <> nil
+        end else begin // Forward conversion failed or skipped
+           TestResult.ReverseConversion := '跳过';
+        end;
+
+
+        // --- 5. 比较文件 ---
+        if (TestResult.ForwardConversion = '成功') and (TestResult.ReverseConversion = '成功') then
+        begin
+           if CompareFilesIgnoringLineEndingsAndControlChars(SourceFilePath, BackFilePath, SourceEncoding, ReverseEncoding) then
+           begin
+             TestResult.ComparisonResult := '一致';
+             Writeln('  -> ' + TargetEncodingInfo.Name + ': 成功, 结果一致');
+           end
+           else
+           begin
+             TestResult.ComparisonResult := '不一致';
+             Writeln('  -> ' + TargetEncodingInfo.Name + ': 成功, !!结果不一致!!');
+             // Add remarks for potentially lossy encodings
+             if Assigned(TargetEncoding) and (TargetEncoding.IsSingleByte or (TargetEncoding.CodePage = 932) or (TargetEncoding.CodePage = 949) or (TargetEncoding.CodePage = 950) or (TargetEncoding.CodePage = 936)) and (not SourceEncoding.IsSingleByte) then
+                 TestResult.Remarks := TestResult.Remarks + '; 可能因目标编码无法表示所有源字符(如Unicode转单字节)导致不一致';
+             if Assigned(SourceEncoding) and (SourceEncoding.IsSingleByte or (SourceEncoding.CodePage = 932) or (SourceEncoding.CodePage = 949) or (SourceEncoding.CodePage = 950) or (SourceEncoding.CodePage = 936)) and (not TargetEncoding.IsSingleByte) then
+                 TestResult.Remarks := TestResult.Remarks + '; 可能因源编码为单字节/区域编码，反转后无法精确匹配Unicode源';
+           end;
+        end
+        else // If either conversion failed or was skipped
+        begin
+            TestResult.ComparisonResult := '无法比较';
+        end;
+
+
+        // 添加结果到列表
+        SetLength(TestResults, Length(TestResults) + 1);
+        TestResults[High(TestResults)] := TestResult;
+
+        // No need to manually free TargetEncoding, rely on ARC/program termination
+
+      end; // 目标编码循环
+
+      // No need to manually free SourceEncoding
+
+    end; // 源文件循环
+
+    // --- 6. 写入结果到 Markdown 文件 ---
+    Writeln('');
+    Writeln('测试完成，正在写入结果到 ' + RESULTS_FILE + '...');
+    sl := TStringList.Create;
+    try
+      sl.Add('# 编码转换测试结果');
+      sl.Add('');
+      sl.Add('| 源文件 | 源编码(检测) | 目标编码 | 正向转换 | 反向编码(目标) | 反向转换 | 比较结果 | 备注 |');
+      sl.Add('|---|---|---|---|---|---|---|---|');
+
+      for TestResult in TestResults do
+      begin
+        sl.Add('| ' + TestResult.SourceFile +
+               ' | ' + TestResult.DetectedEncoding +
+               ' | ' + TestResult.TargetEncodingName +
+               ' | ' + TestResult.ForwardConversion +
+               ' | ' + TestResult.ReverseEncodingName +
+               ' | ' + TestResult.ReverseConversion +
+               ' | ' + TestResult.ComparisonResult +
+               ' | ' + TestResult.Remarks + ' |');
+      end;
+      sl.SaveToFile(RESULTS_FILE, TEncoding.UTF8); // Save results as UTF-8
+      Writeln('结果已写入 ' + RESULTS_FILE);
+    finally
+      sl.Free;
+    end;
+
+  except
+    on E: Exception do
+      Writeln(E.ClassName, ': ', E.Message);
+  end;
+
+  // Final Cleanup
+  if Assigned(FileHelper) then FileHelper.Free;
+  EncodingModel.Free;
+
+  Writeln('');
+  if IsConsole then
+  begin
+     Writeln('按 Enter 键退出...');
+     Readln;
+  end;
+
+end.

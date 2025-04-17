@@ -7,6 +7,12 @@ uses
   JclBOM, JclStrings, JclStringConversions, JclFileUtils, JclStreams,
   ModelLanguage;
 
+
+// 全局变量
+var
+  RootDir: string = '';  // 应用程序根目录
+  IniDir: string = '';   // INI文件目录
+
 type
   // 编码分类枚举
   TEncodingCategory = (
@@ -49,7 +55,35 @@ type
     function FindByCodePage(CodePage: Integer; HasBOM: Boolean = False): Integer;
   end;
 
-// 常量部分
+    // 语言映射记录
+  TLanguageMapping = record
+    AppLanguage: TAppLanguage;
+    LanguageCode: string;
+    DisplayName: string;
+  end;
+
+  // ICO文件格式结构
+  TIconDirEntry = packed record
+    bWidth: Byte;          // 图标宽度
+    bHeight: Byte;         // 图标高度
+    bColorCount: Byte;     // 色数（如果是真彩色图标，则为0）
+    bReserved: Byte;       // 保留，必须为0
+    wPlanes: Word;         // 色彩平面数
+    wBitCount: Word;       // 每像素位数
+    dwBytesInRes: DWORD;   // 图像数据大小
+    dwImageOffset: DWORD;  // 图像数据相对于文件开头的偏移量
+  end;
+
+  TIconDir = packed record
+    idReserved: Word;      // 保留，必须为0
+    idType: Word;          // 资源类型（1=ICO, 2=CUR）
+    idCount: Word;         // 图像数量
+    idEntries: array[0..0] of TIconDirEntry; // 图像目录项数组
+  end;
+
+    // 注意：语言包装器类已移至HelperLanguage单元中的TLanguageManager类
+
+  // 常量部分
 const
   // 代码页常量
   CP_ANSI = 0;  // 使用GetACP获取
@@ -97,6 +131,67 @@ const
   DISPLAY_ENCODING_GBK = 'GBK (简体中文扩展)';
   DISPLAY_ENCODING_BIG5 = 'BIG5 (繁体中文)';
 
+
+
+
+type
+  // 语言信息记录
+  TSimpleLanguageInfo = record
+    LanguageCode: string;
+    DisplayName: string;
+  end;
+
+const
+  // 语言代码映射表
+  LANGUAGE_MAPPINGS: array[0..15] of TSimpleLanguageInfo = (
+    (LanguageCode: 'zh-CN'; DisplayName: '简体中文'),
+    (LanguageCode: 'en-US'; DisplayName: 'English'),
+    (LanguageCode: 'ja-JP'; DisplayName: '日本語'),
+    (LanguageCode: 'ko-KR'; DisplayName: '한국어'),
+    (LanguageCode: 'es-ES'; DisplayName: 'Español'),
+    (LanguageCode: 'fr-FR'; DisplayName: 'Français'),
+    (LanguageCode: 'de-DE'; DisplayName: 'Deutsch'),
+    (LanguageCode: 'it-IT'; DisplayName: 'Italiano'),
+    (LanguageCode: 'zh-TW'; DisplayName: '繁體中文'),
+    (LanguageCode: 'ru-RU'; DisplayName: 'Русский'),
+    (LanguageCode: 'pt-BR'; DisplayName: 'Português'),
+    (LanguageCode: 'ar-SA'; DisplayName: 'العربية'),
+    (LanguageCode: 'nl-NL'; DisplayName: 'Nederlands'),
+    (LanguageCode: 'th-TH'; DisplayName: 'ไทย'),
+    (LanguageCode: 'vi-VN'; DisplayName: 'Tiếng Việt'),
+    (LanguageCode: 'pl-PL'; DisplayName: 'Polski')
+  );
+
+  // 支持的语言代码
+  SUPPORTED_LANGUAGES: array[0..15] of string = (
+    'zh-CN', // 简体中文
+    'zh-TW', // 繁体中文
+    'en',    // 英语
+    'es',    // 西班牙语
+    'fr',    // 法语
+    'de',    // 德语
+    'it',    // 意大利语
+    'pt',    // 葡萄牙语
+    'ru',    // 俄语
+    'ja',    // 日语
+    'ko',    // 韩语
+    'ar',    // 阿拉伯语
+    'nl',    // 荷兰语
+    'pl',    // 波兰语
+    'tr',    // 土耳其语
+    'vi'     // 越南语
+  );
+
+var
+  // 全局编码列表对象
+  GlobalEncodingList: TEncodingInfoList = nil;
+
+// 辅助函数
+function GetLanguageCodeByIndex(Index: Integer): string;
+function GetLanguageIndexByCode(const Code: string): Integer;
+function GetLanguageDisplayName(Index: Integer): string;
+
+
 // 获取分类名称
 function GetCategoryName(Category: TEncodingCategory): string;
 
@@ -111,42 +206,6 @@ function IsUTF8BOMEncodingName(const EncodingName: string): Boolean;
 
 // 使用 ModelLanguage 单元中的 TAppLanguage 枚举
 
-// 语言映射记录
-TLanguageMapping = record
-  AppLanguage: TAppLanguage;
-  LanguageCode: string;
-  DisplayName: string;
-end;
-
-// 语言代码映射表
-const
-  LANGUAGE_MAPPINGS: array[TAppLanguage] of TLanguageMapping = (
-    (AppLanguage: alChinese; LanguageCode: 'zh-CN'; DisplayName: '简体中文'),
-    (AppLanguage: alEnglish; LanguageCode: 'en-US'; DisplayName: 'English'),
-    (AppLanguage: alJapanese; LanguageCode: 'ja-JP'; DisplayName: '日本語'),
-    (AppLanguage: alKorean; LanguageCode: 'ko-KR'; DisplayName: '한국어'),
-    (AppLanguage: alSpanish; LanguageCode: 'es-ES'; DisplayName: 'Español'),
-    (AppLanguage: alFrench; LanguageCode: 'fr-FR'; DisplayName: 'Français'),
-    (AppLanguage: alGerman; LanguageCode: 'de-DE'; DisplayName: 'Deutsch'),
-    (AppLanguage: alItalian; LanguageCode: 'it-IT'; DisplayName: 'Italiano'),
-    (AppLanguage: alChineseTraditional; LanguageCode: 'zh-TW'; DisplayName: '繁體中文'),
-    (AppLanguage: alRussian; LanguageCode: 'ru-RU'; DisplayName: 'Русский'),
-    (AppLanguage: alPortuguese; LanguageCode: 'pt-BR'; DisplayName: 'Português'),
-    (AppLanguage: alArabic; LanguageCode: 'ar-SA'; DisplayName: 'العربية'),
-    (AppLanguage: alDutch; LanguageCode: 'nl-NL'; DisplayName: 'Nederlands'),
-    (AppLanguage: alThai; LanguageCode: 'th-TH'; DisplayName: 'ไทย'),
-    (AppLanguage: alVietnamese; LanguageCode: 'vi-VN'; DisplayName: 'Tiếng Việt'),
-    (AppLanguage: alPolish; LanguageCode: 'pl-PL'; DisplayName: 'Polski')
-  );
-
-// 辅助函数
-function GetLanguageCodeByEnum(Lang: TAppLanguage): string;
-function GetLanguageEnumByCode(const Code: string): TAppLanguage;
-function GetLanguageDisplayName(Lang: TAppLanguage): string;
-
-var
-  // 全局编码列表对象
-  GlobalEncodingList: TEncodingInfoList = nil;
 
 // 初始化和清理全局编码列表
 procedure InitializeEncodingList;
@@ -154,30 +213,38 @@ procedure FinalizeEncodingList;
 
 implementation
 
-function GetLanguageCodeByEnum(Lang: TAppLanguage): string;
+
+
+function GetLanguageCodeByIndex(Index: Integer): string;
 begin
-  Result := LANGUAGE_MAPPINGS[Lang].LanguageCode;
+  if (Index >= 0) and (Index <= High(LANGUAGE_MAPPINGS)) then
+    Result := LANGUAGE_MAPPINGS[Index].LanguageCode
+  else
+    Result := 'en-US'; // 默认英语
 end;
 
-function GetLanguageEnumByCode(const Code: string): TAppLanguage;
+function GetLanguageIndexByCode(const Code: string): Integer;
 var
-  Lang: TAppLanguage;
+  i: Integer;
 begin
-  Result := alEnglish; // 默认
+  Result := 1; // 默认英语索引
 
-  for Lang := Low(TAppLanguage) to High(TAppLanguage) do
+  for i := 0 to High(LANGUAGE_MAPPINGS) do
   begin
-    if LANGUAGE_MAPPINGS[Lang].LanguageCode = Code then
+    if LANGUAGE_MAPPINGS[i].LanguageCode = Code then
     begin
-      Result := Lang;
+      Result := i;
       Break;
     end;
   end;
 end;
 
-function GetLanguageDisplayName(Lang: TAppLanguage): string;
+function GetLanguageDisplayName(Index: Integer): string;
 begin
-  Result := LANGUAGE_MAPPINGS[Lang].DisplayName;
+  if (Index >= 0) and (Index <= High(LANGUAGE_MAPPINGS)) then
+    Result := LANGUAGE_MAPPINGS[Index].DisplayName
+  else
+    Result := 'English'; // 默认英语
 end;
 
 // 获取分类名称
