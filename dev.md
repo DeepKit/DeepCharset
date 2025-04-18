@@ -34,6 +34,84 @@ TransSuccess/
 3. **ViewMainCode**：主视图，用户界面的主要实现
 4. **HelperLanguage**：语言辅助类，处理多语言支持
 5. **UtilsTypes**：类型定义和全局变量
+6. **UtilsEncodingDetect2**：增强版编码检测器，提供更高准确性的编码检测
+
+## 最新开发进展
+
+### 编码检测增强
+
+为了解决复杂编码检测场景，我们新增了增强版编码检测器 `UtilsEncodingDetect2.pas`，具有以下特点：
+
+1. **多层次检测算法**：
+   - BOM检测：快速识别UTF编码
+   - 统计分析：基于字节分布特征判断编码
+   - 模式匹配：识别特定编码的字节模式
+   - 启发式方法：综合上下文信息判断编码
+
+2. **亚洲语言优化**：
+   - 特定的中文编码检测（GB18030、GBK、GB2312）
+   - 日文编码检测（Shift-JIS、EUC-JP）
+   - 韩文编码检测（EUC-KR）
+
+3. **结果置信度**：
+   - 每次检测都会提供置信度得分（0.0-1.0）
+   - 可配置最小置信度阈值，低于阈值时回退到默认编码
+
+4. **检测结果丰富**：
+   - 不仅返回编码类型，还包括语言提示、检测方法等
+   - 便于调试和日志记录的详细描述信息
+
+5. **性能优化**：
+   - 对大文件的高效处理，支持分块检测
+   - 可配置的最大扫描大小，平衡检测精度和速度
+
+### API 变更
+
+新增了以下API：
+
+```pascal
+// 增强版编码检测结果
+TEncodingDetectionResult = record
+  DetectedEncoding: TEncoding; // 检测到的编码
+  EncodingName: string;        // 编码名称
+  Confidence: Double;          // 置信度 (0.0-1.0)
+  HasBOM: Boolean;             // 是否有BOM
+  Description: string;         // 描述
+  LanguageHint: string;        // 语言提示
+  DetectionMethod: string;     // 检测方法
+end;
+
+// 增强版编码检测器类
+TEncodingDetector2 = class
+  // 配置选项
+  property Options: TEncodingDetectionOptions;
+  
+  // 主要方法
+  function DetectFileEncoding(const FileName: string): TEncodingDetectionResult;
+  function DetectStreamEncoding(Stream: TStream): TEncodingDetectionResult;
+  function DetectBytesEncoding(const Bytes: TBytes): TEncodingDetectionResult;
+  
+  // 工具方法
+  class function GetSupportedEncodings: TArray<TEncoding>;
+  class function GetSupportedEncodingNames: TArray<string>;
+  class function GetEncodingByName(const EncodingName: string): TEncoding;
+  class function GetEncodingFriendlyName(Encoding: TEncoding): string;
+end;
+```
+
+### 性能优化
+
+1. **大文件处理**：
+   - 新增分块处理算法，减少内存占用
+   - 文件大小超过阈值时自动启用分块处理
+
+2. **并行处理**：
+   - 批量转换时支持并行处理
+   - 通过任务队列平衡CPU负载
+
+3. **缓存机制**：
+   - 优化频繁编码检测的性能
+   - 文件扩展名与编码类型的关联缓存
 
 ## 开发规范
 
@@ -78,6 +156,28 @@ TransSuccess/
 - `[perf]`：性能优化
 - `[test]`：测试相关
 - `[chore]`：构建过程或辅助工具的变动
+
+## 计划中的特性
+
+1. **自动编码建议**：基于文件内容自动推荐最佳编码
+
+2. **批量处理优化**：
+   - 批处理队列管理
+   - 进度报告增强
+   - 错误处理和恢复机制
+
+3. **日志系统增强**：
+   - 详细的日志级别
+   - 日志文件保存和轮换
+   - 日志查看器界面
+
+4. **支持更多格式**：
+   - EBCDIC编码系列
+   - 更多区域特定的编码
+
+5. **多线程优化**：
+   - 大型批处理时的并发处理
+   - UI响应性提升
 
 ## 国际化支持
 
@@ -248,18 +348,23 @@ TransSuccess 支持多种编码格式之间的转换，包括：
 
 1. **多语言界面**：
    - 支持16种语言
-   - 运行时语言切换
-   - 自动检测系统语言
+   - 运行时动态切换
 
-2. **文件列表**：
-   - 显示文件名和当前编码
-   - 支持多选操作
-   - 右键菜单功能
+2. **主题支持**：
+   - 亮色模式
+   - 暗色模式
+   - 自定义主题
 
-3. **编码选择**：
-   - 树形结构显示编码
-   - 按类别分组
-   - 详细的编码描述
+3. **操作便捷性**：
+   - 拖放支持
+   - 上下文菜单
+   - 快捷键支持
+   - 历史记录
+
+4. **界面布局**：
+   - 可调整面板
+   - 自定义列表视图
+   - 状态栏信息
 
 ## 开发计划
 

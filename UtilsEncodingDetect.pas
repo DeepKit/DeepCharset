@@ -35,7 +35,7 @@ type
     FLogCallback: TProc<string>;
     FLastError: string;
     FPerformanceLog: Boolean;
-    
+
     // 内部检测方法
     function DetectBOMEncoding(const Stream: TStream; out BOMLength: Integer): string;
     function DetectUTF8Encoding(const Buffer: TBytes; Size: Integer; out Stats: TEncodingStats): Boolean;
@@ -44,27 +44,27 @@ type
     function DetectShiftJISEncoding(const Buffer: TBytes; Size: Integer; out Stats: TEncodingStats): Boolean;
     function DetectEUCJPEncoding(const Buffer: TBytes; Size: Integer; out Stats: TEncodingStats): Boolean;
     function DetectEUCKREncoding(const Buffer: TBytes; Size: Integer; out Stats: TEncodingStats): Boolean;
-    
+
     // 基于文件扩展名的编码提示
     function GetEncodingHintByFileExt(const FileName: string): string;
-    
+
     // 日志记录
     procedure LogMessage(const Msg: string);
     procedure LogStats(const Prefix: string; const Stats: TEncodingStats);
-    
+
   public
     constructor Create(ALogCallback: TProc<string> = nil);
     destructor Destroy; override;
-    
+
     // 主要检测方法
     function DetectFileEncoding(const FileName: string): TEncodingDetectResult;
     function DetectStreamEncoding(Stream: TStream): TEncodingDetectResult;
     function DetectBufferEncoding(const Buffer: TBytes; Size: Integer): TEncodingDetectResult;
-    
+
     // 辅助方法
     function HasBOM(const FileName: string): Boolean;
     function GetEncodingName(CodePage: Integer; HasBOM: Boolean = False): string;
-    
+
     // 属性
     property LastError: string read FLastError;
     property PerformanceLog: Boolean read FPerformanceLog write FPerformanceLog;
@@ -101,7 +101,7 @@ procedure TEncodingDetector.LogStats(const Prefix: string; const Stats: TEncodin
 begin
   if not Assigned(FLogCallback) or not FPerformanceLog then
     Exit;
-    
+
   FLogCallback(Format('%s - 统计: 总字节=%d, ASCII=%d, 非ASCII=%d, 有效序列=%d, 无效序列=%d, ' +
                       '中文=%d, 日文=%d, 韩文=%d, 最长连续有效=%d',
                       [Prefix, Stats.TotalBytes, Stats.ASCIICount, Stats.NonASCIICount,
@@ -116,7 +116,7 @@ var
 begin
   Result := '';
   FileExt := LowerCase(ExtractFileExt(FileName));
-  
+
   // 基于文件扩展名的编码提示
   if (FileExt = '.pas') or (FileExt = '.dpr') or (FileExt = '.dfm') or
      (FileExt = '.cpp') or (FileExt = '.h') or (FileExt = '.hpp') or
@@ -132,7 +132,7 @@ begin
   begin
     Result := 'ANSI';
   end;
-  
+
   // 可以根据需要添加更多的文件类型提示
 end;
 
@@ -143,16 +143,16 @@ var
 begin
   Result := '';
   BOMLength := 0;
-  
+
   // 保存原始位置
   OriginalPosition := Stream.Position;
-  
+
   try
     // 读取可能的BOM
     SetLength(BOMBytes, 4);
     Stream.Position := 0;
     Stream.ReadBuffer(BOMBytes[0], 4);
-    
+
     // 检查UTF-8 BOM (EF BB BF)
     if (BOMBytes[0] = $EF) and (BOMBytes[1] = $BB) and (BOMBytes[2] = $BF) then
     begin
@@ -199,7 +199,7 @@ begin
   Stats.TotalBytes := Size;
   ConsecutiveValidSeq := 0;
   i := 0;
-  
+
   while i < Size do
   begin
     if Buffer[i] < $80 then
@@ -243,7 +243,7 @@ begin
       begin
         Inc(Stats.ValidSequences);
         Inc(ConsecutiveValidSeq);
-        
+
         // 检测中文字符范围
         if (Buffer[i] >= $E4) and (Buffer[i] <= $E9) then
           Inc(Stats.ChineseChars)
@@ -253,7 +253,7 @@ begin
         // 检测韩文字符范围
         else if (Buffer[i] = $EA) and (Buffer[i+1] >= $B0) and (Buffer[i+1] <= $BF) then
           Inc(Stats.KoreanChars);
-          
+
         Inc(i, 3);
       end
       else
@@ -289,26 +289,26 @@ begin
       ConsecutiveValidSeq := 0;
       Inc(i);
     end;
-    
+
     // 更新最长连续有效序列
     if ConsecutiveValidSeq > Stats.MaxConsecutiveValid then
       Stats.MaxConsecutiveValid := ConsecutiveValidSeq;
   end;
-  
+
   // 判断是否为UTF-8编码的条件
   // 1. 如果没有非ASCII字符，则不能确定是UTF-8
   if Stats.NonASCIICount = 0 then
     Exit(False);
-    
+
   // 2. 如果非ASCII字符很少，则需要更严格的判断
   if Stats.NonASCIICount < 5 then
     Exit(Stats.InvalidSequences = 0);
-    
+
   // 3. 计算有效序列比例
   var ValidRatio: Double := 0;
   if Stats.NonASCIICount > 0 then
     ValidRatio := Stats.ValidSequences / Stats.NonASCIICount;
-    
+
   // 4. 综合判断
   Result := (ValidRatio >= 0.8) or // 有效序列比例足够高
             ((ValidRatio >= 0.6) and (Stats.MaxConsecutiveValid >= 10)) or // 有连续长序列
@@ -327,7 +327,7 @@ begin
   FillChar(Stats, SizeOf(Stats), 0);
   Stats.TotalBytes := Size;
   i := 0;
-  
+
   while i < Size do
   begin
     if Buffer[i] <= $7F then
@@ -353,13 +353,13 @@ begin
       Inc(i);
     end;
   end;
-  
+
   // 计算GBK字符的比例
   if Stats.NonASCIICount > 0 then
     GBKRatio := Stats.ValidSequences / Stats.NonASCIICount
   else
     GBKRatio := 0;
-    
+
   // 判断是否为GBK编码
   Result := (Stats.ChineseChars >= 3) and (GBKRatio >= 0.6);
 end;
@@ -373,7 +373,7 @@ begin
   FillChar(Stats, SizeOf(Stats), 0);
   Stats.TotalBytes := Size;
   i := 0;
-  
+
   while i < Size do
   begin
     if Buffer[i] <= $7F then
@@ -400,13 +400,13 @@ begin
       Inc(i);
     end;
   end;
-  
+
   // 计算Big5字符的比例
   if Stats.NonASCIICount > 0 then
     Big5Ratio := Stats.ValidSequences / Stats.NonASCIICount
   else
     Big5Ratio := 0;
-    
+
   // 判断是否为Big5编码
   Result := (Stats.ChineseChars >= 3) and (Big5Ratio >= 0.6);
 end;
@@ -420,7 +420,7 @@ begin
   FillChar(Stats, SizeOf(Stats), 0);
   Stats.TotalBytes := Size;
   i := 0;
-  
+
   while i < Size do
   begin
     if Buffer[i] <= $7F then
@@ -449,13 +449,13 @@ begin
       Inc(i);
     end;
   end;
-  
+
   // 计算Shift-JIS字符的比例
   if Stats.NonASCIICount > 0 then
     ShiftJISRatio := Stats.ValidSequences / Stats.NonASCIICount
   else
     ShiftJISRatio := 0;
-    
+
   // 判断是否为Shift-JIS编码
   Result := (Stats.JapaneseChars >= 3) and (ShiftJISRatio >= 0.6);
 end;
@@ -469,7 +469,7 @@ begin
   FillChar(Stats, SizeOf(Stats), 0);
   Stats.TotalBytes := Size;
   i := 0;
-  
+
   while i < Size do
   begin
     if Buffer[i] <= $7F then
@@ -515,13 +515,13 @@ begin
       Inc(i);
     end;
   end;
-  
+
   // 计算EUC-JP字符的比例
   if Stats.NonASCIICount > 0 then
     EUCJPRatio := Stats.ValidSequences / Stats.NonASCIICount
   else
     EUCJPRatio := 0;
-    
+
   // 判断是否为EUC-JP编码
   Result := (Stats.JapaneseChars >= 3) and (EUCJPRatio >= 0.6);
 end;
@@ -535,7 +535,7 @@ begin
   FillChar(Stats, SizeOf(Stats), 0);
   Stats.TotalBytes := Size;
   i := 0;
-  
+
   while i < Size do
   begin
     if Buffer[i] <= $7F then
@@ -562,13 +562,13 @@ begin
       Inc(i);
     end;
   end;
-  
+
   // 计算EUC-KR字符的比例
   if Stats.NonASCIICount > 0 then
     EUCKRRatio := Stats.ValidSequences / Stats.NonASCIICount
   else
     EUCKRRatio := 0;
-    
+
   // 判断是否为EUC-KR编码
   Result := (Stats.KoreanChars >= 3) and (EUCKRRatio >= 0.6);
 end;
@@ -580,10 +580,10 @@ var
   EncodingName: string;
 begin
   Result := False;
-  
+
   if not FileExists(FileName) then
     Exit;
-    
+
   try
     Stream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
     try
@@ -640,24 +640,24 @@ begin
   Result.EncodingName := '未知';
   Result.Confidence := 0;
   Result.HasBOM := False;
-  
+
   if not FileExists(FileName) then
   begin
     FLastError := '文件不存在: ' + FileName;
     Exit;
   end;
-  
+
   // 开始计时
   StopWatch := TStopwatch.StartNew;
-  
+
   try
     Stream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
     try
       Result := DetectStreamEncoding(Stream);
-      
+
       // 添加文件扩展名提示
       Result.LanguageHint := GetEncodingHintByFileExt(FileName);
-      
+
       // 如果检测结果不确定，但有文件扩展名提示，则使用提示
       if (Result.Confidence < 60) and (Result.LanguageHint <> '') then
       begin
@@ -675,11 +675,11 @@ begin
       LogMessage('检测文件编码时出错: ' + E.Message);
     end;
   end;
-  
+
   // 停止计时并记录处理时间
   StopWatch.Stop;
   Result.ProcessTimeMs := StopWatch.ElapsedMilliseconds;
-  
+
   if FPerformanceLog then
     LogMessage(Format('文件编码检测完成: %s, 耗时: %d ms', [FileName, Result.ProcessTimeMs]));
 end;
@@ -699,14 +699,14 @@ begin
   Result.EncodingName := '未知';
   Result.Confidence := 0;
   Result.HasBOM := False;
-  
+
   // 检查流是否有效
   if (Stream = nil) or (Stream.Size = 0) then
   begin
     FLastError := '无效的流或空流';
     Exit;
   end;
-  
+
   // 首先检测BOM
   Result.EncodingName := DetectBOMEncoding(Stream, BOMLength);
   if BOMLength > 0 then
@@ -716,19 +716,19 @@ begin
     LogMessage(Format('检测到BOM: %s', [Result.EncodingName]));
     Exit;
   end;
-  
+
   // 如果没有BOM，读取文件样本进行分析
   // 对于大文件，只读取前面的一部分进行分析
   SampleSize := Min(4096, Stream.Size);
   SetLength(Buffer, SampleSize);
-  
+
   // 保存当前位置
   var OriginalPosition := Stream.Position;
   try
     // 从文件开头读取样本
     Stream.Position := 0;
     BytesRead := Stream.Read(Buffer[0], SampleSize);
-    
+
     // 如果读取失败或读取的字节太少，无法进行分析
     if BytesRead < 10 then
     begin
@@ -736,7 +736,7 @@ begin
       Result.Confidence := 50;
       Exit;
     end;
-    
+
     // 检测各种编码
     IsUTF8 := DetectUTF8Encoding(Buffer, BytesRead, UTF8Stats);
     IsGBK := DetectGBKEncoding(Buffer, BytesRead, GBKStats);
@@ -744,7 +744,7 @@ begin
     IsShiftJIS := DetectShiftJISEncoding(Buffer, BytesRead, ShiftJISStats);
     IsEUCJP := DetectEUCJPEncoding(Buffer, BytesRead, EUCJPStats);
     IsEUCKR := DetectEUCKREncoding(Buffer, BytesRead, EUCKRStats);
-    
+
     // 记录统计信息
     if FPerformanceLog then
     begin
@@ -755,7 +755,7 @@ begin
       LogStats('EUC-JP', EUCJPStats);
       LogStats('EUC-KR', EUCKRStats);
     end;
-    
+
     // 计算各编码的得分
     UTF8Score := 0;
     GBKScore := 0;
@@ -763,12 +763,12 @@ begin
     ShiftJISScore := 0;
     EUCJPScore := 0;
     EUCKRScore := 0;
-    
+
     // UTF-8得分计算
     if IsUTF8 then
     begin
       UTF8Score := 70; // 基础分
-      
+
       // 根据有效序列比例增加分数
       if UTF8Stats.NonASCIICount > 0 then
       begin
@@ -780,25 +780,25 @@ begin
         else if ValidRatio > 0.8 then
           Inc(UTF8Score, 10);
       end;
-      
+
       // 根据连续有效序列长度增加分数
       if UTF8Stats.MaxConsecutiveValid > 20 then
         Inc(UTF8Score, 10)
       else if UTF8Stats.MaxConsecutiveValid > 10 then
         Inc(UTF8Score, 5);
-        
+
       // 根据亚洲语言字符数量增加分数
       if (UTF8Stats.ChineseChars > 10) or (UTF8Stats.JapaneseChars > 10) or (UTF8Stats.KoreanChars > 10) then
         Inc(UTF8Score, 10)
       else if (UTF8Stats.ChineseChars > 5) or (UTF8Stats.JapaneseChars > 5) or (UTF8Stats.KoreanChars > 5) then
         Inc(UTF8Score, 5);
     end;
-    
+
     // GBK得分计算
     if IsGBK then
     begin
       GBKScore := 70; // 基础分
-      
+
       // 根据中文字符数量增加分数
       if GBKStats.ChineseChars > 20 then
         Inc(GBKScore, 20)
@@ -806,7 +806,7 @@ begin
         Inc(GBKScore, 15)
       else if GBKStats.ChineseChars > 5 then
         Inc(GBKScore, 10);
-        
+
       // 根据有效序列比例增加分数
       if GBKStats.NonASCIICount > 0 then
       begin
@@ -817,12 +817,12 @@ begin
           Inc(GBKScore, 5);
       end;
     end;
-    
+
     // Big5得分计算
     if IsBig5 then
     begin
       Big5Score := 70; // 基础分
-      
+
       // 根据中文字符数量增加分数
       if Big5Stats.ChineseChars > 20 then
         Inc(Big5Score, 20)
@@ -830,7 +830,7 @@ begin
         Inc(Big5Score, 15)
       else if Big5Stats.ChineseChars > 5 then
         Inc(Big5Score, 10);
-        
+
       // 根据有效序列比例增加分数
       if Big5Stats.NonASCIICount > 0 then
       begin
@@ -841,12 +841,12 @@ begin
           Inc(Big5Score, 5);
       end;
     end;
-    
+
     // Shift-JIS得分计算
     if IsShiftJIS then
     begin
       ShiftJISScore := 70; // 基础分
-      
+
       // 根据日文字符数量增加分数
       if ShiftJISStats.JapaneseChars > 20 then
         Inc(ShiftJISScore, 20)
@@ -854,7 +854,7 @@ begin
         Inc(ShiftJISScore, 15)
       else if ShiftJISStats.JapaneseChars > 5 then
         Inc(ShiftJISScore, 10);
-        
+
       // 根据有效序列比例增加分数
       if ShiftJISStats.NonASCIICount > 0 then
       begin
@@ -865,12 +865,12 @@ begin
           Inc(ShiftJISScore, 5);
       end;
     end;
-    
+
     // EUC-JP得分计算
     if IsEUCJP then
     begin
       EUCJPScore := 70; // 基础分
-      
+
       // 根据日文字符数量增加分数
       if EUCJPStats.JapaneseChars > 20 then
         Inc(EUCJPScore, 20)
@@ -878,7 +878,7 @@ begin
         Inc(EUCJPScore, 15)
       else if EUCJPStats.JapaneseChars > 5 then
         Inc(EUCJPScore, 10);
-        
+
       // 根据有效序列比例增加分数
       if EUCJPStats.NonASCIICount > 0 then
       begin
@@ -889,12 +889,12 @@ begin
           Inc(EUCJPScore, 5);
       end;
     end;
-    
+
     // EUC-KR得分计算
     if IsEUCKR then
     begin
       EUCKRScore := 70; // 基础分
-      
+
       // 根据韩文字符数量增加分数
       if EUCKRStats.KoreanChars > 20 then
         Inc(EUCKRScore, 20)
@@ -902,7 +902,7 @@ begin
         Inc(EUCKRScore, 15)
       else if EUCKRStats.KoreanChars > 5 then
         Inc(EUCKRScore, 10);
-        
+
       // 根据有效序列比例增加分数
       if EUCKRStats.NonASCIICount > 0 then
       begin
@@ -913,7 +913,7 @@ begin
           Inc(EUCKRScore, 5);
       end;
     end;
-    
+
     // 如果全是ASCII字符，则判断为ASCII
     if (UTF8Stats.NonASCIICount = 0) and (BytesRead > 0) then
     begin
@@ -922,10 +922,10 @@ begin
       LogMessage('检测到纯ASCII文本');
       Exit;
     end;
-    
+
     // 找出得分最高的编码
     var MaxScore := Max(Max(Max(UTF8Score, GBKScore), Max(Big5Score, ShiftJISScore)), Max(EUCJPScore, EUCKRScore));
-    
+
     if MaxScore = 0 then
     begin
       // 如果所有编码得分都为0，则假设为ANSI
@@ -962,7 +962,7 @@ begin
       Result.EncodingName := 'EUC-KR';
       Result.Confidence := EUCKRScore;
     end;
-    
+
     LogMessage(Format('检测到编码: %s, 置信度: %d%%', [Result.EncodingName, Result.Confidence]));
   finally
     // 恢复原始位置
@@ -985,3 +985,5 @@ begin
     MemStream.Free;
   end;
 end;
+
+end.

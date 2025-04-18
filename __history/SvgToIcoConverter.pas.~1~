@@ -1,0 +1,199 @@
+unit SvgToIcoConverter;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Vcl.Graphics, System.Types, System.IOUtils,
+  Skia.Vcl, Skia;
+
+type
+  TSvgToIcoConverter = class
+  private
+    FSvgFilePath: string;
+    FIcoFilePath: string;
+    FIconSizes: TArray<Integer>;
+    procedure SetSvgFilePath(const Value: string);
+    procedure SetIcoFilePath(const Value: string);
+  public
+    constructor Create;
+    destructor Destroy; override;
+    
+    // 添加一个图标尺寸
+    procedure AddIconSize(Size: Integer);
+    
+    // 清除所有图标尺寸
+    procedure ClearIconSizes;
+    
+    // 执行转换
+    function Convert: Boolean;
+    
+    // 使用推荐的尺寸集
+    procedure UseRecommendedSizes;
+    
+    // 保存图标到磁盘
+    function SaveToFile: Boolean;
+    
+    // 属性
+    property SvgFilePath: string read FSvgFilePath write SetSvgFilePath;
+    property IcoFilePath: string read FIcoFilePath write SetIcoFilePath;
+  end;
+
+implementation
+
+uses
+  IcoLib;
+
+{ TSvgToIcoConverter }
+
+constructor TSvgToIcoConverter.Create;
+begin
+  inherited Create;
+  ClearIconSizes;
+  UseRecommendedSizes;
+end;
+
+destructor TSvgToIcoConverter.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSvgToIcoConverter.AddIconSize(Size: Integer);
+var
+  Len: Integer;
+begin
+  // 确保尺寸大于0
+  if Size <= 0 then
+    Exit;
+    
+  // 添加新尺寸
+  Len := Length(FIconSizes);
+  SetLength(FIconSizes, Len + 1);
+  FIconSizes[Len] := Size;
+end;
+
+procedure TSvgToIcoConverter.ClearIconSizes;
+begin
+  SetLength(FIconSizes, 0);
+end;
+
+procedure TSvgToIcoConverter.UseRecommendedSizes;
+begin
+  ClearIconSizes;
+  
+  // 添加常用的图标尺寸
+  AddIconSize(16);  // 16x16
+  AddIconSize(24);  // 24x24
+  AddIconSize(32);  // 32x32
+  AddIconSize(48);  // 48x48
+  AddIconSize(64);  // 64x64
+  AddIconSize(128); // 128x128
+  AddIconSize(256); // 256x256
+end;
+
+procedure TSvgToIcoConverter.SetSvgFilePath(const Value: string);
+begin
+  FSvgFilePath := Value;
+  
+  // 如果ICO文件路径尚未设置，则自动设置为同名的.ico文件
+  if FIcoFilePath = '' then
+    FIcoFilePath := ChangeFileExt(FSvgFilePath, '.ico');
+end;
+
+procedure TSvgToIcoConverter.SetIcoFilePath(const Value: string);
+begin
+  FIcoFilePath := Value;
+end;
+
+function TSvgToIcoConverter.Convert: Boolean;
+var
+  SvgBrush: TSkSvgBrush;
+  Size: Integer;
+  Surface: ISkSurface;
+  Canvas: ISkCanvas;
+  Icon: TIcon;
+  Bitmap: TBitmap;
+  IcoStream: TICOStream;
+begin
+  Result := False;
+  
+  // 检查文件是否存在
+  if not FileExists(FSvgFilePath) then
+    Exit;
+    
+  // 检查是否有尺寸
+  if Length(FIconSizes) = 0 then
+    UseRecommendedSizes;
+    
+  try
+    // 创建SVG画笔
+    SvgBrush := TSkSvgBrush.Create;
+    try
+      // 加载SVG内容
+      SvgBrush.Source := TFile.ReadAllText(FSvgFilePath);
+      
+      // 创建ICO流
+      IcoStream := TICOStream.Create(FIcoFilePath);
+      try
+        // 遍历每个图标尺寸
+        for Size in FIconSizes do
+        begin
+          // 创建位图
+          Bitmap := TBitmap.Create;
+          try
+            // 设置位图属性
+            Bitmap.PixelFormat := pf32bit;
+            Bitmap.SetSize(Size, Size);
+            Bitmap.Canvas.Brush.Color := clWhite;
+            Bitmap.Canvas.Brush.Style := bsClear;
+            Bitmap.Canvas.FillRect(Rect(0, 0, Size, Size));
+            
+            // 创建Skia表面
+            Surface := TSkSurface.MakeRasterDirect(
+              TSkImageInfo.Create(Size, Size, TSkColorType.RGBA8888),
+              Bitmap.ScanLine[0],
+              Bitmap.Width * 4);
+              
+            Canvas := Surface.Canvas;
+            
+            // 清除画布（透明）
+            Canvas.Clear(TAlphaColors.Transparent);
+            
+            // 绘制SVG
+            SvgBrush.Render(Canvas, TRectF.Create(0, 0, Size, Size), 1.0);
+            
+            // 刷新画布
+            Canvas.Flush;
+            
+            // 添加位图到ICO流
+            IcoStream.AddIconFromBitmap(Bitmap);
+          finally
+            Bitmap.Free;
+          end;
+        end;
+        
+        // 写入ICO文件
+        IcoStream.WriteIcons;
+        
+        Result := True;
+      finally
+        IcoStream.Free;
+      end;
+    finally
+      SvgBrush.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      // 处理异常
+      Result := False;
+    end;
+  end;
+end;
+
+function TSvgToIcoConverter.SaveToFile: Boolean;
+begin
+  // 执行转换并保存到文件
+  Result := Convert;
+end;
+
+end. 

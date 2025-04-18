@@ -181,6 +181,7 @@ begin
       else if Assigned(GroupNode) then // Ensure we have a category to add to
       begin
         // Add an encoding node under the current category node
+        // 使用编码名称作为显示文本，不再添加描述（因为ModelEncoding中的名称可能已经包含描述）
         EncodingNode := TreeView.Items.AddChildObject(GroupNode, EncodingInfo.Name, Pointer(i)); // Store index in Data
       end
       else

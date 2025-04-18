@@ -8,7 +8,7 @@ Software distributed under the License is distributed on an "AS IS" basis,
 WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
 the specific language governing rights and limitations under the License.
 
-The Original Code is SynUnicode.pas by Maël Hörz, released 2004-05-30.
+The Original Code is SynUnicode.pas by Maï¿½l Hï¿½rz, released 2004-05-30.
 All Rights Reserved.
 
 Contributors to the SynEdit and mwEdit projects are listed in the
@@ -33,16 +33,16 @@ unit SynUnicode;
 interface
 
 uses
-  Windows,
-  Messages,
-  Controls,
-  Forms,
-  Graphics,
-  Clipbrd,
-  Types,
-  Classes,
-  SysUtils,
-  TypInfo;
+  Winapi.Windows,
+  Winapi.Messages,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.Clipbrd,
+  System.Types,
+  System.Classes,
+  System.SysUtils,
+  System.TypInfo;
 
 const
   UTF8BOM: array[0..2] of Byte = ($EF, $BB, $BF);

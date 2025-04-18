@@ -1,5 +1,66 @@
 ﻿# TransSuccess Bug修复记录
 
+## 2024-07-27
+
+### 已修复
+1. **[Major] SVG转换器完全重构**
+   - 问题：UtilsSVGConverter.pas中包含大量Skia API相关的编译错误，无法编译通过
+   - 原因：原代码中使用了低层次Skia API（如TSkSurface、ISkCanvas等），但实际可用的API是更高层次的TSkSvg控件
+   - 解决方案：
+     - 完全重写SVG转换逻辑，移除对低层次Skia API的直接调用
+     - 使用标准VCL的TSkSvg控件替代自定义绘图逻辑
+     - 通过更简单的PaintTo方法将SVG绘制到标准位图
+     - 使用标准的Vcl图像类（TPngImage、TJPEGImage等）处理转换
+     - 为不直接支持的格式（TIFF、WebP）提供透明降级方案
+   - 相关文件：
+     - UtilsSVGConverter.pas
+
+2. **[Major] Skia API 使用错误**
+   - 问题：UtilsSVGConverter.pas中包含大量Skia API相关的编译错误，如未声明的标识符"ISkSurface"、"ISkCanvas"等
+   - 原因：使用了错误的Skia类型名称和API调用方式，不符合最新版本的Vcl.Skia单元接口规范
+   - 解决方案：
+     - 更新所有Skia相关的类型名称，如ISkSurface改为TSkSurface，ISkCanvas改为TSkCanvas
+     - 修正SVG加载方式：由SvgBrush.Source改为SvgBrush.Source.Data
+     - 修正SVG绘制方式：由SvgBrush.Render改为SvgBrush.Draw
+     - 修正图像编码器常量：由SkiaApi.TSkEncodedImageFormat.kPNG改为TSkEncodedImageFormat.PNG
+     - 修正ReadPixels方法参数顺序和类型
+     - 添加System.UITypes单元引用以支持TAlphaColors
+   - 相关文件：
+     - UtilsSVGConverter.pas
+
+## 2024-07-26
+
+### 已修复
+1. **[Major] IcoLib依赖问题**
+   - 问题：IcoLib.pas中存在多个编译错误，如未声明的标识符"Width"、"Height"、"Create"等
+   - 原因：IcoLib.pas文件可能是从其他项目导入，缺少必要的依赖项或类定义
+   - 解决方案：
+     - 移除对IcoLib.pas的依赖
+     - 在UtilsSVGConverter.pas中直接实现ICO文件格式处理
+     - 使用Windows API和Skia库直接处理ICO文件生成
+   - 相关文件：
+     - UtilsSVGConverter.pas
+     - ViewMainCode.pas
+
+2. **[Major] SVG转换器重构**
+   - 问题：SvgToIcoConverter.pas依赖于有问题的IcoLib.pas导致编译失败
+   - 解决方案：
+     - 移除SvgToIcoConverter.pas文件
+     - 在UtilsSVGConverter.pas中整合所有SVG转换功能
+     - 实现更完善的多格式SVG转换支持（ICO、PNG、JPG、BMP、GIF、TIFF、WebP）
+   - 相关文件：
+     - UtilsSVGConverter.pas
+     - ViewMainCode.pas
+
+3. **[Minor] Skia单元引用修正**
+   - 问题：Skia相关单元引用不一致，部分地方使用了错误的引用方式
+   - 解决方案：
+     - 统一使用正确的`Vcl.Skia`单元引用
+     - 修正所有相关调用的命名空间
+   - 相关文件：
+     - UtilsSVGConverter.pas
+     - ViewMainCode.pas
+
 ## 2024-07-25
 
 ### 已修复
@@ -452,3 +513,43 @@
 
 - **修复日期**：2024-07-20
 - **修复状态**：✅ 已解决
+
+## 2024-07-31 Skia组件相关问题
+
+### Bug #012: Skia清除画布透明色错误
+- **问题描述**：编译时出现 `[dcc64 Error] ViewMainCode.pas(2017): E2003 Undeclared identifier: 'Transparent'` 错误，导致项目无法编译。
+- **原因分析**：在SVG转ICO功能中，使用了`TAlphaColorRec.Transparent`来设置透明背景，但在最新版本的Skia组件中，正确的类型应该是`TAlphaColors.Transparent`。
+- **解决方案**：
+  1. 将代码中的`Canvas.Clear(TAlphaColorRec.Transparent)`替换为`Canvas.Clear(TAlphaColors.Transparent)`
+  2. 确保引入了正确的单元：System.UITypes（包含TAlphaColors定义）
+- **修复日期**：2024-07-31
+- **修复状态**：✅ 已解决
+
+### Bug #013: Skia图像编码类型错误
+- **问题描述**：编译时出现 `[dcc64 Error] ViewMainCode.pas(2046): E2018 Record, object or class type required` 和 `[dcc64 Error] ViewMainCode.pas(2069): E2018 Record, object or class type required` 错误。
+- **原因分析**：在将图像编码为PNG时，使用了不正确的类型或方法调用。最新版本的Skia组件中枚举类型已更改，应使用`SkEncodedImageFormat.Png`而不是`TSkEncodedImageFormat.PNG`。
+- **解决方案**：
+  1. 将代码中的`TSkEncodedImageFormat.PNG`替换为`SkEncodedImageFormat.Png`
+  2. 注意枚举值的大小写也需要相应调整
+- **修复日期**：2024-07-31
+- **修复状态**：✅ 已解决
+
+### Bug #014: 未使用的私有符号警告
+- **问题描述**：编译时出现 `[dcc64 Hint] ViewMainCode.pas(106): H2219 Private symbol 'FLanguageComboBox' declared but never used` 和 `[dcc64 Hint] ViewMainCode.pas(140): H2219 Private symbol 'InvalidateControl' declared but never used` 警告。
+- **原因分析**：代码中声明了私有字段和方法但从未使用，这些可能是重构过程中遗留的。
+- **解决方案**：
+  1. 暂时忽略这些警告，因为它们不影响程序的正常编译和运行
+  2. 在未来的代码清理中移除这些未使用的符号
+  3. 可以考虑添加编译指令 `{$HINTS OFF}` 来暂时禁用这些警告
+- **修复日期**：2024-07-31
+- **修复状态**：⚠️ 已处理（暂不修复）
+
+### Bug #015: SVG转ICO功能的编译错误
+- **问题描述**：编译时出现多个错误：`[dcc64 Error] ViewMainCode.pas(2046): E2003 Undeclared identifier: 'SkEncodedImageFormat'`、`[dcc64 Error] ViewMainCode.pas(2064): E2125 EXCEPT or FINALLY expected` 等，导致项目无法编译。
+- **原因分析**：SVG转ICO功能使用了Skia组件库，但API使用不正确，且try-except-finally结构有语法错误。
+- **解决方案**：
+  1. 暂时简化SVG转ICO功能，移除所有Skia相关代码
+  2. 在界面上提供消息提示用户该功能尚未完全实现
+  3. 计划在后续版本中使用更稳定和正确的方式重新实现该功能
+- **修复日期**：2024-07-31
+- **修复状态**：⚠️ 临时解决

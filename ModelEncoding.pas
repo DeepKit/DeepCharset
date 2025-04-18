@@ -3,11 +3,11 @@
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Math;
+  System.SysUtils, System.Classes, System.Math, HelperLanguage;
 
 type
   // 转换结果枚举
-  TConversionResult = (crSuccess, crFailed, crSkipped);
+  TConversionResult = (crSuccess, crFailed, crSkipped, crFileNotFound, crAccessDenied, crUnsupportedEncoding, crConversionFailed);
 
   // 编码信息结构体
   TEncodingInfo = record
@@ -16,6 +16,7 @@ type
     HasBOM: Boolean;       // 是否支持BOM
     ShortName: string;     // 短名称或识别符（可选）
     IsGroup: Boolean;      // 是否为分组标题
+    Description: string;   // 编码描述（用于显示在UI中）
   end;
 
   TEncodingInfoArray = array of TEncodingInfo;
@@ -24,6 +25,7 @@ type
   TEncodingModel = class
   private
     FEncodingList: TEncodingInfoArray;
+    FSelectedEncodingIndex: Integer;
 
     function GetEncodingCount: Integer;
     function GetEncoding(Index: Integer): TEncodingInfo;
@@ -38,13 +40,15 @@ type
 
     // 添加编码到列表
     procedure AddEncodingGroup(const GroupName: string);
-    procedure AddEncodingOption(const EncodingName, ShortName: string; CodePage: Integer; HasBOM: Boolean);
+    procedure AddEncodingOption(const EncodingName, ShortName: string; CodePage: Integer; HasBOM: Boolean; const Description: string = '');
 
     // 替换编码列表（仅用于UI展示，不影响实际功能）
     procedure ReplaceEncodingList(const NewList: TEncodingInfoArray);
 
     // 重新加载编码列表（用于语言切换后更新显示）
     procedure ReloadEncodings;
+
+    function GetSelectedEncoding: TEncoding;
 
     property EncodingCount: Integer read GetEncodingCount;
     property Encodings[Index: Integer]: TEncodingInfo read GetEncoding;
@@ -71,6 +75,7 @@ constructor TEncodingModel.Create;
 begin
   inherited Create;
   InitEncodingList;
+  FSelectedEncodingIndex := -1;
 end;
 
 destructor TEncodingModel.Destroy;
@@ -93,7 +98,7 @@ begin
   FEncodingList[High(FEncodingList)] := EncodingInfo;
 end;
 
-procedure TEncodingModel.AddEncodingOption(const EncodingName, ShortName: string; CodePage: Integer; HasBOM: Boolean);
+procedure TEncodingModel.AddEncodingOption(const EncodingName, ShortName: string; CodePage: Integer; HasBOM: Boolean; const Description: string = '');
 var
   EncodingInfo: TEncodingInfo;
 begin
@@ -102,6 +107,7 @@ begin
   EncodingInfo.HasBOM := HasBOM;
   EncodingInfo.ShortName := ShortName;
   EncodingInfo.IsGroup := False;
+  EncodingInfo.Description := Description;
 
   SetLength(FEncodingList, Length(FEncodingList) + 1);
   FEncodingList[High(FEncodingList)] := EncodingInfo;
@@ -228,46 +234,46 @@ begin
 
   // --- 1. UTF 相关 ---
   AddEncodingGroup('UTF');
-  AddEncodingOption('UTF-8', 'UTF-8', 65001, False);
-  AddEncodingOption('UTF-8 BOM', 'UTF-8 BOM', 65001, True);
-  AddEncodingOption('UTF-16LE', 'UTF-16LE', 1200, True);
-  AddEncodingOption('UTF-16BE', 'UTF-16BE', 1201, True);
-  AddEncodingOption('UTF-16', 'UTF-16', 1200, True);
-  AddEncodingOption('UTF-32LE', 'UTF-32LE', 12000, True);
-  AddEncodingOption('UTF-32BE', 'UTF-32BE', 12001, True);
-  AddEncodingOption('UTF-32', 'UTF-32', 12000, True);
-  AddEncodingOption('UTF-7', 'UTF-7', 65000, False);
-  AddEncodingOption('UCS-2', 'UCS-2', 1200, False);
-  AddEncodingOption('UCS-4LE', 'UCS-4LE', 12000, False);
-  AddEncodingOption('UCS-4BE', 'UCS-4BE', 12001, False);
+  AddEncodingOption('UTF-8', 'UTF-8', 65001, False, 'UTF-8 - ' + GetString('EncUTF8Desc'));
+  AddEncodingOption('UTF-8 BOM', 'UTF-8 BOM', 65001, True, 'UTF-8 BOM - ' + GetString('EncUTF8BOMDesc'));
+  AddEncodingOption('UTF-16LE', 'UTF-16LE', 1200, True, 'UTF-16LE - ' + GetString('EncUTF16LEDesc'));
+  AddEncodingOption('UTF-16BE', 'UTF-16BE', 1201, True, 'UTF-16BE - ' + GetString('EncUTF16BEDesc'));
+  AddEncodingOption('UTF-16', 'UTF-16', 1200, True, 'UTF-16 - ' + GetString('EncUTF16Desc'));
+  AddEncodingOption('UTF-32LE', 'UTF-32LE', 12000, True, 'UTF-32LE - ' + GetString('EncUTF32LEDesc'));
+  AddEncodingOption('UTF-32BE', 'UTF-32BE', 12001, True, 'UTF-32BE - ' + GetString('EncUTF32BEDesc'));
+  AddEncodingOption('UTF-32', 'UTF-32', 12000, True, 'UTF-32 - ' + GetString('EncUTF32Desc'));
+  AddEncodingOption('UTF-7', 'UTF-7', 65000, False, 'UTF-7 - ' + GetString('EncUTF7Desc'));
+  AddEncodingOption('UCS-2', 'UCS-2', 1200, False, 'UCS-2 - ' + GetString('EncUCS2Desc'));
+  AddEncodingOption('UCS-4LE', 'UCS-4LE', 12000, False, 'UCS-4LE - ' + GetString('EncUCS4LEDesc'));
+  AddEncodingOption('UCS-4BE', 'UCS-4BE', 12001, False, 'UCS-4BE - ' + GetString('EncUCS4BEDesc'));
 
   // --- 2. 亚洲 ---
   AddEncodingGroup('Asia');
-  AddEncodingOption('GB2312', 'GB2312', 936, False);
-  AddEncodingOption('GBK', 'GBK', 936, False);
-  AddEncodingOption('GB18030', 'GB18030', 54936, False);
-  AddEncodingOption('Big5', 'BIG5', 950, False);
-  AddEncodingOption('Big5-HKSCS', 'BIG5-HKSCS', 950, False);
-  AddEncodingOption('Shift_JIS', 'SHIFT_JIS', 932, False);
-  AddEncodingOption('EUC-JP', 'EUC-JP', 20932, False);
-  AddEncodingOption('ISO-2022-JP', 'ISO-2022-JP', 50220, False);
-  AddEncodingOption('ISO-2022-JP-2', 'ISO-2022-JP-2', 50222, False);
-  AddEncodingOption('EUC-KR', 'EUC-KR', 949, False);
-  AddEncodingOption('TIS-620', 'TIS-620', 874, False);
-  AddEncodingOption('VISCII', 'VISCII', 0, False);
+  AddEncodingOption('GB2312', 'GB2312', 936, False, 'GB2312 - ' + GetString('EncGB2312Desc'));
+  AddEncodingOption('GBK', 'GBK', 936, False, 'GBK - ' + GetString('EncGBKDesc'));
+  AddEncodingOption('GB18030', 'GB18030', 54936, False, 'GB18030 - ' + GetString('EncGB18030Desc'));
+  AddEncodingOption('Big5', 'BIG5', 950, False, 'Big5 - ' + GetString('EncBig5Desc'));
+  AddEncodingOption('Big5-HKSCS', 'BIG5-HKSCS', 950, False, 'Big5-HKSCS - ' + GetString('EncBig5HKSCSDesc'));
+  AddEncodingOption('Shift_JIS', 'SHIFT_JIS', 932, False, 'Shift_JIS - ' + GetString('EncShiftJISDesc'));
+  AddEncodingOption('EUC-JP', 'EUC-JP', 20932, False, 'EUC-JP - ' + GetString('EncEUCJPDesc'));
+  AddEncodingOption('ISO-2022-JP', 'ISO-2022-JP', 50220, False, 'ISO-2022-JP - ' + GetString('EncISO2022JPDesc'));
+  AddEncodingOption('ISO-2022-JP-2', 'ISO-2022-JP-2', 50222, False, 'ISO-2022-JP-2 - ' + GetString('EncISO2022JP2Desc'));
+  AddEncodingOption('EUC-KR', 'EUC-KR', 949, False, 'EUC-KR - ' + GetString('EncEUCKRDesc'));
+  AddEncodingOption('TIS-620', 'TIS-620', 874, False, 'TIS-620 - Thai character encoding');
+  AddEncodingOption('VISCII', 'VISCII', 0, False, 'VISCII - Vietnamese character encoding');
 
   // --- 3. Windows (代码页) ---
   AddEncodingGroup('Windows');
-  AddEncodingOption('Windows-1250', 'CP1250', 1250, False);
-  AddEncodingOption('Windows-1251', 'CP1251', 1251, False);
-  AddEncodingOption('Windows-1252', 'CP1252', 1252, False);
-  AddEncodingOption('Windows-1253', 'CP1253', 1253, False);
-  AddEncodingOption('Windows-1254', 'CP1254', 1254, False);
-  AddEncodingOption('Windows-1255', 'CP1255', 1255, False);
-  AddEncodingOption('Windows-1256', 'CP1256', 1256, False);
-  AddEncodingOption('Windows-1257', 'CP1257', 1257, False);
-  AddEncodingOption('Windows-1258', 'CP1258', 1258, False);
-  AddEncodingOption('Windows-874', 'CP874', 874, False);
+  AddEncodingOption('Windows-1250', 'CP1250', 1250, False, 'Windows-1250 - 中欧语言编码');
+  AddEncodingOption('Windows-1251', 'CP1251', 1251, False, 'Windows-1251 - 西里尔文编码，俄语等');
+  AddEncodingOption('Windows-1252', 'CP1252', 1252, False, 'Windows-1252 - 西欧语言编码');
+  AddEncodingOption('Windows-1253', 'CP1253', 1253, False, 'Windows-1253 - 希腊文编码');
+  AddEncodingOption('Windows-1254', 'CP1254', 1254, False, 'Windows-1254 - 土耳其文编码');
+  AddEncodingOption('Windows-1255', 'CP1255', 1255, False, 'Windows-1255 - 希伯来文编码');
+  AddEncodingOption('Windows-1256', 'CP1256', 1256, False, 'Windows-1256 - 阿拉伯文编码');
+  AddEncodingOption('Windows-1257', 'CP1257', 1257, False, 'Windows-1257 - 波罗的海文编码');
+  AddEncodingOption('Windows-1258', 'CP1258', 1258, False, 'Windows-1258 - 越南文编码');
+  AddEncodingOption('Windows-874', 'CP874', 874, False, 'Windows-874 - 泰文编码');
 
   // --- 4. ISO-8859 ---
   AddEncodingGroup('ISO-8859');
@@ -319,11 +325,11 @@ begin
 
   // --- 8. 其他 ---
   AddEncodingGroup('Other');
-  AddEncodingOption('ASCII', 'ASCII', 20127, False);
-  AddEncodingOption('ARMSCII-8', 'ARMSCII-8', 0, False);
-  AddEncodingOption('ATARIST', 'ATARIST', 0, False);
-  AddEncodingOption('HP Roman8', 'HP-ROMAN8', 0, False);
-  AddEncodingOption('TRANSLIT', 'TRANSLIT', 0, False); // Special iconv flag
+  AddEncodingOption('ASCII', 'ASCII', 20127, False, 'ASCII - 美国标准信息交换码，7位编码');
+  AddEncodingOption('ARMSCII-8', 'ARMSCII-8', 0, False, 'ARMSCII-8 - 亚美尼亚文字编码');
+  AddEncodingOption('ATARIST', 'ATARIST', 0, False, 'ATARIST - Atari ST计算机编码');
+  AddEncodingOption('HP Roman8', 'HP-ROMAN8', 0, False, 'HP Roman8 - 惠普打印机编码');
+  AddEncodingOption('TRANSLIT', 'TRANSLIT', 0, False, 'TRANSLIT - 音译转换标志'); // Special iconv flag
 
 end;
 
@@ -343,6 +349,21 @@ begin
 
   // 重新初始化编码列表
   InitEncodingList;
+end;
+
+function TEncodingModel.GetSelectedEncoding: TEncoding;
+begin
+  // 默认返回UTF8编码
+  Result := TEncoding.UTF8;
+  
+  // 这里可以根据FSelectedEncodingIndex返回不同的编码
+  case FSelectedEncodingIndex of
+    0: Result := TEncoding.ASCII;
+    1: Result := TEncoding.UTF8;
+    2: Result := TEncoding.Unicode;
+    3: Result := TEncoding.BigEndianUnicode;
+    // 可以添加更多编码类型
+  end;
 end;
 
 end.

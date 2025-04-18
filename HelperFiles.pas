@@ -5,9 +5,11 @@ interface
 uses
   System.SysUtils, System.Classes, System.IOUtils, Vcl.Dialogs, Vcl.Controls,
   System.Math, System.StrUtils, System.Generics.Collections, Vcl.Forms,
-  JclBOM, JclStrings, JclStringConversions, JclEncodingUtils, UtilsTypes;
+  JclBOM, JclStrings, JclStringConversions, UtilsJCLEncoding, UtilsTypes, ModelEncoding;
 
 type
+  TFileFilterFunc = reference to function(const FilePath: string): Boolean;
+
   // 文件辅助类
   TFileHelper = class
   private
@@ -49,6 +51,11 @@ type
 
     // 获取应用程序根目录
     function GetRootDir: string;
+
+    function GetSelectedFilesInFolder(const FolderPath: string; 
+      const Extensions: TStringList; 
+      const FilterFunc: TFileFilterFunc = nil;
+      const IncludeSubDirs: Boolean = False): TArray<string>;
   end;
 
 implementation
@@ -143,8 +150,8 @@ begin
       else TargetEncodingName := ENCODING_ANSI;
     end;
 
-    // 使用JCL进行转换
-    if ConvertFileByName(SourceFile, TargetFile, SourceEncoding, TargetEncodingName, AddBOM) then
+    // 使用UtilsJCLEncoding替代直接调用ConvertFileByName
+    if UtilsJCLEncoding.ConvertFileByName(SourceFile, TargetFile, SourceEncoding, TargetEncodingName, AddBOM) then
     begin
       Result := True;
 
@@ -177,8 +184,8 @@ begin
     Exit;
 
   try
-    // 使用JCL检测编码
-    EncodingName := JclEncodingUtils.DetectFileEncoding(FileName);
+    // 使用UtilsJCLEncoding替代直接调用JclEncodingUtils
+    EncodingName := UtilsJCLEncoding.DetectFileEncoding(FileName);
     if EncodingName <> 'Unknown' then
     begin
       Result := EncodingName;
@@ -487,6 +494,41 @@ begin
     Result := ExeDir;
     if Assigned(FLogCallback) then
       FLogCallback('未找到ini目录，使用当前目录作为根目录: ' + Result);
+  end;
+end;
+
+function TFileHelper.GetSelectedFilesInFolder(const FolderPath: string;
+  const Extensions: TStringList; const FilterFunc: TFileFilterFunc = nil;
+  const IncludeSubDirs: Boolean = False): TArray<string>;
+var
+  SearchOption: TSearchOption;
+  Files: TArray<string>;
+  i: Integer;
+  FileList: TList<string>;
+begin
+  FileList := TList<string>.Create;
+  try
+    if IncludeSubDirs then
+      SearchOption := TSearchOption.soAllDirectories
+    else
+      SearchOption := TSearchOption.soTopDirectoryOnly;
+
+    // 获取所有文件
+    Files := TDirectory.GetFiles(FolderPath, '*.*', SearchOption);
+    
+    // 过滤文件
+    for i := 0 to High(Files) do
+    begin
+      if (Extensions.IndexOf(ExtractFileExt(Files[i])) >= 0) and
+         ((not Assigned(FilterFunc)) or FilterFunc(Files[i])) then
+      begin
+        FileList.Add(Files[i]);
+      end;
+    end;
+
+    Result := FileList.ToArray;
+  finally
+    FileList.Free;
   end;
 end;
 

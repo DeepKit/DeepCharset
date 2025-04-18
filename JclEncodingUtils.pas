@@ -6,6 +6,17 @@ uses
   System.SysUtils, System.Classes, Winapi.Windows, System.IOUtils,
   JclBOM, JclStrings, JclStringConversions, JclFileUtils, JclStreams;
 
+type
+  // 编码统计信息结构体
+  TEncodingStats = record
+    ValidSequences: Integer;
+    InvalidSequences: Integer;
+    ASCIICount: Integer;
+    TotalBytes: Integer;
+    ValidRatio: Double;
+    MaxConsecutiveValid: Integer;
+  end;
+
 const
   // 代码页常量
   CP_ANSI = 0;  // 使用GetACP获取
@@ -19,6 +30,23 @@ const
   CP_BIG5 = 950;
   CP_SHIFT_JIS = 932;
   CP_GB18030 = 54936;
+  CP_EUC_JP = 20932;
+  CP_EUC_KR = 949;
+  CP_ISO_8859_2 = 28592; // 中欧
+  CP_ISO_8859_5 = 28595; // 西里尔文
+  CP_ISO_8859_6 = 28596; // 阿拉伯文
+  CP_ISO_8859_7 = 28597; // 希腊文
+  CP_ISO_8859_8 = 28598; // 希伯来文
+  CP_ISO_8859_9 = 28599; // 土耳其文
+  CP_WINDOWS_1250 = 1250; // 中欧
+  CP_WINDOWS_1251 = 1251; // 西里尔文
+  CP_WINDOWS_1252 = 1252; // 西欧
+  CP_WINDOWS_1253 = 1253; // 希腊文
+  CP_WINDOWS_1254 = 1254; // 土耳其文
+  CP_WINDOWS_1255 = 1255; // 希伯来文
+  CP_WINDOWS_1256 = 1256; // 阿拉伯文
+  CP_WINDOWS_1257 = 1257; // 波罗的海文
+  CP_WINDOWS_1258 = 1258; // 越南文
 
   // 编码名称常量
   ENCODING_ANSI = 'ANSI';
@@ -33,10 +61,33 @@ const
   ENCODING_BIG5 = 'BIG5';
   ENCODING_ASCII = 'ASCII';
   ENCODING_SHIFT_JIS = 'Shift-JIS';
+  ENCODING_EUC_JP = 'EUC-JP';
+  ENCODING_EUC_KR = 'EUC-KR';
+  ENCODING_ISO_8859_1 = 'ISO-8859-1';
+  ENCODING_ISO_8859_2 = 'ISO-8859-2';
+  ENCODING_ISO_8859_5 = 'ISO-8859-5';
+  ENCODING_ISO_8859_6 = 'ISO-8859-6';
+  ENCODING_ISO_8859_7 = 'ISO-8859-7';
+  ENCODING_ISO_8859_8 = 'ISO-8859-8';
+  ENCODING_ISO_8859_9 = 'ISO-8859-9';
+  ENCODING_WINDOWS_1250 = 'Windows-1250';
+  ENCODING_WINDOWS_1251 = 'Windows-1251';
+  ENCODING_WINDOWS_1252 = 'Windows-1252';
+  ENCODING_WINDOWS_1253 = 'Windows-1253';
+  ENCODING_WINDOWS_1254 = 'Windows-1254';
+  ENCODING_WINDOWS_1255 = 'Windows-1255';
+  ENCODING_WINDOWS_1256 = 'Windows-1256';
+  ENCODING_WINDOWS_1257 = 'Windows-1257';
+  ENCODING_WINDOWS_1258 = 'Windows-1258';
 
 // 编码检测辅助函数
 function IsUTF8Valid(const Buffer: TBytes; Size: Integer): Boolean;
 function IsGBKString(const Buffer: TBytes; Size: Integer): Boolean;
+function IsBig5String(const Buffer: TBytes; Size: Integer): Boolean;
+function IsShiftJISString(const Buffer: TBytes; Size: Integer): Boolean;
+function IsEUCKRString(const Buffer: TBytes; Size: Integer): Boolean;
+function IsDoubleByteEncoding(const Buffer: TBytes; Size: Integer;
+  FirstByteRange, SecondByteRange: array of Byte; out Stats: TEncodingStats): Boolean;
 
 // 检测文件编码
 function DetectFileEncoding(const FileName: string): string;
@@ -247,10 +298,10 @@ begin
     InvalidRatio := 0;
 
   // 输出调试信息
-  DebugMsg := Format('UTF8检测: 有效=%d, 无效=%d, 非ASCII=%d, 比例=%.2f, 中=%d, 日=%d, 韩=%d, 最长连续=%d',
+  DebugMsg := string(Format('UTF8检测: 有效=%d, 无效=%d, 非ASCII=%d, 比例=%.2f, 中=%d, 日=%d, 韩=%d, 最长连续=%d',
                    [ValidSequences, InvalidSequences, NonASCIICount, UTF8Ratio,
-                    ChineseCharCount, JapaneseCharCount, KoreanCharCount, MaxConsecutiveValidSeq]);
-  OutputDebugString(PChar(DebugMsg));
+                    ChineseCharCount, JapaneseCharCount, KoreanCharCount, MaxConsecutiveValidSeq]));
+  OutputDebugString(PWideChar(DebugMsg));
 
   // 判断条件：
   // 1. 有效序列比例足够高
@@ -264,20 +315,24 @@ begin
             (KoreanCharCount >= 3); // 存在多个韩文字符
 end;
 
-// 检查是否是GBK编码
-function IsGBKString(const Buffer: TBytes; Size: Integer): Boolean;
+// 通用的双字节编码检测函数
+function IsDoubleByteEncoding(const Buffer: TBytes; Size: Integer;
+  FirstByteRange, SecondByteRange: array of Byte; out Stats: TEncodingStats): Boolean;
 var
   i: Integer;
-  GBKCount, ASCIICount, InvalidCount: Integer;
-  GBKRatio: Double;
-  DebugMsg: string;
+  ValidCount, ASCIICount, InvalidCount: Integer;
+  ValidRatio: Double;
+  ConsecutiveValidChars, MaxConsecutiveValidChars: Integer;
+  IsFirstByteValid, IsSecondByteValid: Boolean;
 begin
   if Size <= 0 then
     Exit(False);
 
-  GBKCount := 0;
+  ValidCount := 0;
   ASCIICount := 0;
   InvalidCount := 0;
+  ConsecutiveValidChars := 0;
+  MaxConsecutiveValidChars := 0;
   i := 0;
 
   while i < Size do
@@ -287,91 +342,207 @@ begin
       // ASCII范围
       Inc(ASCIICount);
       Inc(i);
-    end
-    else if (Buffer[i] >= $81) and (Buffer[i] <= $FE) and (i + 1 < Size) and
-            (Buffer[i+1] >= $40) and (Buffer[i+1] <= $FE) then
-    begin
-      // 标准GBK字符
-      Inc(GBKCount);
-      Inc(i, 2);
+      // 连续双字节字符计数重置
+      ConsecutiveValidChars := 0;
     end
     else
     begin
-      // 不是有效的GBK
+      // 检查是否是有效的双字节字符
+      IsFirstByteValid := False;
+      for var j := 0 to Length(FirstByteRange) div 2 - 1 do
+      begin
+        if (Buffer[i] >= FirstByteRange[j*2]) and (Buffer[i] <= FirstByteRange[j*2+1]) then
+        begin
+          IsFirstByteValid := True;
+          Break;
+        end;
+      end;
+
+      if IsFirstByteValid and (i + 1 < Size) then
+      begin
+        IsSecondByteValid := False;
+        for var j := 0 to Length(SecondByteRange) div 2 - 1 do
+        begin
+          if (Buffer[i+1] >= SecondByteRange[j*2]) and (Buffer[i+1] <= SecondByteRange[j*2+1]) then
+          begin
+            IsSecondByteValid := True;
+            Break;
+          end;
+        end;
+
+        if IsSecondByteValid then
+        begin
+          // 有效的双字节字符
+          Inc(ValidCount);
+          Inc(ConsecutiveValidChars);
+          if ConsecutiveValidChars > MaxConsecutiveValidChars then
+            MaxConsecutiveValidChars := ConsecutiveValidChars;
+          Inc(i, 2);
+          Continue;
+        end;
+      end;
+
+      // 不是有效的双字节字符
       Inc(InvalidCount);
       Inc(i);
+      ConsecutiveValidChars := 0;
     end;
   end;
 
-  // 计算GBK字符的比例
-  if (GBKCount + InvalidCount) > 0 then
-    GBKRatio := GBKCount / (GBKCount + InvalidCount)
+  // 计算有效字符的比例
+  if (ValidCount + InvalidCount) > 0 then
+    ValidRatio := ValidCount / (ValidCount + InvalidCount)
   else
-    GBKRatio := 0;
+    ValidRatio := 0;
 
-  // 输出调试信息
-  DebugMsg := Format('GBK检测: GBK=%d, ASCII=%d, 无效=%d, 比例=%.2f',
-                   [GBKCount, ASCIICount, InvalidCount, GBKRatio]);
-  OutputDebugString(PChar(DebugMsg));
+  // 填充统计信息
+  Stats.ValidSequences := ValidCount;
+  Stats.ASCIICount := ASCIICount;
+  Stats.InvalidSequences := InvalidCount;
+  Stats.ValidRatio := ValidRatio;
+  Stats.MaxConsecutiveValid := MaxConsecutiveValidChars;
+  Stats.TotalBytes := Size;
 
-  // 如果文本中包含GBK字符，且比例较高，认为是GBK编码
-  Result := (GBKCount > 0) and (GBKRatio >= 0.5);
+  // 判断条件：存在有效字符且比例足够高
+  Result := (ValidCount > 0) and
+            ((ValidRatio >= 0.6) or (MaxConsecutiveValidChars >= 3));
+end;
+
+// 检查是否是GBK或GB2312编码
+function IsGBKString(const Buffer: TBytes; Size: Integer): Boolean;
+var
+  Stats: TEncodingStats;
+  GBKFirstByteRange: array[0..1] of Byte;
+  GBKSecondByteRange: array[0..3] of Byte;
+  GB2312FirstByteRange: array[0..1] of Byte;
+  GB2312SecondByteRange: array[0..1] of Byte;
+  GB2312Stats: TEncodingStats;
+  DebugMsg: string;
+  IsGB2312Only: Boolean;
+begin
+  if Size <= 0 then
+    Exit(False);
+
+  // GBK编码范围
+  GBKFirstByteRange[0] := $81; GBKFirstByteRange[1] := $FE;
+  GBKSecondByteRange[0] := $40; GBKSecondByteRange[1] := $7E;
+  GBKSecondByteRange[2] := $80; GBKSecondByteRange[3] := $FE;
+
+  // GB2312编码范围
+  GB2312FirstByteRange[0] := $A1; GB2312FirstByteRange[1] := $F7;
+  GB2312SecondByteRange[0] := $A1; GB2312SecondByteRange[1] := $FE;
+
+  // 检测GBK
+  Result := IsDoubleByteEncoding(Buffer, Size, GBKFirstByteRange, GBKSecondByteRange, Stats);
+
+  // 如果是GBK，再检测是否是GB2312
+  if Result then
+  begin
+    IsDoubleByteEncoding(Buffer, Size, GB2312FirstByteRange, GB2312SecondByteRange, GB2312Stats);
+    IsGB2312Only := (GB2312Stats.ValidSequences > 0) and (GB2312Stats.ValidSequences = Stats.ValidSequences);
+
+    // 输出调试信息
+    DebugMsg := string(Format('GBK/GB2312检测: GBK=%d, GB2312=%d, ASCII=%d, 无效=%d, 比例=%.2f, 连续=%d',
+                     [Stats.ValidSequences, GB2312Stats.ValidSequences, Stats.ASCIICount,
+                      Stats.InvalidSequences, Stats.ValidRatio, Stats.MaxConsecutiveValid]));
+    OutputDebugString(PWideChar(DebugMsg));
+
+    // 如果文件中只有GB2312字符，则在调试信息中标记
+    if IsGB2312Only then
+    begin
+      DebugMsg := '文件只包含GB2312字符，应该使用GB2312编码';
+      OutputDebugString(PWideChar(DebugMsg));
+    end;
+  end;
 end;
 
 // 检测是否为Big5编码
 function IsBig5String(const Buffer: TBytes; Size: Integer): Boolean;
 var
-  i: Integer;
-  Big5Count, ASCIICount, InvalidCount: Integer;
-  Big5Ratio: Double;
+  Stats: TEncodingStats;
+  Big5FirstByteRange: array[0..1] of Byte;
+  Big5SecondByteRange: array[0..3] of Byte;
   DebugMsg: string;
 begin
   if Size <= 0 then
     Exit(False);
 
-  Big5Count := 0;
-  ASCIICount := 0;
-  InvalidCount := 0;
-  i := 0;
+  // Big5编码范围
+  Big5FirstByteRange[0] := $A1; Big5FirstByteRange[1] := $F9;
+  Big5SecondByteRange[0] := $40; Big5SecondByteRange[1] := $7E;
+  Big5SecondByteRange[2] := $A1; Big5SecondByteRange[3] := $FE;
 
-  while i < Size do
+  // 检测Big5
+  Result := IsDoubleByteEncoding(Buffer, Size, Big5FirstByteRange, Big5SecondByteRange, Stats);
+
+  if Result then
   begin
-    if Buffer[i] <= $7F then
-    begin
-      // ASCII范围
-      Inc(ASCIICount);
-      Inc(i);
-    end
-    else if (Buffer[i] >= $A1) and (Buffer[i] <= $F9) and (i + 1 < Size) and
-            (((Buffer[i+1] >= $40) and (Buffer[i+1] <= $7E)) or
-             ((Buffer[i+1] >= $A1) and (Buffer[i+1] <= $FE))) then
-    begin
-      // 标准Big5字符
-      Inc(Big5Count);
-      Inc(i, 2);
-    end
-    else
-    begin
-      // 不是有效的Big5
-      Inc(InvalidCount);
-      Inc(i);
-    end;
+    // 输出调试信息
+    DebugMsg := string(Format('Big5检测: 有效=%d, ASCII=%d, 无效=%d, 比例=%.2f, 连续=%d',
+                     [Stats.ValidSequences, Stats.ASCIICount, Stats.InvalidSequences,
+                      Stats.ValidRatio, Stats.MaxConsecutiveValid]));
+    OutputDebugString(PWideChar(DebugMsg));
   end;
-
-  // 计算Big5字符的比例
-  if (Big5Count + InvalidCount) > 0 then
-    Big5Ratio := Big5Count / (Big5Count + InvalidCount)
-  else
-    Big5Ratio := 0;
-
-  // 输出调试信息
-  DebugMsg := Format('Big5检测: Big5=%d, ASCII=%d, 无效=%d, 比例=%.2f',
-                   [Big5Count, ASCIICount, InvalidCount, Big5Ratio]);
-  OutputDebugString(PChar(DebugMsg));
-
-  // 如果文本中包含Big5字符，且比例较高，认为是Big5编码
-  Result := (Big5Count > 0) and (Big5Ratio >= 0.5);
 end;
+
+// 检测是否为Shift-JIS编码
+function IsShiftJISString(const Buffer: TBytes; Size: Integer): Boolean;
+var
+  Stats: TEncodingStats;
+  SJISFirstByteRange: array[0..3] of Byte;
+  SJISSecondByteRange: array[0..3] of Byte;
+  DebugMsg: string;
+begin
+  if Size <= 0 then
+    Exit(False);
+
+  // Shift-JIS编码范围
+  SJISFirstByteRange[0] := $81; SJISFirstByteRange[1] := $9F;
+  SJISFirstByteRange[2] := $E0; SJISFirstByteRange[3] := $FC;
+  SJISSecondByteRange[0] := $40; SJISSecondByteRange[1] := $7E;
+  SJISSecondByteRange[2] := $80; SJISSecondByteRange[3] := $FC;
+
+  // 检测Shift-JIS
+  Result := IsDoubleByteEncoding(Buffer, Size, SJISFirstByteRange, SJISSecondByteRange, Stats);
+
+  if Result then
+  begin
+    // 输出调试信息
+    DebugMsg := string(Format('Shift-JIS检测: 有效=%d, ASCII=%d, 无效=%d, 比例=%.2f, 连续=%d',
+                     [Stats.ValidSequences, Stats.ASCIICount, Stats.InvalidSequences,
+                      Stats.ValidRatio, Stats.MaxConsecutiveValid]));
+    OutputDebugString(PWideChar(DebugMsg));
+  end;
+end;
+
+// 检测是否为EUC-KR编码
+function IsEUCKRString(const Buffer: TBytes; Size: Integer): Boolean;
+var
+  Stats: TEncodingStats;
+  EUCKRFirstByteRange: array[0..1] of Byte;
+  EUCKRSecondByteRange: array[0..1] of Byte;
+  DebugMsg: string;
+begin
+  if Size <= 0 then
+    Exit(False);
+
+  // EUC-KR编码范围
+  EUCKRFirstByteRange[0] := $A1; EUCKRFirstByteRange[1] := $FE;
+  EUCKRSecondByteRange[0] := $A1; EUCKRSecondByteRange[1] := $FE;
+
+  // 检测EUC-KR
+  Result := IsDoubleByteEncoding(Buffer, Size, EUCKRFirstByteRange, EUCKRSecondByteRange, Stats);
+
+  if Result then
+  begin
+    // 输出调试信息
+    DebugMsg := string(Format('EUC-KR检测: 有效=%d, ASCII=%d, 无效=%d, 比例=%.2f, 连续=%d',
+                     [Stats.ValidSequences, Stats.ASCIICount, Stats.InvalidSequences,
+                      Stats.ValidRatio, Stats.MaxConsecutiveValid]));
+    OutputDebugString(PWideChar(DebugMsg));
+  end;
+end;
+
 
 // 基于字符频率的编码检测
 function DetectEncodingByFrequency(const Buffer: TBytes; Size: Integer): string;
@@ -418,9 +589,9 @@ begin
   end;
 
   // 输出调试信息
-  DebugMsg := Format('频率检测: 最高=%d (0x%2.2X), 第二=%d (0x%2.2X)',
-                   [MaxFreq, MaxIndex, SecondMaxFreq, SecondMaxIndex]);
-  OutputDebugString(PChar(DebugMsg));
+  DebugMsg := string(Format('频率检测: 最高=%d (0x%2.2X), 第二=%d (0x%2.2X)',
+                   [MaxFreq, MaxIndex, SecondMaxFreq, SecondMaxIndex]));
+  OutputDebugString(PWideChar(DebugMsg));
 
   // 基于频率特征判断编码
   // 如果最高频率的字节是空格或常见ASCII字符
@@ -442,113 +613,9 @@ begin
     Result := '';
 end;
 
-// 检测是否为Shift-JIS编码
-function IsShiftJISString(const Buffer: TBytes; Size: Integer): Boolean;
-var
-  i: Integer;
-  ShiftJISCount, ASCIICount, InvalidCount: Integer;
-  ShiftJISRatio: Double;
-begin
-  if Size <= 0 then
-    Exit(False);
 
-  ShiftJISCount := 0;
-  ASCIICount := 0;
-  InvalidCount := 0;
-  i := 0;
 
-  while i < Size do
-  begin
-    if Buffer[i] <= $7F then
-    begin
-      // ASCII范围
-      Inc(ASCIICount);
-      Inc(i);
-    end
-    else if ((Buffer[i] >= $81) and (Buffer[i] <= $9F) or
-             (Buffer[i] >= $E0) and (Buffer[i] <= $FC)) and
-            (i + 1 < Size) and
-            ((Buffer[i+1] >= $40) and (Buffer[i+1] <= $FC) and
-             (Buffer[i+1] <> $7F)) then
-    begin
-      // 标准Shift-JIS字符
-      Inc(ShiftJISCount);
-      Inc(i, 2);
-    end
-    else
-    begin
-      // 不是有效的Shift-JIS
-      Inc(InvalidCount);
-      Inc(i);
-    end;
-  end;
 
-  // 计算Shift-JIS字符的比例
-  if (ShiftJISCount + InvalidCount) > 0 then
-    ShiftJISRatio := ShiftJISCount / (ShiftJISCount + InvalidCount)
-  else
-    ShiftJISRatio := 0;
-
-  // 输出调试信息
-  OutputDebugString(PChar(Format('Shift-JIS检测: 日文=%d, ASCII=%d, 无效=%d, 比例=%.2f',
-                   [ShiftJISCount, ASCIICount, InvalidCount, ShiftJISRatio])));
-
-  // 如果文本中包含Shift-JIS字符，且比例较高，认为是Shift-JIS编码
-  Result := (ShiftJISCount > 0) and (ShiftJISRatio >= 0.5);
-end;
-
-// 检测是否为EUC-KR编码
-function IsEUCKRString(const Buffer: TBytes; Size: Integer): Boolean;
-var
-  i: Integer;
-  EUCKRCount, ASCIICount, InvalidCount: Integer;
-  EUCKRRatio: Double;
-begin
-  if Size <= 0 then
-    Exit(False);
-
-  EUCKRCount := 0;
-  ASCIICount := 0;
-  InvalidCount := 0;
-  i := 0;
-
-  while i < Size do
-  begin
-    if Buffer[i] <= $7F then
-    begin
-      // ASCII范围
-      Inc(ASCIICount);
-      Inc(i);
-    end
-    else if (Buffer[i] >= $A1) and (Buffer[i] <= $FE) and
-            (i + 1 < Size) and
-            (Buffer[i+1] >= $A1) and (Buffer[i+1] <= $FE) then
-    begin
-      // 标准EUC-KR字符
-      Inc(EUCKRCount);
-      Inc(i, 2);
-    end
-    else
-    begin
-      // 不是有效的EUC-KR
-      Inc(InvalidCount);
-      Inc(i);
-    end;
-  end;
-
-  // 计算EUC-KR字符的比例
-  if (EUCKRCount + InvalidCount) > 0 then
-    EUCKRRatio := EUCKRCount / (EUCKRCount + InvalidCount)
-  else
-    EUCKRRatio := 0;
-
-  // 输出调试信息
-  OutputDebugString(PChar(Format('EUC-KR检测: 韩文=%d, ASCII=%d, 无效=%d, 比例=%.2f',
-                   [EUCKRCount, ASCIICount, InvalidCount, EUCKRRatio])));
-
-  // 如果文本中包含EUC-KR字符，且比例较高，认为是EUC-KR编码
-  Result := (EUCKRCount > 0) and (EUCKRRatio >= 0.5);
-end;
 
 // 检测是否为Windows-1251（西里尔文）编码
 function IsWindows1251String(const Buffer: TBytes; Size: Integer): Boolean;
@@ -571,7 +638,7 @@ begin
       // ASCII范围
       Inc(ASCIICount);
     end
-    else if (Buffer[i] >= $C0) and (Buffer[i] <= $FF) then
+    else if (Buffer[i] >= $C0) then // 西里尔字符范围 ($C0-$FF)
     begin
       // 西里尔字符范围
       Inc(CyrillicCount);
@@ -587,8 +654,9 @@ begin
     CyrillicRatio := 0;
 
   // 输出调试信息
-  OutputDebugString(PChar(Format('Windows-1251检测: 西里尔=%d, ASCII=%d, 比例=%.2f',
-                   [CyrillicCount, ASCIICount, CyrillicRatio])));
+  var DebugMsg := string(Format('Windows-1251检测: 西里尔=%d, ASCII=%d, 比例=%.2f',
+                   [CyrillicCount, ASCIICount, CyrillicRatio]));
+  OutputDebugString(PWideChar(DebugMsg));
 
   // 如果文本中包含足够多的西里尔字符，认为是Windows-1251编码
   Result := (CyrillicCount > 5) and (CyrillicRatio >= 0.1);
@@ -639,9 +707,9 @@ begin
   end;
 
   // 输出调试信息
-  DebugMsg := Format('语言检测: 中文=%d, 日文=%d, 韩文=%d',
-                   [ChineseCount, JapaneseCount, KoreanCount]);
-  OutputDebugString(PChar(DebugMsg));
+  DebugMsg := string(Format('语言检测: 中文=%d, 日文=%d, 韩文=%d',
+                   [ChineseCount, JapaneseCount, KoreanCount]));
+  OutputDebugString(PWideChar(DebugMsg));
 
   // 基于语言特征判断编码
   if (ChineseCount > JapaneseCount) and (ChineseCount > KoreanCount) and (ChineseCount > 5) then
@@ -749,7 +817,7 @@ begin
       begin
         Result := ENCODING_UTF8;
         var DebugMsg := Format('检测到%d个中文字符，判断为UTF-8', [ChineseCharCount]);
-        OutputDebugString(PChar(DebugMsg));
+        OutputDebugString(PWideChar(DebugMsg));
         Exit;
       end;
     end;
@@ -761,11 +829,11 @@ begin
     IsGBK := IsGBKString(Buffer, BytesRead);
 
     // 输出调试信息
-    var DebugMsg := Format('文件: %s, IsUTF8=%s, IsGBK=%s',
+    var DebugMsg := string(Format('文件: %s, IsUTF8=%s, IsGBK=%s',
                      [ExtractFileName(FileName),
                       BoolToStr(IsUTF8, True),
-                      BoolToStr(IsGBK, True)]);
-    OutputDebugString(PChar(DebugMsg));
+                      BoolToStr(IsGBK, True)]));
+    OutputDebugString(PWideChar(DebugMsg));
 
     // 如果只有UTF-8有效，则返回UTF-8
     if IsUTF8 and not IsGBK then
@@ -860,7 +928,8 @@ begin
       else if FreqResult = 'ASCII' then
         Result := ENCODING_ANSI;
 
-      OutputDebugString(PChar(Format('频率检测结果: %s', [FreqResult])));
+      var FreqDebugMsg := string(Format('频率检测结果: %s', [FreqResult]));
+      OutputDebugString(PWideChar(FreqDebugMsg));
       Exit;
     end;
 
@@ -875,7 +944,8 @@ begin
       else if LangResult = 'EUC-KR' then
         Result := 'EUC-KR';
 
-      OutputDebugString(PChar(Format('语言特征检测结果: %s', [LangResult])));
+      var LangDebugMsg := string(Format('语言特征检测结果: %s', [LangResult]));
+      OutputDebugString(PWideChar(LangDebugMsg));
       Exit;
     end;
 
@@ -1081,7 +1151,7 @@ begin
     on E: Exception do
     begin
       // 处理错误
-      OutputDebugString(PChar('ConvertFileWithBOM错误: ' + E.Message));
+      OutputDebugString(PWideChar('ConvertFileWithBOM错误: ' + E.Message));
       Result := False;
     end;
   end;
@@ -1151,7 +1221,7 @@ begin
 
     // 检测源文件编码
     DetectedEncodingName := DetectFileEncoding(SourceFileName);
-    OutputDebugString(PChar('检测到的编码: ' + DetectedEncodingName));
+    OutputDebugString(PWideChar('检测到的编码: ' + DetectedEncodingName));
 
     // 确保目标路径存在
     var TargetPath := ExtractFilePath(TargetFileName);
@@ -1193,8 +1263,8 @@ begin
         if ChineseCharCount >= 2 then
         begin
           SourceCodePage := CP_UTF8;
-          DebugMsg := Format('检测到%d个中文字符，判断为UTF-8', [ChineseCharCount]);
-          OutputDebugString(PChar(DebugMsg));
+          DebugMsg := string(Format('检测到%d个中文字符，判断为UTF-8', [ChineseCharCount]));
+          OutputDebugString(PWideChar(DebugMsg));
           Break;
         end;
       end;
@@ -1229,9 +1299,9 @@ begin
       SourceString := SourceEncoding.GetString(SourceBytes);
 
       // 输出调试信息
-      DebugMsg := Format('源编码: %s, 代码页: %d, 内容长度: %d',
-                       [DetectedEncodingName, SourceCodePage, Length(SourceString)]);
-      OutputDebugString(PChar(DebugMsg));
+      DebugMsg := string(Format('源编码: %s, 代码页: %d, 内容长度: %d',
+                       [DetectedEncodingName, SourceCodePage, Length(SourceString)]));
+      OutputDebugString(PWideChar(DebugMsg));
 
       // 从Unicode字符串转换到UTF-8
       TargetBytes := TEncoding.UTF8.GetBytes(SourceString);
@@ -1253,8 +1323,10 @@ begin
         if FileExists(TargetFileName) then
         begin
           // 尝试设置文件属性为可写
+          {$IFDEF MSWINDOWS}
           if FileGetAttr(TargetFileName) and faReadOnly <> 0 then
             FileSetAttr(TargetFileName, FileGetAttr(TargetFileName) and not faReadOnly);
+          {$ENDIF}
 
           // 删除已存在的文件
           DeleteFile(PChar(TargetFileName));
@@ -1267,9 +1339,9 @@ begin
           Result := True;
 
           // 输出调试信息
-          DebugMsg := Format('转换成功! 目标文件: %s, 大小: %d 字节',
-                           [TargetFileName, Length(FinalBytes)]);
-          OutputDebugString(PChar(DebugMsg));
+          DebugMsg := string(Format('转换成功! 目标文件: %s, 大小: %d 字节',
+                           [TargetFileName, Length(FinalBytes)]));
+          OutputDebugString(PWideChar(DebugMsg));
         finally
           TargetStream.Free;
         end;
@@ -1277,9 +1349,9 @@ begin
         on E: Exception do
         begin
           // 捕获写入错误
-          DebugMsg := Format('写入目标文件失败: %s - %s',
-                           [TargetFileName, E.Message]);
-          OutputDebugString(PChar(DebugMsg));
+          DebugMsg := string(Format('写入目标文件失败: %s - %s',
+                           [TargetFileName, E.Message]));
+          OutputDebugString(PWideChar(DebugMsg));
           Result := False;
         end;
       end;
@@ -1292,9 +1364,9 @@ begin
     on E: Exception do
     begin
       // 捕获其他错误
-      DebugMsg := Format('转换为UTF-8 BOM失败: %s - %s',
-                       [SourceFileName, E.Message]);
-      OutputDebugString(PChar(DebugMsg));
+      DebugMsg := string(Format('转换为UTF-8 BOM失败: %s - %s',
+                       [SourceFileName, E.Message]));
+      OutputDebugString(PWideChar(DebugMsg));
       Result := False;
     end;
   end;

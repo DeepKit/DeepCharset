@@ -1,10 +1,10 @@
-unit HelperLanguage;
+﻿unit HelperLanguage;
 
 interface
 
 uses
   System.SysUtils, System.Classes, System.Generics.Collections, System.IniFiles,
-  System.IOUtils, Winapi.Windows, Vcl.Forms, ModelLanguage,UtilsTypes;
+  System.IOUtils, Winapi.Windows, Vcl.Forms, ModelLanguage, UtilsTypes, System.Rtti, System.TypInfo;
 
 type
   // 语言管理器类
@@ -32,6 +32,7 @@ type
     procedure SetLanguage(const LangCode: string);
     function GetLanguageNameByCode(const LangCode: string): string;
     function GetLanguageInfo(const LangCode: string): TLanguageInfo;
+    function GetString(const Key: string): string;
 
     property CurrentLanguage: string read FCurrentLanguage;
     property OnLanguageChange: TOnLanguageChangeEvent read FOnLanguageChange write FOnLanguageChange;
@@ -40,6 +41,9 @@ type
 
 var
   LanguageManager: TLanguageManager;
+
+// 获取语言字符串中的指定键值
+function GetString(const Key: string): string;
 
 implementation
 
@@ -406,7 +410,6 @@ begin
       Result.BtnRefresh := IniFile.ReadString('Strings', 'BtnRefresh', Result.BtnRefresh);
       Result.BtnClose := IniFile.ReadString('Strings', 'BtnClose', Result.BtnClose);
       Result.BtnToggleSelect := IniFile.ReadString('Strings', 'BtnToggleSelect', Result.BtnToggleSelect);
-      Result.BtnSVG2ICON := IniFile.ReadString('Strings', 'BtnSVG2ICON', Result.BtnSVG2ICON);
       Result.BtnPreview := IniFile.ReadString('Strings', 'BtnPreview', Result.BtnPreview);
       Result.LanguageGroupCaption := IniFile.ReadString('Strings', 'LanguageGroupCaption', Result.LanguageGroupCaption);
       Result.DirectoryListBoxLabel := IniFile.ReadString('Strings', 'DirectoryListBoxLabel', Result.DirectoryListBoxLabel);
@@ -494,6 +497,48 @@ begin
   // 触发语言变更事件
   if Assigned(FOnLanguageChange) then
     FOnLanguageChange(LangCode);
+end;
+
+function TLanguageManager.GetString(const Key: string): string;
+var
+  Strings: TLanguageStrings;
+  Value: string;
+  KeyField: TRttiField;
+  Context: TRttiContext;
+  StringsType: TRttiType;
+begin
+  // 默认返回空字符串
+  Result := '';
+
+  // 获取当前语言的字符串
+  Strings := GetLanguageStrings(FCurrentLanguage);
+
+  // 使用RTTI获取字段值
+  Context := TRttiContext.Create;
+  try
+    StringsType := Context.GetType(TypeInfo(TLanguageStrings));
+    if Assigned(StringsType) then
+    begin
+      KeyField := StringsType.GetField(Key);
+      if Assigned(KeyField) then
+      begin
+        Value := KeyField.GetValue(@Strings).AsString;
+        if Value <> '' then
+          Result := Value;
+      end;
+    end;
+  finally
+    Context.Free;
+  end;
+end;
+
+// 全局GetString函数实现
+function GetString(const Key: string): string;
+begin
+  if Assigned(LanguageManager) then
+    Result := LanguageManager.GetString(Key)
+  else
+    Result := '';
 end;
 
 initialization

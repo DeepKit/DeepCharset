@@ -2,338 +2,182 @@ program EncodingConverter;
 
 {$APPTYPE CONSOLE}
 
+{$R *.res}
+
 uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
   System.Diagnostics,
-  Winapi.Windows;
+  System.JSON,
+  ControllerEncoding,
+  ModelEncoding;
 
-const
-  // 支持的编码类型
-  ENCODING_TYPES: array[0..6] of string = (
-    'UTF-8', 'GBK', 'BIG5', 'SHIFT-JIS', 'EUC-KR', 'ISO-8859-1', 'KOI8-R'
-  );
-  
-  // 超时设置（毫秒）
-  TIMEOUT_GLOBAL = 60000;  // 全局超时：1分钟
-  TIMEOUT_FILE_OP = 5000;  // 文件操作超时：5秒
-  TIMEOUT_CONVERT = 2000;  // 单个转换超时：2秒
-
-// 日志文件
 var
-  LogFileName: string = 'encoding_convert.log';
+  EncodingController: TEncodingController;
+  SourceFile, TargetFile, EncodingName: string;
+  AddBOM: Boolean;
   StopWatch: TStopwatch;
-  IsTimedOut: Boolean = False;
+  Verbose: Boolean;
+  Success: Boolean;
 
-// 设置控制台输出编码
-procedure SetConsoleOutputEncoding;
+procedure PrintUsage;
 begin
-  SetConsoleCP(CP_UTF8);
-  SetConsoleOutputCP(CP_UTF8);
+  Writeln('用法: EncodingConverter.exe <源文件> <目标文件> --encoding <编码> [--add-bom|--no-bom] [--verbose]');
+  Writeln('参数:');
+  Writeln('  <源文件>      要转换的源文件路径');
+  Writeln('  <目标文件>    转换后的目标文件路径');
+  Writeln('  --encoding    目标编码 (utf-8, utf-16, gbk, gb18030, big5等)');
+  Writeln('  --add-bom     添加BOM标记 (仅适用于UTF编码)');
+  Writeln('  --no-bom      不添加BOM标记');
+  Writeln('  --verbose     输出详细日志');
 end;
 
-// 向日志文件追加内容
-procedure WriteLog(const Msg: string);
-var
-  LogFile: TextFile;
+function NormalizeEncodingName(const Name: string): string;
 begin
-  AssignFile(LogFile, LogFileName);
-  if FileExists(LogFileName) then
-    Append(LogFile)
-  else
-    Rewrite(LogFile);
+  Result := LowerCase(Name);
+  
+  // 标准化编码名称
+  if Result = 'utf8' then
+    Result := 'utf-8'
+  else if Result = 'utf16' then
+    Result := 'utf-16'
+  else if Result = 'utf16-le' then
+    Result := 'utf-16-le'
+  else if Result = 'utf16-be' then
+    Result := 'utf-16-be'
+  else if Result = 'utf32' then
+    Result := 'utf-32'
+  else if Result = 'utf32-le' then
+    Result := 'utf-32-le'
+  else if Result = 'utf32-be' then
+    Result := 'utf-32-be';
+end;
+
+procedure LogMessage(const Msg: string);
+begin
+  if Verbose then
+    Writeln(Msg);
+end;
+
+begin
   try
-    WriteLn(LogFile, FormatDateTime('[yyyy-mm-dd hh:nn:ss.zzz] ', Now) + Msg);
-  finally
-    CloseFile(LogFile);
-  end;
-  
-  // 输出到控制台
-  WriteLn(Msg);
-end;
-
-// 检查是否超时
-function CheckTimeout(Timeout: Int64): Boolean;
-begin
-  Result := StopWatch.ElapsedMilliseconds > Timeout;
-  if Result and not IsTimedOut then
-  begin
-    IsTimedOut := True;
-    WriteLog('警告：操作已超时（' + IntToStr(StopWatch.ElapsedMilliseconds) + 'ms）');
-  end;
-end;
-
-// 检测文件编码并转换
-procedure ConvertFile(const SourceFile: string; const DestDir: string);
-var
-  SourceData: TBytes;
-  DetectedEncoding: string;
-  DestFile: string;
-  UTF8Content: string;
-  DefaultEncoding: TEncoding;
-  i: Integer;
-  FileName: string;
-  FileTimer: TStopwatch;
-begin
-  if CheckTimeout(TIMEOUT_GLOBAL) then Exit;
-  
-  FileTimer := TStopwatch.StartNew;
-  FileName := ExtractFileName(SourceFile);
-  WriteLog('处理文件: ' + FileName);
-  
-  // 读取源文件内容
-  try
-    SourceData := TFile.ReadAllBytes(SourceFile);
-    if CheckTimeout(TIMEOUT_GLOBAL) or (FileTimer.ElapsedMilliseconds > TIMEOUT_FILE_OP) then
+    // 默认值
+    AddBOM := False;
+    Verbose := False;
+    EncodingName := '';
+    
+    // 检查命令行参数
+    if ParamCount < 4 then
     begin
-      WriteLog('  读取文件超时');
+      PrintUsage;
       Exit;
     end;
-    WriteLog('  文件大小: ' + IntToStr(Length(SourceData)) + ' 字节');
-  except
-    on E: Exception do
+
+    // 解析必需参数
+    SourceFile := ParamStr(1);
+    TargetFile := ParamStr(2);
+    
+    // 解析可选参数
+    for var i := 3 to ParamCount do
     begin
-      WriteLog('  读取源文件失败: ' + E.Message);
+      if SameText(ParamStr(i), '--encoding') and (i < ParamCount) then
+        EncodingName := NormalizeEncodingName(ParamStr(i+1))
+      else if SameText(ParamStr(i), '--add-bom') then
+        AddBOM := True
+      else if SameText(ParamStr(i), '--no-bom') then
+        AddBOM := False
+      else if SameText(ParamStr(i), '--verbose') then
+        Verbose := True;
+    end;
+    
+    // 检查必需参数
+    if not FileExists(SourceFile) then
+    begin
+      Writeln('错误: 源文件不存在 - ', SourceFile);
       Exit;
     end;
-  end;
-  
-  // 根据文件名推测编码
-  DetectedEncoding := 'Unknown';
-  for i := 0 to High(ENCODING_TYPES) do
-  begin
-    if Pos(LowerCase(ENCODING_TYPES[i]), LowerCase(FileName)) > 0 then
+    
+    if EncodingName = '' then
     begin
-      DetectedEncoding := ENCODING_TYPES[i];
-      Break;
+      Writeln('错误: 未指定目标编码');
+      PrintUsage;
+      Exit;
     end;
-  end;
-  
-  WriteLog('  推测编码: ' + DetectedEncoding);
-  
-  // 创建目标文件名
-  DestFile := TPath.Combine(DestDir, TPath.GetFileNameWithoutExtension(FileName) + '_utf8' + TPath.GetExtension(FileName));
-  
-  // 如果检测到编码则转换
-  if DetectedEncoding <> 'Unknown' then
-  begin
-    try
-      // 根据检测到的编码创建对应的编码对象
-      DefaultEncoding := nil;
-      
-      if SameText(DetectedEncoding, 'UTF-8') then
-        DefaultEncoding := TEncoding.UTF8
-      else if SameText(DetectedEncoding, 'GBK') then
-        DefaultEncoding := TEncoding.GetEncoding(936)  // GBK代码页
-      else if SameText(DetectedEncoding, 'BIG5') then
-        DefaultEncoding := TEncoding.GetEncoding(950) // Big5代码页
-      else if SameText(DetectedEncoding, 'SHIFT-JIS') then
-        DefaultEncoding := TEncoding.GetEncoding(932) // Shift-JIS代码页
-      else if SameText(DetectedEncoding, 'EUC-KR') then
-        DefaultEncoding := TEncoding.GetEncoding(949) // EUC-KR代码页
-      else if SameText(DetectedEncoding, 'ISO-8859-1') then
-        DefaultEncoding := TEncoding.GetEncoding(28591) // ISO-8859-1代码页
-      else if SameText(DetectedEncoding, 'KOI8-R') then
-        DefaultEncoding := TEncoding.GetEncoding(20866); // KOI8-R代码页
-      
-      if Assigned(DefaultEncoding) then
+    
+    // 确保目标目录存在
+    ForceDirectories(ExtractFilePath(TargetFile));
+    
+    // 创建编码控制器，使用匿名方法传递日志函数
+    EncodingController := TEncodingController.Create(
+      procedure(const Msg: string)
       begin
-        // 转换为UTF-8
-        FileTimer.Reset;
-        FileTimer.Start;
-        UTF8Content := DefaultEncoding.GetString(SourceData);
-        
-        if CheckTimeout(TIMEOUT_GLOBAL) or (FileTimer.ElapsedMilliseconds > TIMEOUT_CONVERT) then
+        LogMessage(Msg);
+      end
+    );
+    
+    try
+      if Verbose then
+      begin
+        Writeln('正在转换文件编码:');
+        Writeln('  源文件: ', SourceFile);
+        Writeln('  目标文件: ', TargetFile);
+        Writeln('  目标编码: ', EncodingName);
+        Writeln('  添加BOM: ', BoolToStr(AddBOM, True));
+      end;
+      
+      // 使用计时器测量性能
+      StopWatch := TStopwatch.StartNew;
+      
+      // 执行转换
+      Success := EncodingController.ConvertSingleFileByName(
+        SourceFile, EncodingName, AddBOM, 
+        procedure(const Msg: string)
         begin
-          WriteLog('  编码转换超时');
-          Exit;
+          LogMessage(Msg);
+        end
+      );
+      
+      // 复制到目标路径 (ConvertSingleFileByName生成的是临时文件)
+      if Success then
+      begin
+        try
+          TFile.Copy(SourceFile + '.tmp', TargetFile, True);
+          if FileExists(SourceFile + '.tmp') then
+            TFile.Delete(SourceFile + '.tmp');
+        except
+          on E: Exception do
+          begin
+            Writeln('错误: 复制转换结果失败 - ', E.Message);
+            Exit;
+          end;
         end;
-        
-        // 将UTF-8内容写入目标文件
-        FileTimer.Reset;
-        FileTimer.Start;
-        TFile.WriteAllText(DestFile, UTF8Content, TEncoding.UTF8);
-        
-        if CheckTimeout(TIMEOUT_GLOBAL) or (FileTimer.ElapsedMilliseconds > TIMEOUT_FILE_OP) then
+      end;
+
+      StopWatch.Stop;
+      
+      // 输出结果
+      if Success then
+      begin
+        if Verbose then
         begin
-          WriteLog('  写入文件超时');
-          Exit;
-        end;
-        
-        WriteLog('  转换成功: ' + DestFile);
-        WriteLog('  字符数: ' + IntToStr(Length(UTF8Content)));
-        
-        // 尝试显示部分内容
-        if Length(UTF8Content) > 0 then
-        begin
-          WriteLog('  内容预览:');
-          if Length(UTF8Content) > 100 then
-            WriteLog('  ' + Copy(UTF8Content, 1, 100) + '...')
-          else
-            WriteLog('  ' + UTF8Content);
+          Writeln('转换成功!');
+          Writeln('耗时: ', StopWatch.ElapsedMilliseconds, 'ms');
         end;
       end
       else
       begin
-        WriteLog('  未能创建编码对象: ' + DetectedEncoding);
-        // 直接复制文件
-        FileTimer.Reset;
-        FileTimer.Start;
-        TFile.Copy(SourceFile, DestFile, True);
-        
-        if CheckTimeout(TIMEOUT_GLOBAL) or (FileTimer.ElapsedMilliseconds > TIMEOUT_FILE_OP) then
-        begin
-          WriteLog('  复制文件超时');
-          Exit;
-        end;
-        
-        WriteLog('  已直接复制文件');
+        Writeln('错误: 转换失败');
+        ExitCode := 1;
       end;
-    except
-      on E: Exception do
-      begin
-        WriteLog('  转换失败: ' + E.Message);
-        try
-          // 直接二进制复制
-          FileTimer.Reset;
-          FileTimer.Start;
-          TFile.Copy(SourceFile, DestFile, True);
-          
-          if CheckTimeout(TIMEOUT_GLOBAL) or (FileTimer.ElapsedMilliseconds > TIMEOUT_FILE_OP) then
-          begin
-            WriteLog('  复制文件超时');
-            Exit;
-          end;
-          
-          WriteLog('  已直接复制文件');
-        except
-          on E2: Exception do
-            WriteLog('  复制也失败: ' + E2.Message);
-        end;
-      end;
+    finally
+      EncodingController.Free;
     end;
-  end
-  else
-  begin
-    // 对于未知编码，直接复制
-    try
-      FileTimer.Reset;
-      FileTimer.Start;
-      TFile.Copy(SourceFile, DestFile, True);
-      
-      if CheckTimeout(TIMEOUT_GLOBAL) or (FileTimer.ElapsedMilliseconds > TIMEOUT_FILE_OP) then
-      begin
-        WriteLog('  复制文件超时');
-        Exit;
-      end;
-      
-      WriteLog('  未识别编码，已直接复制文件');
-    except
-      on E: Exception do
-        WriteLog('  复制失败: ' + E.Message);
-    end;
-  end;
-  
-  WriteLog('');
-end;
-
-// 转换目录中的所有文件
-procedure ConvertDirectory(const SourceDir, DestDir: string);
-var
-  Files: TArray<string>;
-  i: Integer;
-begin
-  if CheckTimeout(TIMEOUT_GLOBAL) then Exit;
-  
-  // 确保目录存在
-  if not DirectoryExists(SourceDir) then
-  begin
-    WriteLog('源目录不存在: ' + SourceDir);
-    Exit;
-  end;
-  
-  // 创建目标目录
-  if not DirectoryExists(DestDir) then
-  begin
-    try
-      TDirectory.CreateDirectory(DestDir);
-      WriteLog('创建目标目录: ' + DestDir);
-    except
-      on E: Exception do
-      begin
-        WriteLog('创建目标目录失败: ' + E.Message);
-        Exit;
-      end;
-    end;
-  end;
-  
-  // 获取所有文件
-  try
-    Files := TDirectory.GetFiles(SourceDir);
-    if CheckTimeout(TIMEOUT_GLOBAL) then Exit;
-    WriteLog('源目录中的文件数量: ' + IntToStr(Length(Files)));
   except
     on E: Exception do
     begin
-      WriteLog('获取文件列表失败: ' + E.Message);
-      Exit;
+      Writeln('错误: ', E.Message);
+      ExitCode := 1;
     end;
   end;
-  
-  // 转换每个文件
-  for i := 0 to High(Files) do
-  begin
-    if CheckTimeout(TIMEOUT_GLOBAL) then Break;
-    ConvertFile(Files[i], DestDir);
-  end;
-end;
-
-var
-  TestsDir, FromDir, ToDir: string;
-begin
-  try
-    // 设置控制台编码为UTF-8
-    SetConsoleOutputEncoding;
-    
-    WriteLn('编码转换工具启动...');
-    StopWatch := TStopwatch.StartNew;
-    
-    // 设置工作目录
-    TestsDir := TPath.Combine(GetCurrentDir, 'tests');
-    if not DirectoryExists(TestsDir) then
-      TestsDir := GetCurrentDir;
-    
-    FromDir := TPath.Combine(TestsDir, 'from');
-    ToDir := TPath.Combine(TestsDir, 'to');
-    
-    WriteLog('=== 编码转换工具 ===');
-    WriteLog('当前目录: ' + GetCurrentDir);
-    WriteLog('测试目录: ' + TestsDir);
-    WriteLog('源目录: ' + FromDir);
-    WriteLog('目标目录: ' + ToDir);
-    WriteLog('全局超时: ' + IntToStr(TIMEOUT_GLOBAL) + 'ms');
-    
-    // 执行转换
-    WriteLog('');
-    WriteLog('开始转换...');
-    ConvertDirectory(FromDir, ToDir);
-    
-    // 检查是否因超时退出
-    if IsTimedOut then
-      WriteLog('处理因超时而中断')
-    else
-      WriteLog('转换完成');
-      
-    WriteLog('总耗时: ' + IntToStr(StopWatch.ElapsedMilliseconds) + 'ms');
-  except
-    on E: Exception do
-      WriteLog('程序异常: ' + E.Message);
-  end;
-  
-  WriteLn('');
-  WriteLn('任务完成，详细日志请查看 ' + LogFileName);
-  WriteLn('总运行时间: ' + IntToStr(StopWatch.ElapsedMilliseconds) + 'ms');
-  WriteLn('按回车键退出...');
-  ReadLn;
 end. 

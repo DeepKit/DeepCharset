@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 0
   Top = 0
   Caption = #25991#20214#36716#25442#24037#20855
-  ClientHeight = 587
+  ClientHeight = 616
   ClientWidth = 1040
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -25,7 +25,7 @@ object Form1: TForm1
   end
   object Splitter2: TSplitter
     Left = 0
-    Top = 469
+    Top = 613
     Width = 1040
     Height = 3
     Cursor = crVSplit
@@ -36,68 +36,148 @@ object Form1: TForm1
   object Splitter3: TSplitter
     Left = 225
     Top = 44
-    Height = 425
+    Height = 409
     ExplicitLeft = 0
     ExplicitHeight = 961
   end
   object Splitter4: TSplitter
     Left = 757
     Top = 44
-    Height = 425
+    Height = 409
     Align = alRight
     ExplicitLeft = 778
     ExplicitTop = 47
+    ExplicitHeight = 425
+  end
+  object Splitter9: TSplitter
+    Left = 0
+    Top = 453
+    Width = 1040
+    Height = 3
+    Cursor = crVSplit
+    Align = alBottom
+    ExplicitLeft = 754
+    ExplicitTop = 44
+    ExplicitWidth = 412
   end
   object Panel1: TPanel
     Left = 0
-    Top = 472
+    Top = 456
     Width = 1040
-    Height = 115
+    Height = 157
     Align = alBottom
     TabOrder = 0
-    ExplicitTop = 455
-    ExplicitWidth = 1034
     object Splitter7: TSplitter
-      Left = 817
+      Left = 606
       Top = 1
-      Height = 113
+      Height = 155
       Align = alRight
-      ExplicitLeft = 778
-      ExplicitTop = 47
+      ExplicitLeft = 600
     end
     object Splitter8: TSplitter
       Left = 1
       Top = 1
-      Height = 113
+      Height = 155
       ExplicitLeft = 778
       ExplicitTop = 47
+      ExplicitHeight = 113
     end
     object Panel6: TPanel
-      Left = 820
+      Left = 609
       Top = 1
-      Width = 219
-      Height = 113
+      Width = 430
+      Height = 155
       Align = alRight
       TabOrder = 0
-      Visible = False
-      ExplicitLeft = 814
+      DesignSize = (
+        430
+        155)
       object SkSvg1: TSkSvg
-        Left = 80
-        Top = 24
-        Width = 50
-        Height = 50
+        Left = 1
+        Top = 1
+        Width = 169
+        Height = 153
+        Margins.Left = 5
+        Margins.Top = 5
+        Margins.Right = 5
+        Margins.Bottom = 5
+        Align = alLeft
+      end
+      object btnSVG2ICON: TButton
+        Left = 175
+        Top = 116
+        Width = 138
+        Height = 25
+        Anchors = [akTop, akRight]
+        Caption = 'SVG'#22270#20687#36716#25442
+        TabOrder = 0
+        OnClick = btnSVG2ICONClick
+      end
+      object rgPicType: TRadioGroup
+        Left = 176
+        Top = 21
+        Width = 233
+        Height = 76
+        Caption = #22270#20687#26684#24335
+        Columns = 4
+        ItemIndex = 0
+        Items.Strings = (
+          'ICO'
+          'PNG'
+          'JPG'
+          'BMP'
+          'GIF'
+          'TIFF'
+          'WebP')
+        TabOrder = 1
+      end
+      object btnClose: TButton
+        Left = 336
+        Top = 115
+        Width = 72
+        Height = 25
+        Anchors = [akTop, akRight]
+        Caption = #36864#20986#36719#20214
+        TabOrder = 2
+        OnClick = btnCloseClick
       end
     end
-    object MemLog: TMemo
+    object PageControl1: TPageControl
       Left = 4
       Top = 1
-      Width = 813
-      Height = 113
+      Width = 602
+      Height = 155
+      ActivePage = TabSheet1
       Align = alClient
-      Lines.Strings = (
-        'MemLog')
+      MultiLine = True
       TabOrder = 1
-      ExplicitWidth = 807
+      TabPosition = tpRight
+      object TabSheet1: TTabSheet
+        Caption = 'Log'
+        object MemLog: TMemo
+          Left = 0
+          Top = 0
+          Width = 571
+          Height = 147
+          Align = alClient
+          Lines.Strings = (
+            'MemLog')
+          TabOrder = 0
+        end
+      end
+      object TabSheet2: TTabSheet
+        Caption = 'SVG'
+        ImageIndex = 1
+        object meoSVG: TMemo
+          Left = 0
+          Top = 0
+          Width = 571
+          Height = 147
+          Align = alClient
+          ScrollBars = ssBoth
+          TabOrder = 0
+        end
+      end
     end
   end
   object Panel2: TPanel
@@ -107,10 +187,6 @@ object Form1: TForm1
     Height = 41
     Align = alTop
     TabOrder = 1
-    ExplicitWidth = 1034
-    DesignSize = (
-      1040
-      41)
     object Label1: TLabel
       Left = 520
       Top = 8
@@ -132,7 +208,7 @@ object Form1: TForm1
       Width = 188
       Height = 25
       Caption = #26597#30475#20869#23481
-      TabOrder = 4
+      TabOrder = 3
       OnClick = btnShowContentClick
     end
     object Button2: TButton
@@ -152,44 +228,22 @@ object Form1: TForm1
       TabOrder = 2
       OnClick = btnSelectAllExtClick
     end
-    object btnClose: TButton
-      Left = 903
-      Top = 4
-      Width = 121
-      Height = 25
-      Anchors = [akTop, akRight]
-      Caption = #20851#38381
-      TabOrder = 3
-      OnClick = btnCloseClick
-      ExplicitLeft = 897
-    end
     object chkIncludeSubdirs: TCheckBox
       Left = 609
       Top = 8
       Width = 151
       Height = 17
       Caption = 'chkIncludeSubdirs'
-      TabOrder = 5
-    end
-    object btnSVG2ICON: TButton
-      Left = 764
-      Top = 4
-      Width = 133
-      Height = 25
-      Anchors = [akTop, akRight]
-      Caption = 'SVG'#36716#25442#25104'ICON'
-      TabOrder = 6
-      OnClick = btnSVG2ICONClick
+      TabOrder = 4
     end
   end
   object Panel3: TPanel
     Left = 0
     Top = 44
     Width = 225
-    Height = 425
+    Height = 409
     Align = alLeft
     TabOrder = 2
-    ExplicitHeight = 408
     object DriveComboBox1: TDriveComboBox
       AlignWithMargins = True
       Left = 11
@@ -209,7 +263,7 @@ object Form1: TForm1
       Left = 11
       Top = 52
       Width = 203
-      Height = 362
+      Height = 346
       Margins.Left = 10
       Margins.Top = 10
       Margins.Right = 10
@@ -218,18 +272,15 @@ object Form1: TForm1
       TabOrder = 1
       OnChange = DirectoryListBox1Change
       OnMouseDown = DirectoryListBox1MouseDown
-      ExplicitHeight = 345
     end
   end
   object Panel4: TPanel
     Left = 760
     Top = 44
     Width = 280
-    Height = 425
+    Height = 409
     Align = alRight
     TabOrder = 3
-    ExplicitLeft = 754
-    ExplicitHeight = 408
     object Splitter6: TSplitter
       Left = 1
       Top = 1
@@ -245,7 +296,7 @@ object Form1: TForm1
       Left = 4
       Top = 7
       Width = 269
-      Height = 414
+      Height = 398
       Margins.Right = 6
       Align = alClient
       HideSelection = False
@@ -254,22 +305,18 @@ object Form1: TForm1
       RightClickSelect = True
       TabOrder = 0
       OnClick = TreeViewEncodingsClick
-      ExplicitLeft = 6
-      ExplicitTop = 6
     end
   end
   object Panel5: TPanel
     Left = 228
     Top = 44
     Width = 529
-    Height = 425
+    Height = 409
     Align = alClient
     TabOrder = 4
-    ExplicitWidth = 523
-    ExplicitHeight = 408
     object Splitter5: TSplitter
       Left = 1
-      Top = 121
+      Top = 49
       Width = 527
       Height = 3
       Cursor = crVSplit
@@ -278,10 +325,10 @@ object Form1: TForm1
       ExplicitWidth = 583
     end
     object StringGrid1: TStringGrid
-      Left = 1
-      Top = 124
-      Width = 527
-      Height = 300
+      Left = 73
+      Top = 52
+      Width = 455
+      Height = 356
       Align = alClient
       ColCount = 3
       FixedCols = 0
@@ -292,37 +339,32 @@ object Form1: TForm1
       OnClick = StringGrid1Click
       OnContextPopup = StringGrid1ContextPopup
       OnSelectCell = StringGridSelectCell
-      ExplicitWidth = 521
-      ExplicitHeight = 283
     end
     object Panel7: TPanel
       Left = 1
-      Top = 1
-      Width = 527
-      Height = 72
-      Align = alTop
+      Top = 52
+      Width = 72
+      Height = 356
+      Align = alLeft
       TabOrder = 1
-      ExplicitWidth = 521
       object CheckListBox1: TCheckListBox
         Left = 1
         Top = 1
-        Width = 525
-        Height = 70
+        Width = 70
+        Height = 354
         Align = alClient
-        Columns = 5
-        ItemHeight = 15
+        Columns = 1
+        ItemHeight = 17
         TabOrder = 0
-        ExplicitWidth = 519
       end
     end
     object Panel8: TPanel
       Left = 1
-      Top = 73
+      Top = 1
       Width = 527
       Height = 48
       Align = alTop
       TabOrder = 2
-      ExplicitWidth = 521
       object btnConvert: TButton
         Left = 258
         Top = 5
@@ -386,6 +428,13 @@ object Form1: TForm1
     object MenuItemViewContent: TMenuItem
       Caption = #26597#30475#20869#23481
       OnClick = MenuItemViewContentClick
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
+    object MenuItemCopyFullPath: TMenuItem
+      Caption = #22797#21046#20840#36335#24452#25991#20214#21517
+      OnClick = MenuItemCopyFullPathClick
     end
   end
 end

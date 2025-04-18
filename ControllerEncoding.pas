@@ -4,9 +4,11 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, ModelEncoding, Winapi.Windows, JclEncodingUtils,
-  JclBOM, JclStrings, JclSysUtils, JclAnsiStrings, JclFileUtils, JclStreams;
+  JclBOM, JclStrings, JclSysUtils, JclAnsiStrings, JclFileUtils, JclStreams, UtilsJCLEncoding;
 
 type
+  TConversionResult = (crSuccess, crFailed, crSkipped);
+
   // 编码控制器类
   TEncodingController = class
   private
@@ -26,6 +28,8 @@ type
 
     // NEW: Internal helper to perform single file conversion using names
     function DoConvertSingleFileByName(const SourceFile, TargetEncodingName: string; AddBOM: Boolean = False; const TargetFile: string = ''): TConversionResult;
+
+    function IsEncodingAvailable(CodePage: Integer): Boolean;
 
   public
     constructor Create(ALogCallback: TProc<string>);
@@ -64,6 +68,8 @@ type
                                      AddBOM: Boolean;
                                      UpdateCallback: TProc<string>): Boolean;
     // --- End of NEW Public Methods ---
+
+    function ConvertFile(const FilePath: string; TargetEncoding: TEncoding): Boolean;
   end;
 
 implementation
@@ -258,8 +264,71 @@ begin
             EncodingName := 'UTF-8'
           else if (ByteCounts[0] = 0) and (ByteCounts[9] = 0) and (ByteCounts[10] = 0) and (ByteCounts[13] = 0) then
             EncodingName := 'ASCII'
+          // 检测各种亚洲编码
           else if IsGBKString(Buffer, Length(Buffer)) then
-            EncodingName := 'GBK'
+          begin
+            // 检查是否只有GB2312字符
+            var GB2312Only := True;
+            var GBKCount := 0;
+            var GB2312Count := 0;
+            var j := 0;
+
+            while j < Length(Buffer) do
+            begin
+              if Buffer[j] <= $7F then
+              begin
+                Inc(j);
+              end
+              else if (Buffer[j] >= $81) and (Buffer[j] <= $FE) and (j + 1 < Length(Buffer)) and
+                      (Buffer[j+1] >= $40) and (Buffer[j+1] <= $FE) and (Buffer[j+1] <> $7F) then
+              begin
+                Inc(GBKCount);
+
+                // 检查是否是GB2312字符范围
+                if (Buffer[j] >= $A1) and (Buffer[j] <= $F7) and
+                   (Buffer[j+1] >= $A1) and (Buffer[j+1] <= $FE) then
+                begin
+                  Inc(GB2312Count);
+                end
+                else
+                begin
+                  GB2312Only := False; // 存在非GB2312字符
+                end;
+
+                Inc(j, 2);
+              end
+              else
+              begin
+                Inc(j);
+              end;
+            end;
+
+            // 如果文件中只有GB2312字符，则使用GB2312编码
+            // 修改检测逻辑，提高GB2312的检测优先级
+            // 如果文件中大部分是GB2312字符，则使用GB2312编码
+            if (GB2312Count > 0) and ((GB2312Count = GBKCount) or (GB2312Count >= GBKCount * 0.9)) then
+              EncodingName := 'GB2312'
+            else
+              EncodingName := 'GBK';
+          end
+          else if IsBig5String(Buffer, Length(Buffer)) then
+          begin
+            EncodingName := 'BIG5';
+            if Assigned(FLogCallback) then
+              FLogCallback('检测到Big5编码: ' + FileName);
+          end
+          else if IsShiftJISString(Buffer, Length(Buffer)) then
+          begin
+            EncodingName := 'Shift-JIS';
+            if Assigned(FLogCallback) then
+              FLogCallback('检测到Shift-JIS编码: ' + FileName);
+          end
+          else if IsEUCKRString(Buffer, Length(Buffer)) then
+          begin
+            EncodingName := 'EUC-KR';
+            if Assigned(FLogCallback) then
+              FLogCallback('检测到EUC-KR编码: ' + FileName);
+          end
           else if (ByteCounts[$A1] > 0) and (ByteCounts[$40] > 0) and (ByteCounts[$F9] > 0) then
             EncodingName := 'BIG5'
           else if (ByteCounts[$A1] > 0) and (ByteCounts[$A3] > 0) and (ByteCounts[$A4] > 0) and (ByteCounts[$A5] > 0) then
@@ -299,8 +368,8 @@ begin
 
   // 使用JCL库检测文件编码
   try
-    // 调用JCL的编码检测方法
-    EncodingName := JclEncodingUtils.DetectFileEncoding(FileName);
+    // 调用兼容层的编码检测方法
+    EncodingName := UtilsJCLEncoding.DetectFileEncoding(FileName);
     Result := EncodingName <> 'Unknown';
 
     // 如果检测成功，但编码不明确或不是UTF-8，优先建议使用UTF-8+BOM
@@ -315,12 +384,188 @@ begin
     end
     else
     begin
-      // 如果检测失败，默认假设为ANSI
-      EncodingName := 'ANSI';
+      // 如果检测失败，尝试使用文件名和内容特征来判断
+      var FileExt := LowerCase(ExtractFileExt(FileName));
+      var FileName_Lower := LowerCase(ExtractFileName(FileName));
+      var SystemCodePage := GetACP;
+      var DefaultEncoding := 'ANSI';
+      var LanguageHint := '';
+
+      // 检查文件名是否包含语言相关关键字
+      // 中文
+      if (Pos('chinese', FileName_Lower) > 0) or
+         (Pos('china', FileName_Lower) > 0) or
+         (Pos('cn', FileName_Lower) > 0) or
+         (Pos('zh', FileName_Lower) > 0) or
+         (Pos('gbk', FileName_Lower) > 0) or
+         (Pos('gb2312', FileName_Lower) > 0) or
+         (Pos('gb18030', FileName_Lower) > 0) then
+      begin
+        EncodingName := 'GB2312';
+        LanguageHint := '中文';
+      end
+      // 繁体中文
+      else if (Pos('taiwan', FileName_Lower) > 0) or
+              (Pos('hongkong', FileName_Lower) > 0) or
+              (Pos('tw', FileName_Lower) > 0) or
+              (Pos('hk', FileName_Lower) > 0) or
+              (Pos('big5', FileName_Lower) > 0) then
+      begin
+        EncodingName := 'BIG5';
+        LanguageHint := '繁体中文';
+      end
+      // 日文
+      else if (Pos('japanese', FileName_Lower) > 0) or
+              (Pos('japan', FileName_Lower) > 0) or
+              (Pos('jp', FileName_Lower) > 0) or
+              (Pos('ja', FileName_Lower) > 0) or
+              (Pos('sjis', FileName_Lower) > 0) or
+              (Pos('shift-jis', FileName_Lower) > 0) then
+      begin
+        EncodingName := 'Shift-JIS';
+        LanguageHint := '日文';
+      end
+      // 韩文
+      else if (Pos('korean', FileName_Lower) > 0) or
+              (Pos('korea', FileName_Lower) > 0) or
+              (Pos('kr', FileName_Lower) > 0) or
+              (Pos('ko', FileName_Lower) > 0) or
+              (Pos('euc-kr', FileName_Lower) > 0) then
+      begin
+        EncodingName := 'EUC-KR';
+        LanguageHint := '韩文';
+      end
+      // 俄文
+      else if (Pos('russian', FileName_Lower) > 0) or
+              (Pos('russia', FileName_Lower) > 0) or
+              (Pos('ru', FileName_Lower) > 0) or
+              (Pos('cyrillic', FileName_Lower) > 0) then
+      begin
+        EncodingName := 'Windows-1251';
+        LanguageHint := '俄文';
+      end
+      // 其他语言关键字检测...
+      else
+      begin
+        // 对于中文文件，先尝试检测是否包含中文字符
+        if FileExt = '.txt' then
+        begin
+          // 读取文件内容进行检测
+          try
+            var FileContent := TFile.ReadAllBytes(FileName);
+            if Length(FileContent) > 0 then
+            begin
+              // 检测是否包含中文字符
+              var HasChineseChars := False;
+              var k := 0;
+              while (k < Length(FileContent) - 1) and (not HasChineseChars) do
+              begin
+                if (FileContent[k] >= $81) and (FileContent[k] <= $FE) and
+                   (FileContent[k+1] >= $40) and (FileContent[k+1] <= $FE) and
+                   (FileContent[k+1] <> $7F) then
+                begin
+                  HasChineseChars := True;
+                  // 如果包含中文字符，优先使用GB2312
+                  EncodingName := 'GB2312';
+                  Result := True;
+                  Exit;
+                end;
+                Inc(k);
+              end;
+            end;
+          except
+            // 忽略读取错误，继续使用默认编码
+          end;
+        end;
+
+        // 根据系统区域设置选择默认编码
+        case SystemCodePage of
+          936: // 简体中文
+          begin
+            // 对于中文文本文件，优先使用GB2312而非GBK
+            // 因为GB2312是最基础的中文编码，兼容性更好
+            DefaultEncoding := 'GB2312';
+            LanguageHint := '简体中文系统';
+          end;
+          950: // 繁体中文
+          begin
+            DefaultEncoding := 'BIG5';
+            LanguageHint := '繁体中文系统';
+          end;
+          932: // 日文
+          begin
+            DefaultEncoding := 'Shift-JIS';
+            LanguageHint := '日文系统';
+          end;
+          949: // 韩文
+          begin
+            DefaultEncoding := 'EUC-KR';
+            LanguageHint := '韩文系统';
+          end;
+          1251: // 西里尔文
+          begin
+            DefaultEncoding := 'Windows-1251';
+            LanguageHint := '西里尔文系统';
+          end;
+          1252: // 西欧
+          begin
+            DefaultEncoding := 'Windows-1252';
+            LanguageHint := '西欧系统';
+          end;
+          1250: // 中欧
+          begin
+            DefaultEncoding := 'Windows-1250';
+            LanguageHint := '中欧系统';
+          end;
+          1253: // 希腊文
+          begin
+            DefaultEncoding := 'Windows-1253';
+            LanguageHint := '希腊文系统';
+          end;
+          1254: // 土耳其文
+          begin
+            DefaultEncoding := 'Windows-1254';
+            LanguageHint := '土耳其文系统';
+          end;
+          1255: // 希伯来文
+          begin
+            DefaultEncoding := 'Windows-1255';
+            LanguageHint := '希伯来文系统';
+          end;
+          1256: // 阿拉伯文
+          begin
+            DefaultEncoding := 'Windows-1256';
+            LanguageHint := '阿拉伯文系统';
+          end;
+          else
+          begin
+            DefaultEncoding := 'ANSI';
+            LanguageHint := '默认系统';
+          end;
+        end;
+
+        // 对于文本文件，使用系统区域设置的默认编码
+        if (FileExt = '.txt') or (FileExt = '.ini') or (FileExt = '.log') or (FileExt = '.cfg') or (FileExt = '.csv') then
+        begin
+          EncodingName := DefaultEncoding;
+        end
+        else
+        begin
+          // 对于非文本文件，默认使用ANSI
+          EncodingName := 'ANSI';
+        end;
+      end;
+
       Result := True;
 
       if Assigned(FLogCallback) then
-        FLogCallback('无法检测编码，默认使用ANSI: ' + FileName);
+      begin
+        if LanguageHint <> '' then
+          FLogCallback(Format('无法准确检测编码，基于%s区域设置默认使用%s编码: %s',
+                             [LanguageHint, EncodingName, FileName]))
+        else
+          FLogCallback(Format('无法检测编码，默认使用%s: %s', [EncodingName, FileName]));
+      end;
     end;
   except
     on E: Exception do
@@ -328,9 +573,58 @@ begin
       if Assigned(FLogCallback) then
         FLogCallback('编码检测出错: ' + E.Message);
 
-      // 发生异常时，也默认使用ANSI
-      EncodingName := 'ANSI';
+      // 发生异常时，根据系统区域设置决定默认编码
+      var SystemCodePage := GetACP;
+      var DefaultEncoding := 'ANSI';
+      var LanguageHint := '';
+
+      // 根据系统区域设置选择默认编码
+      case SystemCodePage of
+        936: // 简体中文
+        begin
+          DefaultEncoding := 'GBK';
+          LanguageHint := '简体中文系统';
+        end;
+        950: // 繁体中文
+        begin
+          DefaultEncoding := 'BIG5';
+          LanguageHint := '繁体中文系统';
+        end;
+        932: // 日文
+        begin
+          DefaultEncoding := 'Shift-JIS';
+          LanguageHint := '日文系统';
+        end;
+        949: // 韩文
+        begin
+          DefaultEncoding := 'EUC-KR';
+          LanguageHint := '韩文系统';
+        end;
+        1251: // 西里尔文
+        begin
+          DefaultEncoding := 'Windows-1251';
+          LanguageHint := '西里尔文系统';
+        end;
+        1252: // 西欧
+        begin
+          DefaultEncoding := 'Windows-1252';
+          LanguageHint := '西欧系统';
+        end;
+        else
+        begin
+          DefaultEncoding := 'ANSI';
+          LanguageHint := '默认系统';
+        end;
+      end;
+
+      EncodingName := DefaultEncoding;
       Result := True;
+
+      if Assigned(FLogCallback) then
+      begin
+        FLogCallback(Format('检测出错，基于%s区域设置默认使用%s编码',
+                           [LanguageHint, EncodingName]));
+      end;
     end;
   end;
 end;
@@ -340,173 +634,125 @@ function TEncodingController.ConvertWithJCL(const SourceFile, TargetFile: string
 var
   SysErrorCode: Cardinal;
   ActualTargetEncoding: string;
+  ActualAddBOM: Boolean;
 begin
   Result := False;
 
-  try
-    if not FileExists(SourceFile) then
-    begin
-      if Assigned(FLogCallback) then
-        FLogCallback('文件不存在: ' + SourceFile);
-      Exit;
-    end;
+  // 记录详细转换参数
+  if Assigned(FLogCallback) then
+    FLogCallback(Format('JCL转换开始: %s -> %s (源编码: %s, 目标编码: %s, AddBOM: %s)',
+                      [SourceFile, TargetFile, SourceEncoding, TargetEncoding, BoolToStr(AddBOM, True)]));
 
-    // 检查文件是否可访问
-    try
-      var TestStream := TFileStream.Create(SourceFile, fmOpenRead or fmShareDenyNone);
-      try
-        // 只测试是否可以读取，不做实际操作
-      finally
-        TestStream.Free;
-      end;
-    except
-      on E: Exception do
-      begin
-        if Assigned(FLogCallback) then
-          FLogCallback('文件访问错误: ' + E.Message);
-        Exit;
-      end;
-    end;
+  // 安全检查：保护经常用作示例的文件，避免意外转换
+  if IsUnsupportedFile(ExtractFileName(SourceFile)) then
+  begin
+    if Assigned(FLogCallback) then
+      FLogCallback('跳过不受支持的文件: ' + SourceFile);
+    Exit(False);
+  end;
 
-    // 特殊处理UTF-8 BOM的情况
-    ActualTargetEncoding := TargetEncoding;
-    if (SameText(TargetEncoding, 'UTF-8 BOM') or SameText(TargetEncoding, 'UTF-8-BOM') or
-       SameText(TargetEncoding, 'UTF8-BOM')) then
-    begin
-      ActualTargetEncoding := 'UTF-8';
-      AddBOM := True;
-
-      if Assigned(FLogCallback) then
-        FLogCallback('注意: 目标编码"' + TargetEncoding + '"已规范化为"UTF-8"并设置AddBOM=True');
-    end;
+  // 特殊处理UTF-8 BOM的情况
+  ActualTargetEncoding := TargetEncoding;
+  ActualAddBOM := AddBOM;
+  if (SameText(TargetEncoding, 'UTF-8 BOM') or SameText(TargetEncoding, 'UTF-8-BOM') or
+     SameText(TargetEncoding, 'UTF8-BOM')) then
+  begin
+    ActualTargetEncoding := 'UTF-8';
+    ActualAddBOM := True;
 
     if Assigned(FLogCallback) then
-      FLogCallback(Format('开始转换: %s -> %s, 从 [%s] 到 [%s], BOM: %s',
-                          [SourceFile, TargetFile, SourceEncoding, ActualTargetEncoding,
-                           BoolToStr(AddBOM, True)]));
+      FLogCallback('已识别UTF-8 BOM目标，将使用UTF-8+BOM转换');
+  end;
 
-    // 使用JclEncodingUtils的ConvertFileByName函数
-    try
-      Result := JclEncodingUtils.ConvertFileByName(SourceFile, TargetFile,
-                                               SourceEncoding, ActualTargetEncoding, AddBOM);
-    except
-      on E: EFOpenError do
-      begin
-        SysErrorCode := GetLastError;
-        if Assigned(FLogCallback) then
-          FLogCallback(Format('文件打开错误 (代码: %d): %s', [SysErrorCode, E.Message]));
-        Result := False;
-        Exit;
-      end;
-      on E: EFCreateError do
-      begin
-        SysErrorCode := GetLastError;
-        if Assigned(FLogCallback) then
-          FLogCallback(Format('文件创建错误 (代码: %d): %s', [SysErrorCode, E.Message]));
-        Result := False;
-        Exit;
-      end;
-      on E: EWriteError do
-      begin
-        SysErrorCode := GetLastError;
-        if Assigned(FLogCallback) then
-          FLogCallback(Format('文件写入错误 (代码: %d): %s', [SysErrorCode, E.Message]));
-        Result := False;
-        Exit;
-      end;
-      on E: Exception do
-        raise; // 重新抛出其他异常
-    end;
+  // 记录实际转换参数
+  if Assigned(FLogCallback) then
+    FLogCallback(Format('开始转换: %s -> %s, 从 [%s] 到 [%s], BOM: %s',
+                      [SourceFile, TargetFile, SourceEncoding, ActualTargetEncoding,
+                       BoolToStr(ActualAddBOM, True)]));
 
-    if Result then
-    begin
-      if Assigned(FLogCallback) then
-      begin
-        FLogCallback(Format('JCL转换调用完成: %s (源编码: %s, 目标编码: %s, AddBOM: %s)',
-                           [TargetFile, SourceEncoding, ActualTargetEncoding, BoolToStr(AddBOM, True)]));
-
-        // 验证转换结果
-        var ResultEncodingName: string;
-        if DetectFileEncoding(TargetFile, ResultEncodingName) then
-        begin
-          FLogCallback(Format('转换后的文件编码: %s -> %s', [TargetFile, ResultEncodingName]));
-
-          // 特殊情况: 如果目标应为UTF-8 BOM但检测为其他编码，尝试手动添加BOM
-          if AddBOM and SameText(ActualTargetEncoding, 'UTF-8') and
-             not SameText(ResultEncodingName, 'UTF-8 with BOM') then
-          begin
-            FLogCallback('检测到目标应为UTF-8 BOM但未成功添加BOM，尝试手动修复...');
-            var TempFile := TargetFile + '.fix';
-
-            try
-              // 读取原文件内容
-              var Content := TFile.ReadAllBytes(TargetFile);
-              var BOMBytes := TBytes.Create($EF, $BB, $BF); // UTF-8 BOM
-
-              // 检查是否已有BOM
-              var HasBOMAlready := (Length(Content) >= 3) and
-                                   (Content[0] = $EF) and (Content[1] = $BB) and (Content[2] = $BF);
-
-              if not HasBOMAlready then
-              begin
-                // 合并BOM和内容
-                var FinalContent: TBytes;
-                SetLength(FinalContent, Length(BOMBytes) + Length(Content));
-                if Length(BOMBytes) > 0 then
-                  Move(BOMBytes[0], FinalContent[0], Length(BOMBytes));
-                if Length(Content) > 0 then
-                  Move(Content[0], FinalContent[Length(BOMBytes)], Length(Content));
-
-                // 写入修复后的文件
-                TFile.WriteAllBytes(TempFile, FinalContent);
-
-                // 替换原文件
-                if FileExists(TempFile) then
-                begin
-                  // 删除原文件
-                  DeleteFile(PChar(TargetFile));
-                  if RenameFile(TempFile, TargetFile) then
-                  begin
-                    FLogCallback('成功手动添加UTF-8 BOM');
-                    // 重新检测以确认
-                    if DetectFileEncoding(TargetFile, ResultEncodingName) then
-                      FLogCallback(Format('修复后的文件编码: %s -> %s', [TargetFile, ResultEncodingName]));
-                  end
-                  else
-                  begin
-                    SysErrorCode := GetLastError;
-                    FLogCallback(Format('无法重命名修复文件 (错误码: %d)', [SysErrorCode]));
-                    // 尝试直接复制
-                    if CopyFile(PChar(TempFile), PChar(TargetFile), False) then
-                    begin
-                      FLogCallback('使用复制方式成功添加UTF-8 BOM');
-                      DeleteFile(PChar(TempFile));
-                    end;
-                  end;
-                end;
-              end;
-            except
-              on E: Exception do
-                FLogCallback('手动添加BOM失败: ' + E.Message);
-            end;
-          end;
-        end
-        else
-          FLogCallback('无法检测转换后的文件编码');
-      end;
-    end
-    else
-    begin
-      if Assigned(FLogCallback) then
-        FLogCallback(Format('JCL转换失败: %s -> %s', [SourceEncoding, ActualTargetEncoding]));
-    end;
+  // 使用兼容层的ConvertFileByName函数
+  try
+    Result := UtilsJCLEncoding.ConvertFileByName(SourceFile, TargetFile,
+                                             SourceEncoding, ActualTargetEncoding,
+                                             ActualAddBOM);
   except
+    on E: EFOpenError do
+    begin
+      SysErrorCode := GetLastError;
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('文件访问错误 (%d): %s', [SysErrorCode, E.Message]));
+      Result := False;
+    end;
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
         FLogCallback('JCL转换出错: ' + E.Message);
       Result := False;
     end;
+  end;
+
+  // 转换后检查和日志记录
+  if Result then
+  begin
+    if Assigned(FLogCallback) then
+    begin
+      FLogCallback(Format('JCL转换调用完成: %s (源编码: %s, 目标编码: %s, AddBOM: %s)',
+                        [TargetFile, SourceEncoding, ActualTargetEncoding, BoolToStr(ActualAddBOM, True)]));
+
+      // 验证转换结果
+      if FileExists(TargetFile) then
+      begin
+        var ResultEncodingName: string;
+        if DetectFileEncoding(TargetFile, ResultEncodingName) then
+          FLogCallback(Format('转换后的文件编码: %s', [ResultEncodingName]));
+
+        // 特殊情况: 如果目标应为UTF-8 BOM但检测为其他编码，尝试手动添加BOM
+        if ActualAddBOM and SameText(ActualTargetEncoding, 'UTF-8') and
+           not SameText(ResultEncodingName, 'UTF-8 with BOM') then
+        begin
+          FLogCallback('警告: 文件转换后没有BOM，尝试手动添加BOM标记');
+
+          var ActualFile := TargetFile;
+          if not FileExists(ActualFile) and FileExists(SourceFile + '.tmp') then
+            ActualFile := SourceFile + '.tmp';
+
+          if FileExists(ActualFile) then
+          begin
+            try
+              // 再次尝试添加BOM
+              var FixedFile := ActualFile + '.fix';
+              if UtilsJCLEncoding.ConvertFileToUTF8BOM(ActualFile, FixedFile) then
+              begin
+                if FileExists(FixedFile) then
+                begin
+                  if DeleteFile(PChar(ActualFile)) then
+                  begin
+                    if RenameFile(FixedFile, ActualFile) then
+                      FLogCallback('成功添加BOM标记')
+                    else
+                      FLogCallback('无法重命名修复文件');
+                  end
+                  else
+                    FLogCallback('无法删除原文件以应用修复');
+
+                  // 如果临时修复文件仍然存在，清理它
+                  if FileExists(FixedFile) then
+                    DeleteFile(PChar(FixedFile));
+                end;
+              end;
+            except
+              on E: Exception do
+                FLogCallback('添加BOM标记时出错: ' + E.Message);
+            end;
+          end;
+        end;
+      end;
+    end;
+  end
+  else
+  begin
+    if Assigned(FLogCallback) then
+      FLogCallback(Format('JCL转换失败: %s -> %s', [SourceEncoding, ActualTargetEncoding]));
   end;
 end;
 
@@ -657,6 +903,86 @@ begin
                         UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.BigEndianUnicode.GetString(TempBytes, 0, BytesRead))
                     else if SourceEncodingName = 'GBK' then
                         UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(936).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Windows-1252' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1252).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Windows-1250' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1250).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'MacRoman' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(10000).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'IBM850' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(850).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'IBM437' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(437).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'IBM865' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(865).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'IBM860' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(860).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Windows-1253' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1253).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Windows-1254' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1254).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Windows-1257' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1257).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'KOI8-U' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(21866).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'MacCyrillic' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(10007).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Windows-1255' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1255).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Windows-1256' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1256).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'CP862' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(862).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'CP864' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(864).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'ISO-8859-6-I' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(708).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'CP932' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(932).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'CP949' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(949).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'CP950' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(950).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'CP936' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(936).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Big5-HKSCS' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(950).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'EUC-TW' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(51950).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'ISO-2022-JP' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(50220).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'ISO-2022-KR' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(50225).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'VISCII' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1258).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'TIS-620' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(874).GetString(TempBytes, 0, BytesRead))
+                    else if (SourceEncodingName = 'TSCII') and IsEncodingAvailable(57004) then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(57004).GetString(TempBytes, 0, BytesRead))
+                    else if (SourceEncodingName = 'ISCII') and IsEncodingAvailable(57002) then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(57002).GetString(TempBytes, 0, BytesRead))
+                    else if (SourceEncodingName = 'ARMSCII-8') and IsEncodingAvailable(901) then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(901).GetString(TempBytes, 0, BytesRead))
+                    else if (SourceEncodingName = 'Geez') and IsEncodingAvailable(43507) then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(43507).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Amharic' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.UTF7.GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'CESU-8' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.UTF7.GetString(TempBytes, 0, BytesRead))
+                    else if (SourceEncodingName = 'Mongolian') and IsEncodingAvailable(54936) then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(54936).GetString(TempBytes, 0, BytesRead))
+                    else if (SourceEncodingName = 'Tibetan') and IsEncodingAvailable(54936) then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(54936).GetString(TempBytes, 0, BytesRead))
+                    else if (SourceEncodingName = 'Lao') and IsEncodingAvailable(28598) then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(28598).GetString(TempBytes, 0, BytesRead))
+                    else if SourceEncodingName = 'Khmer' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.UTF8.GetString(UTF8Bytes))
+                    else if SourceEncodingName = 'Myanmar' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.UTF8.GetString(UTF8Bytes))
+                    else if SourceEncodingName = 'Indonesian' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1252).GetString(UTF8Bytes))
+                    else if SourceEncodingName = 'Malay' then
+                        UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.GetEncoding(1252).GetString(UTF8Bytes))
                     else
                         UTF8Bytes := TEncoding.UTF8.GetBytes(TEncoding.Default.GetString(TempBytes, 0, BytesRead));
 
@@ -769,6 +1095,86 @@ begin
               Content := TEncoding.GetEncoding(51949).GetString(UTF8Bytes)
             else if SourceEncodingName = 'BIG5' then
               Content := TEncoding.GetEncoding(950).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Windows-1252' then
+              Content := TEncoding.GetEncoding(1252).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Windows-1250' then
+              Content := TEncoding.GetEncoding(1250).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'MacRoman' then
+              Content := TEncoding.GetEncoding(10000).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'IBM850' then
+              Content := TEncoding.GetEncoding(850).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'IBM437' then
+              Content := TEncoding.GetEncoding(437).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'IBM865' then
+              Content := TEncoding.GetEncoding(865).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'IBM860' then
+              Content := TEncoding.GetEncoding(860).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Windows-1253' then
+              Content := TEncoding.GetEncoding(1253).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Windows-1254' then
+              Content := TEncoding.GetEncoding(1254).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Windows-1257' then
+              Content := TEncoding.GetEncoding(1257).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'KOI8-U' then
+              Content := TEncoding.GetEncoding(21866).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'MacCyrillic' then
+              Content := TEncoding.GetEncoding(10007).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Windows-1255' then
+              Content := TEncoding.GetEncoding(1255).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Windows-1256' then
+              Content := TEncoding.GetEncoding(1256).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'CP862' then
+              Content := TEncoding.GetEncoding(862).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'CP864' then
+              Content := TEncoding.GetEncoding(864).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'ISO-8859-6-I' then
+              Content := TEncoding.GetEncoding(708).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'CP932' then
+              Content := TEncoding.GetEncoding(932).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'CP949' then
+              Content := TEncoding.GetEncoding(949).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'CP950' then
+              Content := TEncoding.GetEncoding(950).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'CP936' then
+              Content := TEncoding.GetEncoding(936).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Big5-HKSCS' then
+              Content := TEncoding.GetEncoding(950).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'EUC-TW' then
+              Content := TEncoding.GetEncoding(51950).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'ISO-2022-JP' then
+              Content := TEncoding.GetEncoding(50220).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'ISO-2022-KR' then
+              Content := TEncoding.GetEncoding(50225).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'VISCII' then
+              Content := TEncoding.GetEncoding(1258).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'TIS-620' then
+              Content := TEncoding.GetEncoding(874).GetString(UTF8Bytes)
+            else if (SourceEncodingName = 'TSCII') and IsEncodingAvailable(57004) then
+              Content := TEncoding.GetEncoding(57004).GetString(UTF8Bytes)
+            else if (SourceEncodingName = 'ISCII') and IsEncodingAvailable(57002) then
+              Content := TEncoding.GetEncoding(57002).GetString(UTF8Bytes)
+            else if (SourceEncodingName = 'ARMSCII-8') and IsEncodingAvailable(901) then
+              Content := TEncoding.GetEncoding(901).GetString(UTF8Bytes)
+            else if (SourceEncodingName = 'Geez') and IsEncodingAvailable(43507) then
+              Content := TEncoding.GetEncoding(43507).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Amharic' then
+              Content := TEncoding.UTF7.GetString(UTF8Bytes)
+            else if SourceEncodingName = 'CESU-8' then
+              Content := TEncoding.UTF7.GetString(UTF8Bytes)
+            else if (SourceEncodingName = 'Mongolian') and IsEncodingAvailable(54936) then
+              Content := TEncoding.GetEncoding(54936).GetString(UTF8Bytes)
+            else if (SourceEncodingName = 'Tibetan') and IsEncodingAvailable(54936) then
+              Content := TEncoding.GetEncoding(54936).GetString(UTF8Bytes)
+            else if (SourceEncodingName = 'Lao') and IsEncodingAvailable(28598) then
+              Content := TEncoding.GetEncoding(28598).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Khmer' then
+              Content := TEncoding.UTF8.GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Myanmar' then
+              Content := TEncoding.UTF8.GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Indonesian' then
+              Content := TEncoding.GetEncoding(1252).GetString(UTF8Bytes)
+            else if SourceEncodingName = 'Malay' then
+              Content := TEncoding.GetEncoding(1252).GetString(UTF8Bytes)
             else
               Content := TEncoding.Default.GetString(UTF8Bytes);
           except
@@ -901,7 +1307,7 @@ begin
 
                 // 再次尝试添加BOM
                 var FixedFile := ActualFile + '.fix';
-                if JclEncodingUtils.ConvertFileToUTF8BOM(ActualFile, FixedFile) then
+                if UtilsJCLEncoding.ConvertFileToUTF8BOM(ActualFile, FixedFile) then
                 begin
                   if FileExists(FixedFile) then
                   begin
@@ -917,14 +1323,13 @@ begin
                       end
                       else
                         FLogCallback('无法重命名修复文件');
-                    end
-                    else
-                      FLogCallback('无法删除原文件以应用修复');
+                  end
+                  else
+                    FLogCallback('无法删除原文件以应用修复');
 
-                    // 如果临时修复文件仍然存在，清理它
-                    if FileExists(FixedFile) then
-                      DeleteFile(PChar(FixedFile));
-                  end;
+                  // 如果临时修复文件仍然存在，清理它
+                  if FileExists(FixedFile) then
+                    DeleteFile(PChar(FixedFile));
                 end;
               end;
             end;
@@ -940,6 +1345,7 @@ begin
           if Assigned(FLogCallback) then
             FLogCallback('警告：转换后的文件不存在: ' + ActualFile);
           Result := crFailed;
+        end;
         end;
       except
         on E: Exception do
@@ -1174,9 +1580,15 @@ begin
       if FileExists(OriginalFile) then
       begin
         // 先尝试设置文件为可写
+        {$IFDEF MSWINDOWS}
         if FileGetAttr(OriginalFile) and faReadOnly <> 0 then
         begin
           if FileSetAttr(OriginalFile, FileGetAttr(OriginalFile) and not faReadOnly) <> 0 then
+        {$ELSE}
+        if False then
+        begin
+          if False then
+        {$ENDIF}
           begin
             ErrCode := GetLastError;
             if Assigned(FLogCallback) then
@@ -1272,7 +1684,11 @@ begin
       if FileExists(OriginalFile) then
       begin
         // 先尝试设置文件为可写
+        {$IFDEF MSWINDOWS}
         if FileSetAttr(OriginalFile, FileGetAttr(OriginalFile) and not faReadOnly) <> 0 then
+        {$ELSE}
+        if False then
+        {$ENDIF}
         begin
           if Assigned(FLogCallback) then
             FLogCallback('警告: 无法设置文件为可写: ' + OriginalFile);
@@ -1309,6 +1725,93 @@ begin
     on E: Exception do
       if Assigned(FLogCallback) then
         FLogCallback('从备份恢复时出错: ' + E.Message);
+  end;
+end;
+
+function TEncodingController.IsEncodingAvailable(CodePage: Integer): Boolean;
+begin
+  try
+    var Encoding := TEncoding.GetEncoding(CodePage);
+    Encoding.Free;
+    Result := True;
+  except
+    Result := False;
+  end;
+end;
+
+function TEncodingController.ConvertFile(const FilePath: string; TargetEncoding: TEncoding): Boolean;
+var
+  SourceStream, DestStream: TFileStream;
+  TempPath: string;
+  SourceBytes, DestBytes: TBytes;
+  SourceEncoding: TEncoding;
+  BOMLength: Integer;
+begin
+  Result := False;
+  if not FileExists(FilePath) then Exit;
+
+  TempPath := FilePath + '.tmp';
+  
+  try
+    // 打开源文件
+    SourceStream := TFileStream.Create(FilePath, fmOpenRead or fmShareDenyWrite);
+    try
+      // 读取文件内容
+      SetLength(SourceBytes, SourceStream.Size);
+      SourceStream.ReadBuffer(SourceBytes[0], SourceStream.Size);
+      
+      // 检测源文件编码
+      SourceEncoding := nil;
+      BOMLength := TEncoding.GetBufferEncoding(SourceBytes, SourceEncoding);
+      if SourceEncoding = nil then
+        SourceEncoding := TEncoding.Default;
+        
+      // 转换编码
+      DestBytes := TEncoding.Convert(SourceEncoding, TargetEncoding,
+        SourceBytes, BOMLength, Length(SourceBytes) - BOMLength);
+        
+      // 创建临时文件
+      DestStream := TFileStream.Create(TempPath, fmCreate);
+      try
+        // 写入BOM（如果需要）
+        if TargetEncoding = TEncoding.UTF8 then
+        begin
+          var BOM := TEncoding.UTF8.GetPreamble;
+          if Length(BOM) > 0 then
+            DestStream.WriteBuffer(BOM[0], Length(BOM));
+        end
+        else if TargetEncoding = TEncoding.Unicode then
+        begin
+          var BOM := TEncoding.Unicode.GetPreamble;
+          if Length(BOM) > 0 then
+            DestStream.WriteBuffer(BOM[0], Length(BOM));
+        end;
+        
+        // 写入转换后的内容
+        DestStream.WriteBuffer(DestBytes[0], Length(DestBytes));
+      finally
+        DestStream.Free;
+      end;
+      
+      // 备份原文件
+      if FileExists(PWideChar(FilePath + '.bak')) then
+        DeleteFile(PWideChar(FilePath + '.bak'));
+      RenameFile(PWideChar(FilePath), PWideChar(FilePath + '.bak'));
+      
+      // 重命名临时文件为目标文件
+      RenameFile(PWideChar(TempPath), PWideChar(FilePath));
+      
+      Result := True;
+    finally
+      SourceStream.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      if FileExists(TempPath) then
+        DeleteFile(PWideChar(TempPath));
+      raise;
+    end;
   end;
 end;
 

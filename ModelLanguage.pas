@@ -52,7 +52,7 @@ type
     BtnRefresh: string;
     BtnClose: string;
     BtnToggleSelect: string;
-    BtnSVG2ICON: string;
+    BtnSVGConverter: string;
     BtnPreview: string;
     BtnAllFileTypes: string;
     BtnCheckContent: string;
@@ -96,6 +96,32 @@ type
     MsgViewerError: string;
     MsgSubdirEnabled: string;
     MsgConversionSuccess: string;
+
+    // 编码描述
+    EncUTF8Desc: string;
+    EncUTF8BOMDesc: string;
+    EncUTF16LEDesc: string;
+    EncUTF16BEDesc: string;
+    EncUTF16Desc: string;
+    EncUTF32LEDesc: string;
+    EncUTF32BEDesc: string;
+    EncUTF32Desc: string;
+    EncUTF7Desc: string;
+    EncUCS2Desc: string;
+    EncUCS4LEDesc: string;
+    EncUCS4BEDesc: string;
+    EncGB2312Desc: string;
+    EncGBKDesc: string;
+    EncGB18030Desc: string;
+    EncBig5Desc: string;
+    EncBig5HKSCSDesc: string;
+    EncShiftJISDesc: string;
+    EncEUCJPDesc: string;
+    EncISO2022JPDesc: string;
+    EncISO2022JP2Desc: string;
+    EncEUCKRDesc: string;
+
+
   end;
 
   // 语言变更事件类型
@@ -119,7 +145,7 @@ begin
   Result.BtnRefresh := 'Refresh';
   Result.BtnClose := 'Close';
   Result.BtnToggleSelect := 'Select/Deselect All';
-  Result.BtnSVG2ICON := 'SVG to ICON';
+  Result.BtnSVGConverter := 'SVG Image Converter';
   Result.BtnPreview := 'Preview';
   Result.BtnAllFileTypes := 'Select All File Types';
   Result.BtnCheckContent := 'Check Content';
@@ -153,6 +179,30 @@ begin
   Result.MsgViewerError := 'Error viewing file: %s';
   Result.MsgSubdirEnabled := 'Subdirectory search enabled. This may increase file list loading time, especially for folders with many subdirectories.';
   Result.MsgConversionSuccess := 'Conversion successful!';
+
+  // 编码描述
+  Result.EncUTF8Desc := 'Universal Unicode encoding, compatible with ASCII';
+  Result.EncUTF8BOMDesc := 'UTF-8 with Byte Order Mark';
+  Result.EncUTF16LEDesc := 'Unicode encoding with little-endian byte order';
+  Result.EncUTF16BEDesc := 'Unicode encoding with big-endian byte order';
+  Result.EncUTF16Desc := '16-bit Unicode encoding';
+  Result.EncUTF32LEDesc := '32-bit Unicode encoding with little-endian byte order';
+  Result.EncUTF32BEDesc := '32-bit Unicode encoding with big-endian byte order';
+  Result.EncUTF32Desc := '32-bit Unicode encoding';
+  Result.EncUTF7Desc := '7-bit Unicode encoding (obsolete)';
+  Result.EncUCS2Desc := 'Early 16-bit Unicode encoding';
+  Result.EncUCS4LEDesc := '32-bit Unicode encoding with little-endian byte order';
+  Result.EncUCS4BEDesc := '32-bit Unicode encoding with big-endian byte order';
+  Result.EncGB2312Desc := 'Chinese character encoding for mainland China';
+  Result.EncGBKDesc := 'Extended Chinese character encoding';
+  Result.EncGB18030Desc := 'Chinese national standard encoding, compatible with GBK';
+  Result.EncBig5Desc := 'Traditional Chinese character encoding for Taiwan and Hong Kong';
+  Result.EncBig5HKSCSDesc := 'Big5 encoding with Hong Kong Supplementary Character Set';
+  Result.EncShiftJISDesc := 'Japanese character encoding, default in Windows Japanese version';
+  Result.EncEUCJPDesc := 'Extended Unix Code for Japanese';
+  Result.EncISO2022JPDesc := 'Japanese encoding for email and news groups';
+  Result.EncISO2022JP2Desc := 'Extended version of Japanese character encoding';
+  Result.EncEUCKRDesc := 'Korean character encoding';
 end;
 
 end.
