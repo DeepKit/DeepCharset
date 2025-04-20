@@ -23,7 +23,9 @@ type
     alDutch,                // 荷兰语
     alThai,                 // 泰语
     alVietnamese,           // 越南语
-    alPolish                // 波兰语
+    alPolish,               // 波兰语
+    alSwahili,              // 斯瓦希里语
+    alAmharic               // 阿姆哈拉语
   );
 
   // 语言信息记录
@@ -52,7 +54,6 @@ type
     BtnRefresh: string;
     BtnClose: string;
     BtnToggleSelect: string;
-    BtnSVGConverter: string;
     BtnPreview: string;
     BtnAllFileTypes: string;
     BtnCheckContent: string;
@@ -97,7 +98,15 @@ type
     MsgSubdirEnabled: string;
     MsgConversionSuccess: string;
 
-    // 编码描述
+    // 编码分类标题
+    EncCategoryUnicode: string;
+    EncCategoryAsian: string;
+    EncCategoryEuropean: string;
+    EncCategoryOther: string;
+    EncCategoryLatinAmerican: string;  // 新增：拉丁美洲编码分类
+    EncCategoryAfrican: string;        // 新增：非洲编码分类
+
+    // Unicode编码描述
     EncUTF8Desc: string;
     EncUTF8BOMDesc: string;
     EncUTF16LEDesc: string;
@@ -110,6 +119,8 @@ type
     EncUCS2Desc: string;
     EncUCS4LEDesc: string;
     EncUCS4BEDesc: string;
+    
+    // 亚洲编码描述
     EncGB2312Desc: string;
     EncGBKDesc: string;
     EncGB18030Desc: string;
@@ -120,8 +131,41 @@ type
     EncISO2022JPDesc: string;
     EncISO2022JP2Desc: string;
     EncEUCKRDesc: string;
-
-
+    
+    // 欧洲编码描述
+    EncISO8859_1Desc: string;
+    EncISO8859_2Desc: string;
+    EncISO8859_3Desc: string;
+    EncISO8859_5Desc: string;
+    EncISO8859_7Desc: string;
+    EncISO8859_9Desc: string;
+    EncWindows1250Desc: string;
+    EncWindows1251Desc: string;
+    EncWindows1252Desc: string;
+    EncWindows1253Desc: string;
+    EncWindows1254Desc: string;
+    EncWindows1257Desc: string;
+    EncIBM850Desc: string;
+    EncDOSLatinUSDesc: string;
+    
+    // 拉丁美洲编码描述
+    EncQuechuaDesc: string;         // 新增：克丘亚语编码
+    EncAymaraDesc: string;          // 新增：艾马拉语编码
+    EncGuaraniDesc: string;         // 新增：瓜拉尼语编码
+    EncMayaDesc: string;            // 新增：玛雅语编码
+    EncNahuatlDesc: string;         // 新增：纳瓦特尔语编码
+    
+    // 非洲编码描述
+    EncSwahiliDesc: string;         // 新增：斯瓦希里语编码
+    EncHausaDesc: string;           // 新增：豪萨语编码
+    EncYorubaDesc: string;          // 新增：约鲁巴语编码
+    EncZuluDesc: string;            // 新增：祖鲁语编码
+    EncAmharicDesc: string;         // 新增：阿姆哈拉语编码
+    EncTigrinyaDesc: string;        // 新增：提格雷尼亚语编码
+    EncOromoDesc: string;           // 新增：奥罗莫语编码
+    EncSomaliDesc: string;          // 新增：索马里语编码
+    EncBerberDesc: string;          // 新增：柏柏尔语编码
+    EncMalagasyDesc: string;        // 新增：马达加斯加语编码
   end;
 
   // 语言变更事件类型
@@ -145,7 +189,6 @@ begin
   Result.BtnRefresh := 'Refresh';
   Result.BtnClose := 'Close';
   Result.BtnToggleSelect := 'Select/Deselect All';
-  Result.BtnSVGConverter := 'SVG Image Converter';
   Result.BtnPreview := 'Preview';
   Result.BtnAllFileTypes := 'Select All File Types';
   Result.BtnCheckContent := 'Check Content';
@@ -180,7 +223,15 @@ begin
   Result.MsgSubdirEnabled := 'Subdirectory search enabled. This may increase file list loading time, especially for folders with many subdirectories.';
   Result.MsgConversionSuccess := 'Conversion successful!';
 
-  // 编码描述
+  // 编码分类标题
+  Result.EncCategoryUnicode := 'Unicode';
+  Result.EncCategoryAsian := 'Asian';
+  Result.EncCategoryEuropean := 'European';
+  Result.EncCategoryOther := 'Other';
+  Result.EncCategoryLatinAmerican := 'Latin American';  // 新增：拉丁美洲编码分类
+  Result.EncCategoryAfrican := 'African';              // 新增：非洲编码分类
+
+  // Unicode编码描述
   Result.EncUTF8Desc := 'Universal Unicode encoding, compatible with ASCII';
   Result.EncUTF8BOMDesc := 'UTF-8 with Byte Order Mark';
   Result.EncUTF16LEDesc := 'Unicode encoding with little-endian byte order';
@@ -193,6 +244,8 @@ begin
   Result.EncUCS2Desc := 'Early 16-bit Unicode encoding';
   Result.EncUCS4LEDesc := '32-bit Unicode encoding with little-endian byte order';
   Result.EncUCS4BEDesc := '32-bit Unicode encoding with big-endian byte order';
+  
+  // 亚洲编码描述
   Result.EncGB2312Desc := 'Chinese character encoding for mainland China';
   Result.EncGBKDesc := 'Extended Chinese character encoding';
   Result.EncGB18030Desc := 'Chinese national standard encoding, compatible with GBK';
@@ -203,6 +256,41 @@ begin
   Result.EncISO2022JPDesc := 'Japanese encoding for email and news groups';
   Result.EncISO2022JP2Desc := 'Extended version of Japanese character encoding';
   Result.EncEUCKRDesc := 'Korean character encoding';
+  
+  // 欧洲编码描述
+  Result.EncISO8859_1Desc := 'ISO-8859-1 Latin Alphabet No. 1';
+  Result.EncISO8859_2Desc := 'ISO-8859-2 Central European';
+  Result.EncISO8859_3Desc := 'ISO-8859-3 Latin Alphabet No. 3';
+  Result.EncISO8859_5Desc := 'ISO-8859-5 Latin/Cyrillic';
+  Result.EncISO8859_7Desc := 'ISO-8859-7 Greek';
+  Result.EncISO8859_9Desc := 'ISO-8859-9 Latin Alphabet No. 9';
+  Result.EncWindows1250Desc := 'Windows Code Page 1250';
+  Result.EncWindows1251Desc := 'Windows Code Page 1251';
+  Result.EncWindows1252Desc := 'Windows Code Page 1252';
+  Result.EncWindows1253Desc := 'Windows Code Page 1253';
+  Result.EncWindows1254Desc := 'Windows Code Page 1254';
+  Result.EncWindows1257Desc := 'Windows Code Page 1257';
+  Result.EncIBM850Desc := 'IBM Code Page 850';
+  Result.EncDOSLatinUSDesc := 'DOS Latin US';
+  
+  // 拉丁美洲编码描述（新增）
+  Result.EncQuechuaDesc := 'Quechua encoding for indigenous Andean languages';
+  Result.EncAymaraDesc := 'Aymara encoding for Bolivia and Peru indigenous language';
+  Result.EncGuaraniDesc := 'Guaraní encoding for Paraguay and Argentina indigenous language';
+  Result.EncMayaDesc := 'Maya encoding for Central American indigenous languages';
+  Result.EncNahuatlDesc := 'Nahuatl encoding for Aztec descendant language';
+  
+  // 非洲编码描述（新增）
+  Result.EncSwahiliDesc := 'Swahili encoding for East African lingua franca';
+  Result.EncHausaDesc := 'Hausa encoding for West African language (Nigeria, Niger)';
+  Result.EncYorubaDesc := 'Yoruba encoding for West African language (Nigeria, Benin)';
+  Result.EncZuluDesc := 'Zulu encoding for Southern African language';
+  Result.EncAmharicDesc := 'Amharic encoding for Ethiopian official language';
+  Result.EncTigrinyaDesc := 'Tigrinya encoding for Eritrea and Ethiopia';
+  Result.EncOromoDesc := 'Oromo encoding for Ethiopia and Kenya';
+  Result.EncSomaliDesc := 'Somali encoding for Horn of Africa';
+  Result.EncBerberDesc := 'Berber encoding for North African indigenous languages';
+  Result.EncMalagasyDesc := 'Malagasy encoding for Madagascar';
 end;
 
 end.

@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, Vcl.StdCtrls, Vcl.Controls, Vcl.Grids,
   Vcl.Forms, Vcl.Graphics, System.Types, Vcl.CheckLst, ModelEncoding,
-  Winapi.Windows, Winapi.Messages, Vcl.ComCtrls, HelperLanguage, System.IniFiles, UtilsTypes;
+  Winapi.Windows, Winapi.Messages, Vcl.ComCtrls;
 
 type
   // UI 辅助类
@@ -13,9 +13,6 @@ type
   private
     // 编码列表设置
     // procedure InitEncodingListBox(ListBox: TListBox; EncodingModel: TEncodingModel); // Removed
-
-    // 获取翻译文本
-    function GetTranslatedText(const Key: string; const DefaultValue: string): string;
 
   public
     // 构造函数和析构函数
@@ -160,19 +157,14 @@ var
   RootNode: TTreeNode;      // New Root Node
   GroupNode: TTreeNode;     // Node for each category
   EncodingNode: TTreeNode;  // Node for each encoding option
-  EncodingInfo: ModelEncoding.TEncodingInfo;
-  DisplayText: string;      // 完整显示文本，包含名称和描述
-  RootText: string;         // 根节点文本，支持多语言
+  EncodingInfo: TEncodingInfo;
 begin
   TreeView.Items.BeginUpdate;
   try
     TreeView.Items.Clear;
 
-    // 获取根节点的本地化文本
-    RootText := GetTranslatedText('TreeViewRootNode', '目标编码');
-
-    // Create the main root node with localized text
-    RootNode := TreeView.Items.AddObject(nil, RootText, nil); // Top level node
+    // Create the main root node with fixed text
+    RootNode := TreeView.Items.AddObject(nil, '目标编码', nil); // Top level node
     GroupNode := nil; // Initialize GroupNode
 
     // Iterate through the categorized list from the model
@@ -182,49 +174,27 @@ begin
 
       if EncodingInfo.IsGroup then
       begin
-        // 获取分组标题的本地化文本
-        DisplayText := GetTranslatedText('EncodingGroup_' + EncodingInfo.ShortName, EncodingInfo.Name);
-        GroupNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i)); // Store index, mark as group
+        // Add a new category node under the main root node
+        GroupNode := TreeView.Items.AddChildObject(RootNode, EncodingInfo.Name, Pointer(i)); // Store index, mark as group
+        // GroupNode.Expand(False); // Optional: Start categories collapsed or expanded
       end
       else if Assigned(GroupNode) then // Ensure we have a category to add to
       begin
-        // 获取编码名称的本地化文本
-        DisplayText := GetTranslatedText('Encoding_' + EncodingInfo.ShortName, EncodingInfo.Name);
-        
-        // 如果有描述，也添加翻译后的描述
-        if EncodingInfo.Description <> '' then
-          DisplayText := DisplayText + ' - ' + 
-            GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
-          
-        // 添加带描述的编码节点
-        EncodingNode := TreeView.Items.AddChildObject(GroupNode, DisplayText, Pointer(i)); // Store index in Data
+        // Add an encoding node under the current category node
+        // 使用编码名称作为显示文本，不再添加描述（因为ModelEncoding中的名称可能已经包含描述）
+        EncodingNode := TreeView.Items.AddChildObject(GroupNode, EncodingInfo.Name, Pointer(i)); // Store index in Data
       end
       else
       begin
          // Fallback: add directly under the root (shouldn't happen ideally)
-         DisplayText := GetTranslatedText('Encoding_' + EncodingInfo.ShortName, EncodingInfo.Name);
-         
-         if EncodingInfo.Description <> '' then
-           DisplayText := DisplayText + ' - ' + 
-             GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
-           
-         EncodingNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
+         EncodingNode := TreeView.Items.AddChildObject(RootNode, EncodingInfo.Name, Pointer(i));
+         // Log call was removed here in previous step
       end;
     end;
 
-    // Expand the main root node by default and the first two group nodes (通常是Unicode和亚洲编码组)
+    // Expand the main root node by default
     if Assigned(RootNode) then
-    begin
       RootNode.Expand(True);
-      
-      // 展开第一个分组（Unicode编码组）
-      if (RootNode.Count > 0) and (RootNode.Item[0] <> nil) then
-        RootNode.Item[0].Expand(True);
-        
-      // 展开第二个分组（亚洲编码组）
-      if (RootNode.Count > 1) and (RootNode.Item[1] <> nil) then
-        RootNode.Item[1].Expand(True);
-    end;
 
   finally
     TreeView.Items.EndUpdate;
@@ -271,95 +241,6 @@ begin
   // 例如：
   // if Assigned(FEncodingTreeView) and Assigned(FEncodingModel) then
   //   SetupEncodingList(FEncodingTreeView, FEncodingModel);
-end;
-
-// 实现GetTranslatedText方法
-function TUIHelper.GetTranslatedText(const Key: string; const DefaultValue: string): string;
-var
-  LangCode: string;
-  LangIniFile: TMemIniFile;
-  FullPath: string;
-  Section: string;
-  TransKey: string;
-begin
-  // 初始化变量
-  TransKey := '';
-  
-  // 检查LanguageManager是否可用
-  if Assigned(LanguageManager) and (LanguageManager.CurrentLanguage <> '') then
-  begin
-    LangCode := LanguageManager.CurrentLanguage;
-    
-    // 先尝试从语言管理器获取通用字符串
-    Result := GetString(Key);
-    
-    // 如果通过GetString找不到，尝试直接从INI文件读取
-    // 这对于编码相关的字符串特别有用，因为它们通常在[Encodings]区域
-    if (Result = '') or (Result = Key) then
-    begin
-      try
-        // 确定INI文件的路径
-        if IniDir <> '' then
-          FullPath := System.SysUtils.IncludeTrailingPathDelimiter(IniDir) + LangCode + '.ini'
-        else
-          FullPath := ExtractFilePath(Application.ExeName) + 'ini\' + LangCode + '.ini';
-          
-        // 检查INI文件是否存在
-        if FileExists(FullPath) then
-        begin
-          LangIniFile := TMemIniFile.Create(FullPath, TEncoding.UTF8);
-          try
-            // 根据键名前缀确定查找的节
-            if Key.StartsWith('TreeViewRootNode') then
-            begin
-              Section := 'Strings';
-              TransKey := 'TreeViewRootNode';
-            end
-            else if Key.StartsWith('EncodingGroup_') then
-            begin
-              Section := 'Encodings';
-              TransKey := Copy(Key, Length('EncodingGroup_') + 1, Length(Key));
-            end
-            else if Key.StartsWith('Encoding_') then
-            begin
-              Section := 'Encodings';
-              TransKey := Copy(Key, Length('Encoding_') + 1, Length(Key));
-            end
-            else if Key.StartsWith('EncodingDesc_') then
-            begin
-              // 描述目前没有单独存储在INI文件中，忽略
-              Result := DefaultValue;
-              Exit;
-            end
-            else
-            begin
-              Section := 'Strings';
-              TransKey := Key;
-            end;
-            
-            // 从INI文件读取翻译
-            Result := LangIniFile.ReadString(Section, TransKey, DefaultValue);
-            
-            // 如果读取到空字符串，使用默认值
-            if Result = '' then
-              Result := DefaultValue;
-          finally
-            LangIniFile.Free;
-          end;
-        end
-        else
-          Result := DefaultValue;
-      except
-        // 异常处理，使用默认值
-        Result := DefaultValue;
-      end;
-    end;
-  end
-  else
-  begin
-    // 如果LanguageManager不可用，使用默认值
-    Result := DefaultValue;
-  end;
 end;
 
 end.

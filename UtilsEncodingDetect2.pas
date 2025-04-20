@@ -60,6 +60,10 @@ type
     function DetectChineseEncoding(const Buffer: TBytes): TEncodingDetectionResult;
     function DetectJapaneseEncoding(const Buffer: TBytes): TEncodingDetectionResult;
     function DetectKoreanEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+    function DetectMiddleEasternEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+    function DetectSouthAsianEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+    function DetectEuropeanEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+    function DetectIBMEncoding(const Buffer: TBytes): TEncodingDetectionResult;
     function CombineResults(const Results: array of TEncodingDetectionResult): TEncodingDetectionResult;
     
     // 中文编码分析
@@ -79,6 +83,12 @@ type
     function AnalyzeKoreanBytes(const Buffer: TBytes;
                                out EUCKRCount: Integer): Double;
     function IsValidEUCKRSequence(const Buffer: TBytes; Pos: Integer; out SequenceLen: Integer): Boolean;
+    
+    // 在DetectByPattern方法中添加对新增编码的检测支持
+    function DetectByPattern(const Buffer: TBytes): TEncodingDetectionResult;
+    
+    // 在类声明中添加对Windows代码页编码的检测方法
+    function DetectWindowsCodePage(const Buffer: TBytes): TEncodingDetectionResult;
     
   public
     constructor Create;
@@ -421,68 +431,134 @@ end;
 
 function TEncodingDetector2.DetectByPattern(const Buffer: TBytes): TEncodingDetectionResult;
 var
-  HasNulls: Boolean;
-  NullPosition: Integer;
-  i: Integer;
+  I, Len: Integer;
+  DoubleByteCount, SingleByteCount: Integer;
+  DOS437Count, DOS850Count, DOS860Count, DOS865Count: Integer;
+  EUCTWCount: Integer;
+  Confidence: Double;
 begin
+  // 初始化结果
   Result.DetectedEncoding := nil;
   Result.EncodingName := '';
   Result.Confidence := 0;
   Result.HasBOM := False;
   Result.Description := '';
   Result.LanguageHint := '';
-  Result.DetectionMethod := 'Pattern';
+  Result.DetectionMethod := '模式匹配';
   
-  if Length(Buffer) = 0 then
-    Exit;
+  Len := Length(Buffer);
+  if Len < 10 then Exit; // 太短的文本不适合模式匹配
   
-  // 检查零字节模式
-  HasNulls := False;
-  NullPosition := -1;
+  // 初始化计数器
+  DoubleByteCount := 0;
+  SingleByteCount := 0;
+  DOS437Count := 0;
+  DOS850Count := 0;
+  DOS860Count := 0;
+  DOS865Count := 0;
+  EUCTWCount := 0;
   
-  for i := 0 to Min(Length(Buffer) - 1, 1000) do
+  // 分析字节模式
+  for I := 0 to Len - 2 do
   begin
-    if Buffer[i] = 0 then
+    // 检查双字节序列
+    if (Buffer[I] >= $80) and (Buffer[I+1] >= $30) then
+      Inc(DoubleByteCount);
+      
+    // 检查单字节字符
+    if (Buffer[I] >= $20) and (Buffer[I] <= $7F) then
+      Inc(SingleByteCount);
+    
+    // DOS 437编码特征（美国DOS编码）
+    if Buffer[I] in [$80..$9F] then
+      Inc(DOS437Count);
+      
+    // DOS 850编码特征（西欧DOS编码）
+    if Buffer[I] in [$80..$9F, $A0..$CF] then
+      Inc(DOS850Count);
+      
+    // DOS 860编码特征（葡萄牙语DOS编码）
+    if Buffer[I] in [$80..$8F, $90..$9F, $A0..$AF] then
+      Inc(DOS860Count);
+      
+    // DOS 865编码特征（北欧DOS编码）
+    if Buffer[I] in [$80..$8F, $90..$9F, $A0..$AF] then
+      Inc(DOS865Count);
+      
+    // EUC-TW编码特征
+    if (I < Len - 3) and (Buffer[I] = $8E) and (Buffer[I+1] >= $A1) and 
+       (Buffer[I+1] <= $FE) and (Buffer[I+2] >= $A1) and (Buffer[I+2] <= $FE) then
+      Inc(EUCTWCount);
+  end;
+  
+  // 分析DOS编码
+  if DOS437Count > 10 then
     begin
-      HasNulls := True;
-      NullPosition := i;
-      Break;
+    Confidence := Min(1.0, DOS437Count / (Len * 0.05));
+    if (Confidence > Result.Confidence) and (Confidence > 0.3) then
+    begin
+      Result.DetectedEncoding := TEncoding.GetEncoding(437);
+      Result.EncodingName := 'IBM437';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到IBM437 (DOS美国)编码 (特征字符: %d)', [DOS437Count]);
+      Result.LanguageHint := '美国DOS';
     end;
   end;
   
-  // 零字节在偶数位置，可能是UTF-16LE
-  if HasNulls and (NullPosition >= 0) and (NullPosition mod 2 = 0) then
+  if DOS850Count > 10 then
   begin
-    // 进一步检查是否符合UTF-16LE模式
-    var ConsistentPattern := True;
-    var CheckCount := 0;
-    
-    // 检查更多样本
-    for i := NullPosition to Min(Length(Buffer) - 2, NullPosition + 100) do
+    Confidence := Min(1.0, DOS850Count / (Len * 0.05));
+    if (Confidence > Result.Confidence) and (Confidence > 0.3) then
     begin
-      if i mod 2 = 0 then
+      Result.DetectedEncoding := TEncoding.GetEncoding(850);
+      Result.EncodingName := 'IBM850';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到IBM850 (DOS西欧)编码 (特征字符: %d)', [DOS850Count]);
+      Result.LanguageHint := '西欧DOS';
+    end;
+  end;
+  
+  if DOS860Count > 10 then
+    begin
+    Confidence := Min(1.0, DOS860Count / (Len * 0.05));
+    if (Confidence > Result.Confidence) and (Confidence > 0.3) then
       begin
-        if Buffer[i] <> 0 then
-        begin
-          ConsistentPattern := False;
-          Break;
-        end;
-        Inc(CheckCount);
-        if CheckCount >= 5 then Break; // 检查足够多的样本
+      Result.DetectedEncoding := TEncoding.GetEncoding(860);
+      Result.EncodingName := 'IBM860';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到IBM860 (DOS葡萄牙语)编码 (特征字符: %d)', [DOS860Count]);
+      Result.LanguageHint := '葡萄牙语DOS';
+    end;
+  end;
+  
+  if DOS865Count > 10 then
+  begin
+    Confidence := Min(1.0, DOS865Count / (Len * 0.05));
+    if (Confidence > Result.Confidence) and (Confidence > 0.3) then
+    begin
+      Result.DetectedEncoding := TEncoding.GetEncoding(865);
+      Result.EncodingName := 'IBM865';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到IBM865 (DOS北欧)编码 (特征字符: %d)', [DOS865Count]);
+      Result.LanguageHint := '北欧DOS';
       end;
     end;
     
-    if ConsistentPattern and (CheckCount >= 3) then
+  // 检测EUC-TW编码
+  if EUCTWCount > 5 then
     begin
-      Result.DetectedEncoding := TEncoding.Unicode;
-      Result.EncodingName := 'UTF-16LE';
-      Result.Confidence := 0.85;
-      Result.Description := 'UTF-16LE detected (pattern)';
-      Exit;
+    Confidence := Min(1.0, EUCTWCount / (Len * 0.02));
+    if (Confidence > Result.Confidence) and (Confidence > 0.3) then
+    begin
+      Result.DetectedEncoding := TEncoding.GetEncoding(20000); // 使用EUC-TW代码页
+      Result.EncodingName := 'EUC-TW';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到EUC-TW (台湾)编码 (特征字符序列: %d)', [EUCTWCount]);
+      Result.LanguageHint := '台湾繁体中文';
     end;
   end;
   
-  // 默认返回空结果
+  // 其他检测逻辑...
 end;
 
 function TEncodingDetector2.CombineResults(const Results: array of TEncodingDetectionResult): TEncodingDetectionResult;
@@ -535,9 +611,8 @@ end;
 
 function TEncodingDetector2.DetectBytesEncoding(const Bytes: TBytes): TEncodingDetectionResult;
 var
-  BOMResult, StatResult, PatternResult, ChineseResult, JapaneseResult, KoreanResult: TEncodingDetectionResult;
   Results: array of TEncodingDetectionResult;
-  ResultCount: Integer;
+  I, ResultCount: Integer;
 begin
   // 初始化结果
   Result.DetectedEncoding := nil;
@@ -548,76 +623,502 @@ begin
   Result.LanguageHint := '';
   Result.DetectionMethod := '';
   
-  if Length(Bytes) = 0 then
+  // 检查空字节
+  if (Length(Bytes) = 0) then
+  begin
+    Result.Description := '空文件';
+    if Assigned(FOptions.DefaultEncoding) then
+    begin
+      Result.DetectedEncoding := FOptions.DefaultEncoding;
+      Result.EncodingName := GetEncodingFriendlyName(Result.DetectedEncoding);
+      Result.Confidence := 1.0; // 确定性为100%
+      Result.Description := '空文件，使用默认编码';
+    end;
     Exit;
+  end;
   
-  // 1. 检测BOM
-  BOMResult := DetectByBOM(Bytes);
+  // 预分配结果数组
+  SetLength(Results, 10); // 可能的最大结果数
+  ResultCount := 0;
   
-  // 如果BOM检测成功且置信度高，直接返回结果
-  if (BOMResult.DetectedEncoding <> nil) and (BOMResult.Confidence > 0.9) then
+  // 1. 首先检查BOM
+  if edaBOM in FOptions.AlgorithmPriority then
+  begin
+    var BOMResult := DetectByBOM(Bytes);
+    if BOMResult.Confidence > 0 then
+    begin
+      Results[ResultCount] := BOMResult;
+      Inc(ResultCount);
+      
+      // 如果BOM检测可信度很高，可以直接返回
+      if BOMResult.Confidence > 0.95 then
   begin
     Result := BOMResult;
     Exit;
+      end;
+    end;
   end;
   
-  // 2. 进行多种检测方法
-  ResultCount := 1; // BOM结果已经有了
-  SetLength(Results, 6); // 预先分配6个结果空间
-  Results[0] := BOMResult;
-  
-  // 统计分析方法
-  StatResult := DetectByStatisticalAnalysis(Bytes);
-  if StatResult.DetectedEncoding <> nil then
+  // 2. 统计分析
+  if edaStatistical in FOptions.AlgorithmPriority then
+  begin
+    var StatResult := DetectByStatisticalAnalysis(Bytes);
+    if StatResult.Confidence > 0 then
   begin
     Results[ResultCount] := StatResult;
     Inc(ResultCount);
+    end;
   end;
   
-  // 模式匹配方法
-  PatternResult := DetectByPattern(Bytes);
-  if PatternResult.DetectedEncoding <> nil then
+  // 3. 模式匹配
+  if edaPattern in FOptions.AlgorithmPriority then
+  begin
+    var PatternResult := DetectByPattern(Bytes);
+    if PatternResult.Confidence > 0 then
   begin
     Results[ResultCount] := PatternResult;
     Inc(ResultCount);
+    end;
   end;
   
-  // 中文编码检测
+  // 4. 针对特定语言的检测
   if FOptions.EnableChineseDetection then
   begin
-    ChineseResult := DetectChineseEncoding(Bytes);
-    if ChineseResult.DetectedEncoding <> nil then
+    var ChineseResult := DetectChineseEncoding(Bytes);
+    if ChineseResult.Confidence > 0 then
     begin
       Results[ResultCount] := ChineseResult;
       Inc(ResultCount);
     end;
   end;
   
-  // 日文编码检测
   if FOptions.EnableJapaneseDetection then
   begin
-    JapaneseResult := DetectJapaneseEncoding(Bytes);
-    if JapaneseResult.DetectedEncoding <> nil then
+    var JapaneseResult := DetectJapaneseEncoding(Bytes);
+    if JapaneseResult.Confidence > 0 then
     begin
       Results[ResultCount] := JapaneseResult;
       Inc(ResultCount);
     end;
   end;
   
-  // 韩文编码检测
   if FOptions.EnableKoreanDetection then
   begin
-    KoreanResult := DetectKoreanEncoding(Bytes);
-    if KoreanResult.DetectedEncoding <> nil then
+    var KoreanResult := DetectKoreanEncoding(Bytes);
+    if KoreanResult.Confidence > 0 then
     begin
       Results[ResultCount] := KoreanResult;
       Inc(ResultCount);
     end;
   end;
   
-  // 3. 组合所有结果
+  // 新增的区域编码检测
+  var MiddleEasternResult := DetectMiddleEasternEncoding(Bytes);
+  if MiddleEasternResult.Confidence > 0 then
+  begin
+    Results[ResultCount] := MiddleEasternResult;
+    Inc(ResultCount);
+  end;
+  
+  var SouthAsianResult := DetectSouthAsianEncoding(Bytes);
+  if SouthAsianResult.Confidence > 0 then
+  begin
+    Results[ResultCount] := SouthAsianResult;
+    Inc(ResultCount);
+  end;
+  
+  var EuropeanResult := DetectEuropeanEncoding(Bytes);
+  if EuropeanResult.Confidence > 0 then
+  begin
+    Results[ResultCount] := EuropeanResult;
+    Inc(ResultCount);
+  end;
+  
+  var IBMResult := DetectIBMEncoding(Bytes);
+  if IBMResult.Confidence > 0 then
+  begin
+    Results[ResultCount] := IBMResult;
+    Inc(ResultCount);
+  end;
+  
+  // 调整结果数组大小
   SetLength(Results, ResultCount);
-  Result := CombineResults(Results);
+  
+  // 5. 如果有多个结果，合并它们
+  if ResultCount > 0 then
+  begin
+    if edaCombined in FOptions.AlgorithmPriority then
+      Result := CombineResults(Results)
+    else
+      Result := Results[0]; // 使用第一个结果
+      
+    // 如果首选编码存在，且在结果中有一定置信度，优先选择它
+    if Assigned(FOptions.PreferredEncoding) then
+    begin
+      for I := 0 to ResultCount - 1 do
+      begin
+        if (Results[I].DetectedEncoding = FOptions.PreferredEncoding) and 
+           (Results[I].Confidence >= FOptions.MinConfidence * 0.8) then // 给首选编码一点优惠
+        begin
+          Result := Results[I];
+          Result.Description := Result.Description + ' (首选编码)';
+          Break;
+        end;
+      end;
+    end;
+  end
+  else
+  begin
+    // 没有找到任何匹配的编码，使用默认编码
+    if Assigned(FOptions.DefaultEncoding) then
+    begin
+      Result.DetectedEncoding := FOptions.DefaultEncoding;
+      Result.EncodingName := GetEncodingFriendlyName(Result.DetectedEncoding);
+      Result.Confidence := 0.1; // 很低的置信度
+      Result.Description := '找不到匹配的编码，使用默认编码';
+      Result.DetectionMethod := '默认值';
+    end;
+  end;
+  
+  // 在原有代码中的其他区域编码检测后添加这段代码：
+  var WindowsCodePageResult := DetectWindowsCodePage(Bytes);
+  if WindowsCodePageResult.Confidence > 0 then
+  begin
+    Results[ResultCount] := WindowsCodePageResult;
+    Inc(ResultCount);
+  end;
+end;
+
+// 中东文字编码检测
+function TEncodingDetector2.DetectMiddleEasternEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+var
+  I, ArabicCount, HebrewCount, WindowsArabicCount, WindowsHebrewCount: Integer;
+  Confidence: Double;
+begin
+  // 初始化结果
+  Result.DetectedEncoding := nil;
+  Result.EncodingName := '';
+  Result.Confidence := 0;
+  Result.HasBOM := False;
+  Result.Description := '';
+  Result.LanguageHint := '';
+  Result.DetectionMethod := '中东编码启发式检测';
+  
+  ArabicCount := 0;
+  HebrewCount := 0;
+  WindowsArabicCount := 0;
+  WindowsHebrewCount := 0;
+  
+  // 分析所有字节
+  for I := 0 to Length(Buffer) - 1 do
+  begin
+    // ISO-8859-6 阿拉伯语特征范围
+    if (Buffer[I] >= $A1) and (Buffer[I] <= $F2) then
+      Inc(ArabicCount);
+      
+    // ISO-8859-8 希伯来语特征范围
+    if (Buffer[I] >= $E0) and (Buffer[I] <= $FA) then
+      Inc(HebrewCount);
+      
+    // Windows-1256 阿拉伯语特征
+    if (Buffer[I] in [$81, $8D, $8F, $90, $9D, $9E, $9F, $C1..$C3, $C5..$CF]) then
+      Inc(WindowsArabicCount);
+      
+    // Windows-1255 希伯来语特征
+    if (Buffer[I] in [$C0..$C9, $CB..$D8]) then
+      Inc(WindowsHebrewCount);
+  end;
+  
+  // 根据计数决定最可能的编码
+  if Length(Buffer) > 0 then
+  begin
+    // 检查阿拉伯语编码
+    if ArabicCount > 0 then
+    begin
+      Confidence := Min(1.0, ArabicCount / (Length(Buffer) * 0.1));
+      
+      if WindowsArabicCount > ArabicCount * 0.2 then
+      begin
+        // 更可能是Windows-1256
+        Result.DetectedEncoding := TEncoding.GetEncoding(1256);
+        Result.EncodingName := 'Windows-1256';
+        Result.Confidence := Confidence * 0.8;
+        Result.LanguageHint := '阿拉伯语';
+        Result.Description := Format('检测到Windows-1256阿拉伯语编码 (特征字符: %d)', [WindowsArabicCount]);
+      end
+      else
+      begin
+        // 更可能是ISO-8859-6
+        Result.DetectedEncoding := TEncoding.GetEncoding(28596);
+        Result.EncodingName := 'ISO-8859-6';
+        Result.Confidence := Confidence * 0.7;
+        Result.LanguageHint := '阿拉伯语';
+        Result.Description := Format('检测到ISO-8859-6阿拉伯语编码 (特征字符: %d)', [ArabicCount]);
+      end;
+    end
+    
+    // 检查希伯来语编码
+    else if HebrewCount > 0 then
+    begin
+      Confidence := Min(1.0, HebrewCount / (Length(Buffer) * 0.1));
+      
+      if WindowsHebrewCount > HebrewCount * 0.2 then
+      begin
+        // 更可能是Windows-1255
+        Result.DetectedEncoding := TEncoding.GetEncoding(1255);
+        Result.EncodingName := 'Windows-1255';
+        Result.Confidence := Confidence * 0.8;
+        Result.LanguageHint := '希伯来语';
+        Result.Description := Format('检测到Windows-1255希伯来语编码 (特征字符: %d)', [WindowsHebrewCount]);
+      end
+      else
+      begin
+        // 更可能是ISO-8859-8
+        Result.DetectedEncoding := TEncoding.GetEncoding(28598);
+        Result.EncodingName := 'ISO-8859-8';
+        Result.Confidence := Confidence * 0.7;
+        Result.LanguageHint := '希伯来语';
+        Result.Description := Format('检测到ISO-8859-8希伯来语编码 (特征字符: %d)', [HebrewCount]);
+      end;
+    end;
+  end;
+end;
+
+// 南亚和东南亚编码检测
+function TEncodingDetector2.DetectSouthAsianEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+var
+  I, ThaiCount, VietnameseCount, IndianCount: Integer;
+  Confidence: Double;
+begin
+  // 初始化结果
+  Result.DetectedEncoding := nil;
+  Result.EncodingName := '';
+  Result.Confidence := 0;
+  Result.HasBOM := False;
+  Result.Description := '';
+  Result.LanguageHint := '';
+  Result.DetectionMethod := '南亚和东南亚编码启发式检测';
+  
+  ThaiCount := 0;
+  VietnameseCount := 0;
+  IndianCount := 0;
+  
+  // 分析所有字节
+  for I := 0 to Length(Buffer) - 1 do
+  begin
+    // TIS-620/Windows-874 泰语特征范围
+    if (Buffer[I] >= $A1) and (Buffer[I] <= $FB) then
+      Inc(ThaiCount);
+      
+    // VISCII 越南语特征
+    if (Buffer[I] in [$A1..$FE]) and (I < Length(Buffer) - 1) and 
+       (Buffer[I+1] >= $20) and (Buffer[I+1] <= $7F) then
+      Inc(VietnameseCount);
+      
+    // ISCII系列印度语言特征
+    if (Buffer[I] >= $A0) and (Buffer[I] <= $F7) then
+      Inc(IndianCount);
+  end;
+  
+  // 根据计数决定最可能的编码
+  if Length(Buffer) > 0 then
+  begin
+    // 检查泰语编码
+    if ThaiCount > Length(Buffer) * 0.05 then
+    begin
+      Confidence := Min(1.0, ThaiCount / (Length(Buffer) * 0.1));
+      Result.DetectedEncoding := TEncoding.GetEncoding(874);
+      Result.EncodingName := 'Windows-874';
+      Result.Confidence := Confidence * 0.7;
+      Result.LanguageHint := '泰语';
+      Result.Description := Format('检测到Windows-874/TIS-620泰语编码 (特征字符: %d)', [ThaiCount]);
+    end
+    // 检查越南语编码
+    else if VietnameseCount > Length(Buffer) * 0.03 then
+    begin
+      Confidence := Min(1.0, VietnameseCount / (Length(Buffer) * 0.08));
+      Result.DetectedEncoding := TEncoding.GetEncoding(1258); // 使用Windows-1258作为近似
+      Result.EncodingName := 'VISCII/Windows-1258';
+      Result.Confidence := Confidence * 0.6;
+      Result.LanguageHint := '越南语';
+      Result.Description := Format('可能是越南语编码 (特征字符: %d)', [VietnameseCount]);
+    end
+    // 检查印度语系编码
+    else if IndianCount > Length(Buffer) * 0.05 then
+    begin
+      Confidence := Min(1.0, IndianCount / (Length(Buffer) * 0.1));
+      // 我们无法确定具体是哪种ISCII变体，因此使用一个通用描述
+      Result.DetectedEncoding := TEncoding.GetEncoding(57002); // 使用ISCII-Devanagari作为代表
+      Result.EncodingName := 'ISCII';
+      Result.Confidence := Confidence * 0.5;
+      Result.LanguageHint := '印度语系';
+      Result.Description := Format('可能是印度语系ISCII编码 (特征字符: %d)', [IndianCount]);
+    end;
+  end;
+end;
+
+// 欧洲编码检测
+function TEncodingDetector2.DetectEuropeanEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+var
+  I, Latin1Count, Latin2Count, CyrillicCount, GreekCount, TurkishCount: Integer;
+  Latin1Conf, Latin2Conf, CyrillicConf, GreekConf, TurkishConf: Double;
+begin
+  // 初始化结果
+  Result.DetectedEncoding := nil;
+  Result.EncodingName := '';
+  Result.Confidence := 0;
+  Result.HasBOM := False;
+  Result.Description := '';
+  Result.LanguageHint := '';
+  Result.DetectionMethod := '欧洲编码启发式检测';
+  
+  Latin1Count := 0;
+  Latin2Count := 0;
+  CyrillicCount := 0;
+  GreekCount := 0;
+  TurkishCount := 0;
+  
+  // 分析所有字节
+  for I := 0 to Length(Buffer) - 1 do
+  begin
+    // ISO-8859-1 西欧特征范围
+    if (Buffer[I] >= $A0) and (Buffer[I] <= $FF) then
+      Inc(Latin1Count);
+      
+    // ISO-8859-2 中欧特征字符
+    if Buffer[I] in [$A1, $A3, $A5, $A9, $AB, $AD, $AE, $B1, $B3, $B5, $B9, $BB, $BC, $BE, 
+                     $C0..$C6, $C8..$CF, $D0..$D6, $D8..$DF, $E0..$E6, $E8..$EF, $F0..$F6, $F8..$FE] then
+      Inc(Latin2Count);
+      
+    // ISO-8859-5 或 Windows-1251 西里尔字母特征
+    if Buffer[I] in [$A8, $B8, $C0..$FF] then
+      Inc(CyrillicCount);
+      
+    // ISO-8859-7 或 Windows-1253 希腊语特征
+    if Buffer[I] in [$A1, $A2, $AF, $B6, $B8..$BA, $BC..$BE, $C1..$F2] then
+      Inc(GreekCount);
+      
+    // ISO-8859-9 或 Windows-1254 土耳其语特征
+    if Buffer[I] in [$D0, $DD, $DE, $F0, $FD, $FE] then
+      Inc(TurkishCount);
+  end;
+  
+  // 计算每种编码的置信度
+  if Length(Buffer) > 0 then
+  begin
+    Latin1Conf := Min(1.0, Latin1Count / (Length(Buffer) * 0.15));
+    Latin2Conf := Min(1.0, Latin2Count / (Length(Buffer) * 0.1));
+    CyrillicConf := Min(1.0, CyrillicCount / (Length(Buffer) * 0.15));
+    GreekConf := Min(1.0, GreekCount / (Length(Buffer) * 0.1));
+    TurkishConf := Min(1.0, TurkishCount / (Length(Buffer) * 0.05));
+    
+    // 比较找出最高置信度的编码
+    if (CyrillicConf > Latin1Conf) and (CyrillicConf > Latin2Conf) and 
+       (CyrillicConf > GreekConf) and (CyrillicConf > TurkishConf) then
+    begin
+      // 西里尔字母编码
+      if CyrillicConf > 0.1 then // 至少要有一定的置信度
+      begin
+        Result.DetectedEncoding := TEncoding.GetEncoding(1251); // 优先选择Windows-1251
+        Result.EncodingName := 'Windows-1251';
+        Result.Confidence := CyrillicConf * 0.8;
+        Result.LanguageHint := '俄语或其他斯拉夫语系';
+        Result.Description := Format('检测到Windows-1251西里尔字母编码 (特征字符: %d)', [CyrillicCount]);
+      end;
+    end
+    else if (GreekConf > Latin1Conf) and (GreekConf > Latin2Conf) and 
+            (GreekConf > CyrillicConf) and (GreekConf > TurkishConf) then
+    begin
+      // 希腊语编码
+      if GreekConf > 0.1 then
+      begin
+        Result.DetectedEncoding := TEncoding.GetEncoding(1253); // 优先选择Windows-1253
+        Result.EncodingName := 'Windows-1253';
+        Result.Confidence := GreekConf * 0.8;
+        Result.LanguageHint := '希腊语';
+        Result.Description := Format('检测到Windows-1253希腊语编码 (特征字符: %d)', [GreekCount]);
+      end;
+    end
+    else if (TurkishConf > 0.2) and (TurkishConf > Latin1Conf * 0.8) then
+    begin
+      // 土耳其语编码
+      Result.DetectedEncoding := TEncoding.GetEncoding(1254); // 优先选择Windows-1254
+      Result.EncodingName := 'Windows-1254';
+      Result.Confidence := TurkishConf * 0.7;
+      Result.LanguageHint := '土耳其语';
+      Result.Description := Format('检测到Windows-1254土耳其语编码 (特征字符: %d)', [TurkishCount]);
+    end
+    else if (Latin2Conf > 0.2) and (Latin2Conf > Latin1Conf * 0.8) then
+    begin
+      // 中欧编码
+      Result.DetectedEncoding := TEncoding.GetEncoding(1250); // 优先选择Windows-1250
+      Result.EncodingName := 'Windows-1250';
+      Result.Confidence := Latin2Conf * 0.7;
+      Result.LanguageHint := '中欧语言';
+      Result.Description := Format('检测到Windows-1250中欧编码 (特征字符: %d)', [Latin2Count]);
+    end
+    else if Latin1Conf > 0.1 then
+    begin
+      // 西欧编码
+      Result.DetectedEncoding := TEncoding.GetEncoding(1252); // 优先选择Windows-1252
+      Result.EncodingName := 'Windows-1252';
+      Result.Confidence := Latin1Conf * 0.6; // 较低的置信度，因为容易混淆
+      Result.LanguageHint := '西欧语言';
+      Result.Description := Format('检测到Windows-1252西欧编码 (特征字符: %d)', [Latin1Count]);
+    end;
+  end;
+end;
+
+// IBM/EBCDIC编码检测
+function TEncodingDetector2.DetectIBMEncoding(const Buffer: TBytes): TEncodingDetectionResult;
+var
+  I, EBCDICCount: Integer;
+  Confidence: Double;
+  HasEBCDICSignature: Boolean;
+begin
+  // 初始化结果
+  Result.DetectedEncoding := nil;
+  Result.EncodingName := '';
+  Result.Confidence := 0;
+  Result.HasBOM := False;
+  Result.Description := '';
+  Result.LanguageHint := '';
+  Result.DetectionMethod := 'IBM/EBCDIC编码检测';
+  
+  EBCDICCount := 0;
+  HasEBCDICSignature := False;
+  
+  // EBCDIC特征：大量字节在$40-$FE范围内，且$00-$3F范围内的字节很少
+  // 检查EBCDIC的特征性序列
+  if (Length(Buffer) > 3) and
+     (Buffer[0] = $C5) and (Buffer[1] = $C2) and (Buffer[2] = $C3) and (Buffer[3] = $C4) then
+    HasEBCDICSignature := True;
+    
+  // 分析所有字节
+  for I := 0 to Length(Buffer) - 1 do
+  begin
+    // EBCDIC字符范围
+    if (Buffer[I] >= $40) and (Buffer[I] <= $FE) then
+      Inc(EBCDICCount);
+  end;
+  
+  // 根据特征判断是否为EBCDIC编码
+  if (Length(Buffer) > 0) and
+     ((HasEBCDICSignature) or (EBCDICCount > Length(Buffer) * 0.7)) then
+  begin
+    Confidence := Min(1.0, EBCDICCount / Length(Buffer));
+    
+    if HasEBCDICSignature then
+      Confidence := Confidence * 1.2; // 提高签名匹配的置信度
+      
+    // 选择最常见的EBCDIC变体
+    Result.DetectedEncoding := TEncoding.GetEncoding(37); // IBM037/EBCDIC-US
+    Result.EncodingName := 'EBCDIC-US';
+    Result.Confidence := Min(0.9, Confidence); // 限制最高置信度为90%
+    Result.Description := Format('检测到EBCDIC编码 (特征字符: %d%s)', 
+                                [EBCDICCount, IfThen(HasEBCDICSignature, ', 有特征序列', '')]);
+    Result.LanguageHint := 'IBM大型机';
+  end;
 end;
 
 class function TEncodingDetector2.GetSupportedEncodings: TArray<TEncoding>;
@@ -1278,6 +1779,109 @@ begin
     Result.EncodingName := 'ANSI';
     Result.Confidence := Max(0.5, Min(0.8, Confidence));
     Result.Description := 'ANSI detected (EUC-KR not supported)';
+  end;
+end;
+
+// 添加方法实现
+function TEncodingDetector2.DetectWindowsCodePage(const Buffer: TBytes): TEncodingDetectionResult;
+var
+  I, Len: Integer;
+  CP932Count, CP949Count, CP950Count, CP936Count: Integer;
+  Confidence: Double;
+begin
+  // 初始化结果
+  Result.DetectedEncoding := nil;
+  Result.EncodingName := '';
+  Result.Confidence := 0;
+  Result.HasBOM := False;
+  Result.Description := '';
+  Result.LanguageHint := '';
+  Result.DetectionMethod := 'Windows代码页检测';
+  
+  Len := Length(Buffer);
+  if Len < 20 then Exit; // 太短的文本不适合检测
+  
+  // 初始化计数器
+  CP932Count := 0;
+  CP949Count := 0;
+  CP950Count := 0;
+  CP936Count := 0;
+  
+  // 分析字节模式
+  for I := 0 to Len - 2 do
+  begin
+    // CP932 (日本Windows)特征
+    if ((Buffer[I] >= $81) and (Buffer[I] <= $9F) or (Buffer[I] >= $E0) and (Buffer[I] <= $FC)) and
+       ((Buffer[I+1] >= $40) and (Buffer[I+1] <= $FC)) then
+      Inc(CP932Count);
+      
+    // CP949 (韩国Windows)特征
+    if ((Buffer[I] >= $81) and (Buffer[I] <= $FE)) and
+       ((Buffer[I+1] >= $41) and (Buffer[I+1] <= $FE)) then
+      Inc(CP949Count);
+      
+    // CP950 (繁体中文Windows)特征
+    if ((Buffer[I] >= $A1) and (Buffer[I] <= $FE)) and
+       ((Buffer[I+1] >= $40) and (Buffer[I+1] <= $7E) or (Buffer[I+1] >= $A1) and (Buffer[I+1] <= $FE)) then
+      Inc(CP950Count);
+      
+    // CP936 (简体中文Windows)特征
+    if ((Buffer[I] >= $81) and (Buffer[I] <= $FE)) and
+       ((Buffer[I+1] >= $40) and (Buffer[I+1] <= $7E) or (Buffer[I+1] >= $80) and (Buffer[I+1] <= $FE)) then
+      Inc(CP936Count);
+  end;
+  
+  // 依次检测各种代码页
+  if CP932Count > 10 then
+  begin
+    Confidence := Min(1.0, CP932Count / (Len * 0.1));
+    if Confidence > 0.3 then
+    begin
+      Result.DetectedEncoding := TEncoding.GetEncoding(932);
+      Result.EncodingName := 'CP932';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到CP932 (日本Windows)编码 (特征序列: %d)', [CP932Count]);
+      Result.LanguageHint := '日语';
+    end;
+  end;
+  
+  if (CP949Count > 10) and (CP949Count > CP932Count) then
+  begin
+    Confidence := Min(1.0, CP949Count / (Len * 0.1));
+    if Confidence > 0.3 then
+    begin
+      Result.DetectedEncoding := TEncoding.GetEncoding(949);
+      Result.EncodingName := 'CP949';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到CP949 (韩国Windows)编码 (特征序列: %d)', [CP949Count]);
+      Result.LanguageHint := '韩语';
+    end;
+  end;
+  
+  if (CP950Count > 10) and (CP950Count > CP949Count) and (CP950Count > CP932Count) then
+  begin
+    Confidence := Min(1.0, CP950Count / (Len * 0.1));
+    if Confidence > 0.3 then
+    begin
+      Result.DetectedEncoding := TEncoding.GetEncoding(950);
+      Result.EncodingName := 'CP950';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到CP950 (繁体中文Windows)编码 (特征序列: %d)', [CP950Count]);
+      Result.LanguageHint := '繁体中文';
+    end;
+  end;
+  
+  if (CP936Count > 10) and (CP936Count > CP950Count) and (CP936Count > CP949Count) and (CP936Count > CP932Count) then
+  begin
+    Confidence := Min(1.0, CP936Count / (Len * 0.1));
+    if Confidence > 0.3 then
+    begin
+      Result.DetectedEncoding := TEncoding.GetEncoding(936);
+      Result.EncodingName := 'CP936';
+      Result.Confidence := Confidence;
+      Result.Description := Format('检测到CP936 (简体中文Windows)编码 (特征序列: %d)', [CP936Count]);
+      Result.LanguageHint := '简体中文';
+    end;
   end;
 end;
 

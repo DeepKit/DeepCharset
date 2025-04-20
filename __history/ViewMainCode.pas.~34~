@@ -10,10 +10,32 @@ uses
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
   ControllerEncoding, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
   System.UIConsts, System.IniFiles, ModelLanguage, ControllerLanguage,
-  System.TypInfo, Vcl.Clipbrd;
+  System.TypInfo, Vcl.Clipbrd, UtilsSVGConverter, UtilsLog,
+  System.Skia, Vcl.Skia;
 
+// 声明与SVG转换器兼容的回调类型
+type
+  TSVGLogCallback = procedure(const AMessage: string);
 
 Type
+
+  TCustomMemo = class(TMemo)
+  private
+    FOnPaste: TNotifyEvent;
+  protected
+    procedure WMPaste(var Message: TWMPaste); message WM_PASTE;
+  public
+    property OnPaste: TNotifyEvent read FOnPaste write FOnPaste;
+  end;
+
+  TMemo = class(TCustomMemo);
+
+  TMemoPopupMenu = class(TPopupMenu)
+  private
+    FOnPaste: TNotifyEvent;
+  public
+    property OnPaste: TNotifyEvent read FOnPaste write FOnPaste;
+  end;
 
   TForm1 = class(TForm)
     Panel1: TPanel;
@@ -55,10 +77,17 @@ Type
     Button2: TButton;
     btnSelectAllExt: TButton;
     chkIncludeSubdirs: TCheckBox;
+    btnSVG2ICON: TButton;
+    rgPicType: TRadioGroup;
     btnClose: TButton;
     PageControl1: TPageControl;
     TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
     MemLog: TMemo;
+    meoSVG: TMemo;
+    Splitter9: TSplitter;
+    SkSvg1: TSkSvg;
+    SkAnimatedImage1: TSkAnimatedImage;
     btnRefresh: TButton;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
@@ -95,6 +124,17 @@ Type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure chkIncludeSubdirsClick(Sender: TObject);
     procedure btnSVG2ICONClick(Sender: TObject);
+    procedure meoSVGPaste(Sender: TObject);
+    procedure SetLanguage(const LangCode: string);
+    procedure UpdateUILanguage;
+    procedure ApplyLanguageStrings;
+    procedure TreeViewEncodingChange(Sender: TObject; Node: TTreeNode);
+    procedure TreeViewEncodingCustomDrawItem(Sender: TCustomTreeView;
+      Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure SwitchToLanguageCode(const LangCode: string);
+    function GetFormatExtension(Format: TSVGOutputFormat): string;
+    function GetFormatName(Format: TSVGOutputFormat): string;
+    function IsSVGContent(const Content: string): Boolean;
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
@@ -114,6 +154,17 @@ Type
 
     // 国际化相关
     FCurrentLanguage: string;
+
+    // 辅助函数
+    function GetTempDirectory: string;
+    procedure LogAdd(const AMessage: string);
+    function GetLangString(const AKey: string): string;
+    function GetSVGSize(const ASVGContent: string): TPoint;
+
+    // SVG转换回调处理方法
+    procedure HandleSVGProgress(const AMessage: string);
+    procedure HandleSVGError(const AMessage: string);
+    procedure HandleSVGSuccess(const AMessage: string);
 
     // 获取翻译后的消息
     function GetLocalizedMessage(const MsgId: string): string;
@@ -136,8 +187,6 @@ Type
     // 语言设置相关方法
     procedure InitializeLanguageManager;
     procedure CreateLanguageSelector;
-    procedure ApplyLanguageStrings;
-    procedure SwitchToLanguageCode(const LangCode: string);
 
     procedure UpdateSingleFileInGrid(const FilePath: string);
 
@@ -205,6 +254,14 @@ begin
 
   // 创建语言选择器
   CreateLanguageSelector;
+
+  // 绑定SVG粘贴事件
+  if Assigned(meoSVG) then
+  begin
+    meoSVG.OnPaste := meoSVGPaste;
+    meoSVG.PopupMenu := TMemoPopupMenu.Create(meoSVG);
+    TMemoPopupMenu(meoSVG.PopupMenu).OnPaste := meoSVGPaste;
+  end;
 end;
 
 destructor TForm1.Destroy;
@@ -456,6 +513,8 @@ begin
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
+var
+  PopupMenu: TMemoPopupMenu;
 begin
   // 允许窗体接收所有键盘事件
   KeyPreview := True;
@@ -468,6 +527,15 @@ begin
 
   // 应用当前语言字符串
   ApplyLanguageStrings;
+
+  // 绑定SVG粘贴事件
+  if Assigned(meoSVG) then
+  begin
+    PopupMenu := TMemoPopupMenu.Create(meoSVG);
+    meoSVG.PopupMenu := PopupMenu;
+    meoSVG.OnPaste := meoSVGPaste;
+    PopupMenu.OnPaste := meoSVGPaste;
+  end;
 end;
 
 procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
@@ -778,6 +846,7 @@ var
   Col, Row: Integer;
   Grid: TStringGrid;
   P: TPoint;
+  FileName, FilePath, FileExt: string;
 begin
   if Sender is TStringGrid then
     Grid := TStringGrid(Sender)
@@ -803,6 +872,21 @@ begin
         Grid.Cells[Col, Row] := ''
       else
         Grid.Cells[Col, Row] := '√';
+    end;
+    
+    // 检查是否是SVG文件，如果是则在SkSVG控件中显示
+    FileName := Grid.Cells[1, Row];
+    if FileName <> '' then
+    begin
+      FilePath := IncludeTrailingPathDelimiter(FSelectedFolder) + FileName;
+      FileExt := LowerCase(ExtractFileExt(FileName));
+      
+      if (FileExt = '.svg') and FileExists(FilePath) and Assigned(SkSvg1) then
+      begin
+        // 在SkSVG控件中显示SVG图片
+        LoadSVGToComponent(FilePath, SkSvg1);
+        Log('已在预览区域加载SVG文件: ' + FileName);
+      end;
     end;
   end;
 end;
@@ -832,9 +916,37 @@ begin
 end;
 
 procedure TForm1.StringGridSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
+var
+  SelectedFile, FileExt: string;
 begin
   // 记录选中的行
   FSelectedRow := ARow;
+  
+  // 检查是否有效的行号
+  if (ARow > 0) and (ARow < StringGrid1.RowCount) then
+  begin
+    // 获取选中的文件名
+    SelectedFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[1, ARow];
+    
+    // 检查是否是SVG文件并在预览控件中显示
+    if FileExists(SelectedFile) then
+    begin
+      FileExt := LowerCase(ExtractFileExt(SelectedFile));
+      if (FileExt = '.svg') and Assigned(SkSvg1) then
+      begin
+        try
+          LoadSVGToComponent(SelectedFile, SkSvg1);
+          Log('已加载SVG文件到预览窗口: ' + ExtractFileName(SelectedFile));
+        except
+          on E: Exception do
+            Log('SVG加载失败: ' + E.Message);
+        end;
+      end;
+    end;
+  end;
+  
+  // 允许选择单元格
+  CanSelect := True;
 end;
 
 procedure TForm1.UpdateFileExtensions(const FolderPath: string);
@@ -1120,13 +1232,6 @@ begin
           end;
         end;
       end;
-    end;
-
-    // 确保实例为空
-    if Assigned(SynEditForm) then
-    begin
-      // 如果实例仍然存在，尝试重用它
-      Log('重用现有SynEditForm实例');
     end
     else
     begin
@@ -1374,18 +1479,15 @@ var
   i: Integer;
   Node: TTreeNode;
   NodeData: Integer;
-  NodeLevel: Integer;
 begin
   try
     // 遍历TreeView中的所有节点
     for i := 0 to TreeViewEncodings.Items.Count - 1 do
     begin
       Node := TreeViewEncodings.Items[i];
-      NodeLevel := Node.Level;
 
-      // 检查所有编码节点（非根节点和非分组标题节点）
-      // 注意：由于HelperUI.SetupEncodingList的实现，编码节点可能在Level=1或Level=2
-      if (NodeLevel > 0) and (Integer(Node.Data) >= 0) then
+      // 只检查第2级节点（编码选项，非分组标题）
+      if (Node.Level = 2) then
       begin
         NodeData := Integer(Node.Data);
 
@@ -1394,7 +1496,8 @@ begin
         begin
           // 检查编码是否为UTF-8且有BOM
           if (FEncodingModel.Encodings[NodeData].CodePage = 65001) and
-             (FEncodingModel.Encodings[NodeData].HasBOM) then
+             (FEncodingModel.Encodings[NodeData].HasBOM) and
+             (Pos('UTF-8 BOM', FEncodingModel.Encodings[NodeData].Name) > 0) then
           begin
             // 选中该节点
             TreeViewEncodings.Selected := Node;
@@ -1403,40 +1506,14 @@ begin
             Node.MakeVisible;
 
             // 记录日志
-            Log('默认选中编码: ' + Node.Text);
+            Log('默认选中编码: UTF-8 BOM');
 
             // 找到后退出循环
-            Exit;
+            Break;
           end;
         end;
       end;
     end;
-    
-    // 如果没有找到UTF-8 BOM，尝试查找普通UTF-8（无BOM）
-    for i := 0 to TreeViewEncodings.Items.Count - 1 do
-    begin
-      Node := TreeViewEncodings.Items[i];
-      
-      if (Node.Level > 0) and (Integer(Node.Data) >= 0) then
-      begin
-        NodeData := Integer(Node.Data);
-        
-        if (NodeData >= 0) and (NodeData < FEncodingModel.EncodingCount) then
-        begin
-          // 查找普通UTF-8
-          if (FEncodingModel.Encodings[NodeData].CodePage = 65001) and
-             (not FEncodingModel.Encodings[NodeData].HasBOM) then
-          begin
-            TreeViewEncodings.Selected := Node;
-            Node.MakeVisible;
-            Log('没有找到UTF-8 BOM，选中普通UTF-8: ' + Node.Text);
-            Exit;
-          end;
-        end;
-      end;
-    end;
-    
-    Log('未找到UTF-8编码节点，未设置默认编码');
   except
     on E: Exception do
       Log('设置默认编码失败: ' + E.Message);
@@ -1466,13 +1543,43 @@ begin
   // 默认选中UTF-8 BOM编码
   SelectUTF8BOMInTreeView;
 
+  // 初始化图像格式RadioGroup
+  if Assigned(rgPicType) then
+  begin
+    rgPicType.Items.Clear;
+    rgPicType.Items.Add('ICO');
+    rgPicType.Items.Add('PNG');
+    rgPicType.Items.Add('JPG');
+    rgPicType.Items.Add('BMP');
+    rgPicType.Items.Add('GIF');
+    rgPicType.Items.Add('TIFF');
+    rgPicType.Items.Add('WebP');
+    rgPicType.ItemIndex := 0; // 默认选择ICO格式
+    
+    // 添加国际化提示
+    rgPicType.Hint := '选择SVG转换的目标图像格式';
+    rgPicType.ShowHint := True;
+  end;
+
   // 绑定事件
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
+
+  // 确保绑定弹出菜单
   StringGrid1.PopupMenu := GridPopupMenu;
+
+  // 确保按钮事件绑定
   btnShowContent.OnClick := btnShowContentClick;
   btnSelectAllExt.OnClick := btnSelectAllExtClick;
 
   // 初始化按钮提示信息
+  if Assigned(btnSVG2ICON) then
+  begin
+    btnSVG2ICON.Hint := '将选中的SVG文件转换为其他图像格式';
+    btnSVG2ICON.ShowHint := True;
+    btnSVG2ICON.OnClick := btnSVG2ICONClick;
+  end;
+
+  // 初始化其他按钮
   btnShowContent.Hint := '查看选中文件的内容';
   btnShowContent.ShowHint := True;
 
@@ -1481,12 +1588,12 @@ begin
 
   // 应用语言字符串
   ApplyLanguageStrings;
-  
+
   // 初始化"包含子目录"复选框
   chkIncludeSubdirs.Checked := False;
   FIncludeSubdirs := False;
   chkIncludeSubdirs.OnClick := chkIncludeSubdirsClick;
- 
+
   // 使用更安全的默认目录
   try
     // 首先尝试使用上次记录的目录（如果有且有效）
@@ -1659,277 +1766,491 @@ begin
 end;
 
 procedure TForm1.ApplyLanguageStrings;
+begin
+  UpdateUILanguage;
+end;
+
+procedure TForm1.SetLanguage(const LangCode: string);
+begin
+  ControllerLanguage.SetLanguage(LangCode);
+  UpdateUILanguage;
+end;
+
+procedure TForm1.UpdateUILanguage;
 var
   LangStrings: TLanguageStrings;
 begin
-  // 获取当前语言的字符串
-  LangStrings := ControllerLanguage.GetLanguageStrings(FCurrentLanguage);
-
-  // 应用到界面
-  Self.Caption := LangStrings.WindowTitle;
+  LangStrings := ControllerLanguage.GetLanguageStrings(ControllerLanguage.GetCurrentLanguage);
+  
+  // 更新界面文本
+  Caption := LangStrings.WindowTitle;
   btnConvert.Caption := LangStrings.BtnConvert;
   btnSingleFile.Caption := LangStrings.BtnSingleFile;
   btnRefresh.Caption := LangStrings.BtnRefresh;
   btnClose.Caption := LangStrings.BtnClose;
   btnToggleSelect.Caption := LangStrings.BtnToggleSelect;
-  Label1.Caption := LangStrings.LanguageGroupCaption;
-  StringGrid1.Cells[0, 0] := LangStrings.FileSelectColumn;
-  StringGrid1.Cells[1, 0] := LangStrings.FileNameColumn;
-  StringGrid1.Cells[2, 0] := LangStrings.EncodingColumn;
-
-  // 菜单项
-  MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
-  MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
-  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile;
-  MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
-  MenuItemViewContent.Caption := LangStrings.BtnPreview;
-
-  // 复选框
-  chkIncludeSubdirs.Caption := LangStrings.ChkIncludeSubdirs;
-
-  // 其他按钮
+  if Assigned(btnSVG2ICON) then
+    btnSVG2ICON.Caption := LangStrings.BtnSVGConverter;
   btnSelectAllExt.Caption := LangStrings.BtnAllFileTypes;
   btnShowContent.Caption := LangStrings.BtnCheckContent;
   
-  // 重建编码树视图以更新语言显示
-  TreeViewEncodings.Items.BeginUpdate;
-  try
-    // 记住选中的编码
-    var SelectedEncoding: Integer := -1;
-    if TreeViewEncodings.Selected <> nil then
-      SelectedEncoding := Integer(TreeViewEncodings.Selected.Data);
-      
-    // 清空并重新构建编码列表
-    FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
+  // 更新表格标题
+  StringGrid1.Cells[0, 0] := LangStrings.FileSelectColumn;
+  StringGrid1.Cells[1, 0] := LangStrings.FileNameColumn;
+  StringGrid1.Cells[2, 0] := LangStrings.EncodingColumn;
+  
+  // 更新复选框
+  chkIncludeSubdirs.Caption := LangStrings.ChkIncludeSubdirs;
+  
+  // 刷新编码列表
+  if Assigned(TreeViewEncodings) and Assigned(FEncodingModel) then
+    FUIHelper.RefreshEncodingList(TreeViewEncodings, FEncodingModel);
+
+  // 重新加载编码列表
+  if Assigned(FEncodingModel) then
+  begin
+    // 重新加载编码列表
+    FEncodingModel.ReloadEncodings;
+
+    // 刷新编码列表显示
+    if Assigned(FUIHelper) and Assigned(TreeViewEncodings) then
+      FUIHelper.RefreshEncodingList(TreeViewEncodings, FEncodingModel);
+  end;
+
+  // 强制更新控件
+  btnConvert.Invalidate;
+  btnSingleFile.Invalidate;
+  btnRefresh.Invalidate;
+  btnClose.Invalidate;
+  btnToggleSelect.Invalidate;
+end;
+
+procedure TForm1.TreeViewEncodingChange(Sender: TObject; Node: TTreeNode);
+var
+  EncodingIndex: Integer;
+begin
+  // 如果有效的节点和数据
+  if Assigned(Node) and (Node.Level > 0) and Assigned(Node.Data) then
+  begin
+    EncodingIndex := Integer(Node.Data);
+    Log('选择编码索引: ' + IntToStr(EncodingIndex));
+  end;
+end;
+
+procedure TForm1.TreeViewEncodingCustomDrawItem(Sender: TCustomTreeView;
+  Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
+var
+  EncodingIndex: Integer;
+begin
+  // 如果有效的节点和数据
+  if Assigned(Node) and (Node.Level > 0) and Assigned(Node.Data) then
+  begin
+    EncodingIndex := Integer(Node.Data);
+    // 可以根据EncodingIndex自定义绘制样式
+  end;
+  
+  // 默认绘制
+  DefaultDraw := True;
+end;
+
+procedure TForm1.btnSVG2ICONClick(Sender: TObject);
+var
+  SVGContent: string;
+  IsFromMemo: Boolean;
+  TempSVGFile: string;
+  SVGConverter: TSVGConverter;
+  Format: TSVGOutputFormat;
+  OutputDir, OutputFilePath: string;
+  SuccessCount, FailCount: Integer;
+  FileName, FileExt: string;
+  SupportedFormats: TArray<TSVGOutputFormat>;
+  i: Integer;
+  ConvertAll: Boolean;
+begin
+  // 初始化计数器
+  SuccessCount := 0;
+  FailCount := 0;
+
+  // 检查是否从Memo获取SVG内容
+  IsFromMemo := (meoSVG.Lines.Count > 0) and IsSVGContent(meoSVG.Lines.Text);
+  
+  if IsFromMemo then
+  begin
+    // 从Memo获取SVG内容
+    SVGContent := meoSVG.Lines.Text;
     
-    // 如果之前有选中的编码，尝试恢复选择
-    if SelectedEncoding >= 0 then
+    // 创建临时SVG文件
+    TempSVGFile := TPath.Combine(TPath.GetTempPath, 'temp_' + FormatDateTime('yyyymmddhhnnss', Now) + '.svg');
+    TFile.WriteAllText(TempSVGFile, SVGContent, TEncoding.UTF8);
+    Log('已创建临时SVG文件: ' + TempSVGFile);
+  end
+  else
+  begin
+    // 检查是否选择了SVG文件
+    if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
     begin
-      // 尝试查找并选中之前选中的节点
-      for var i := 0 to TreeViewEncodings.Items.Count - 1 do
+      ShowMessage('请选择一个SVG文件或在编辑框中粘贴SVG内容');
+      Exit;
+    end;
+    
+    // 获取选中的文件
+    FileName := StringGrid1.Cells[1, FSelectedRow];
+    FileExt := LowerCase(ExtractFileExt(FileName));
+    
+    if FileExt <> '.svg' then
+    begin
+      ShowMessage('请选择SVG格式的文件');
+      Exit;
+    end;
+    
+    // 设置文件路径
+    TempSVGFile := IncludeTrailingPathDelimiter(FSelectedFolder) + FileName;
+    
+    if not FileExists(TempSVGFile) then
+    begin
+      ShowMessage('文件不存在: ' + TempSVGFile);
+      Exit;
+    end;
+  end;
+  
+  // 选择输出目录
+  if not SelectDirectory('选择输出目录', '', OutputDir) then
+  begin
+    // 用户取消了目录选择
+    if IsFromMemo and FileExists(TempSVGFile) then
+      DeleteFile(TempSVGFile);
+    Exit;
+  end;
+  
+  // 确保输出目录以路径分隔符结尾
+  OutputDir := IncludeTrailingPathDelimiter(OutputDir);
+  
+  // 确定是转换所有格式还是仅转换选中的格式
+  ConvertAll := Application.MessageBox(
+    '是否要转换为所有支持的格式？选择"是"将转换为所有7种格式，选择"否"仅转换为当前选中的格式。',
+    '转换选项',
+    MB_YESNO + MB_ICONQUESTION) = IDYES;
+  
+  // 设置支持的格式
+  if ConvertAll then
+  begin
+    SetLength(SupportedFormats, 7);
+    SupportedFormats[0] := sofICO;
+    SupportedFormats[1] := sofPNG;
+    SupportedFormats[2] := sofJPG;
+    SupportedFormats[3] := sofBMP;
+    SupportedFormats[4] := sofGIF;
+    SupportedFormats[5] := sofTIFF;
+    SupportedFormats[6] := sofWebP;
+  end
+  else
+  begin
+    SetLength(SupportedFormats, 1);
+    SupportedFormats[0] := TSVGOutputFormat(rgPicType.ItemIndex);
+  end;
+  
+  // 开始转换过程
+  Log('开始SVG转换...');
+  for i := 0 to Length(SupportedFormats) - 1 do
+  begin
+    Format := SupportedFormats[i];
+    
+    // 构建输出文件路径
+    if IsFromMemo then
+      OutputFilePath := OutputDir + 'svg_export_' + GetFormatName(Format) + GetFormatExtension(Format)
+    else
+      OutputFilePath := OutputDir + ChangeFileExt(FileName, GetFormatExtension(Format));
+    
+    Log('正在转换为 ' + GetFormatName(Format) + ' 格式...');
+    
+    // 创建并设置转换器
+    SVGConverter := TSVGConverter.Create;
+    try
+      SVGConverter.SVGFilePath := TempSVGFile;
+      SVGConverter.OutputPath := OutputFilePath;
+      SVGConverter.Width := 256;
+      SVGConverter.Height := 256;
+      SVGConverter.OutputFormat := Format;
+      
+      // 设置回调
+      SVGConverter.OnProgress := HandleSVGProgress;
+      SVGConverter.OnError := HandleSVGError;
+      SVGConverter.OnSuccess := HandleSVGSuccess;
+      
+      // 执行转换
+      if SVGConverter.Convert then
       begin
-        var Node := TreeViewEncodings.Items[i];
-        if (Node.Level > 0) and (Integer(Node.Data) >= 0) and 
-           (Integer(Node.Data) = SelectedEncoding) then
-        begin
-          TreeViewEncodings.Selected := Node;
-          Node.MakeVisible;
-          Log('已恢复选中的编码节点');
-          Break;
+        Inc(SuccessCount);
+        Log('转换成功: ' + OutputFilePath);
+      end
+      else
+      begin
+        Inc(FailCount);
+        Log('转换失败: ' + OutputFilePath);
+      end;
+    finally
+      SVGConverter.Free;
+    end;
+  end;
+  
+  // 删除临时文件
+  if IsFromMemo and FileExists(TempSVGFile) then
+    DeleteFile(TempSVGFile);
+  
+  // 显示结果
+  if ConvertAll then
+    ShowMessage(System.SysUtils.Format('转换完成: 成功 %d 个，失败 %d 个，共 %d 种格式', 
+      [SuccessCount, FailCount, Length(SupportedFormats)]))
+  else if SuccessCount > 0 then
+    ShowMessage('转换成功')
+  else
+    ShowMessage('转换失败');
+end;
+
+function TForm1.IsSVGContent(const Content: string): Boolean;
+begin
+  Result := (Pos('<?xml', Content) > 0) and (Pos('<svg', Content) > 0);
+end;
+
+function TForm1.GetFormatExtension(Format: TSVGOutputFormat): string;
+begin
+  case Format of
+    sofICO: Result := '.ico';
+    sofPNG: Result := '.png';
+    sofJPG: Result := '.jpg';
+    sofBMP: Result := '.bmp';
+    sofGIF: Result := '.gif';
+    sofTIFF: Result := '.tiff';
+    sofWebP: Result := '.webp';
+    else Result := '.png';
+  end;
+end;
+
+function TForm1.GetFormatName(Format: TSVGOutputFormat): string;
+begin
+  case Format of
+    sofICO: Result := 'ICO';
+    sofPNG: Result := 'PNG';
+    sofJPG: Result := 'JPG';
+    sofBMP: Result := 'BMP';
+    sofGIF: Result := 'GIF';
+    sofTIFF: Result := 'TIFF';
+    sofWebP: Result := 'WebP';
+    else Result := 'PNG';
+  end;
+end;
+
+procedure TForm1.meoSVGPaste(Sender: TObject);
+var
+  SVGContent: string;
+begin
+  if Clipboard.HasFormat(CF_TEXT) then
+  begin
+    SVGContent := Clipboard.AsText;
+    if IsSVGContent(SVGContent) then
+    begin
+      meoSVG.Lines.Text := SVGContent;
+      
+      // 尝试加载到预览控件
+      if Assigned(SkSvg1) then
+      begin
+        try
+          LoadSVGContentToComponent(SVGContent, SkSvg1);
+          Log('已预览粘贴的SVG内容');
+        except
+          on E: Exception do
+            Log('SVG预览失败: ' + E.Message);
         end;
       end;
     end
     else
     begin
-      // 如果之前没有选中节点，默认选中UTF-8 BOM
-      SelectUTF8BOMInTreeView;
-    end;
-  finally
-    TreeViewEncodings.Items.EndUpdate;
-  end;
-
-  // 记录日志
-  Log('已应用语言字符串: ' + FCurrentLanguage);
-end;
-
-procedure TForm1.SwitchToLanguageCode(const LangCode: string);
-var
-  LangInfo: TLanguageInfo;
-  i: Integer;
-begin
-  // 输出详细日志帮助调试
-  Log('尝试切换到语言: ' + LangCode);
-
-  // 设置语言
-  ControllerLanguage.SetLanguage(LangCode);
-  FCurrentLanguage := LangCode;
-
-  // 应用语言字符串（此方法中已包含重建编码列表的逻辑）
-  ApplyLanguageStrings;
-
-  // 更新语言选择器选中项
-  LangInfo := ControllerLanguage.GetLanguageInfo(LangCode);
-  for i := 0 to ComboBox1.Items.Count - 1 do
-  begin
-    if ComboBox1.Items[i] = LangInfo.NativeName then
-    begin
-      ComboBox1.ItemIndex := i;
-      Break;
-    end;
-  end;
-end;
-
-procedure TForm1.ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
-begin
-  // 检查文件是否存在
-  if not FileExists(FileName) then
-  begin
-    ShowMessage(GetLocalizedMessageFmt('MsgFileNotExists', [FileName]));
-    Exit;
-  end;
-
-  // 检查是否为文本文件
-  if not FFileHelper.IsNormalTextFile(FileName) then
-  begin
-    ShowMessage(GetLocalizedMessageFmt('MsgNotTextFile', [ExtractFileName(FileName)]));
-    Exit;
-  end;
-
-  try
-    // 创建SynEditForm实例（如果尚未创建）
-    if not Assigned(SynEditForm) then
-    begin
-      try
-        Application.CreateForm(TSynEditForm, SynEditForm);
-      except
-        on E: Exception do
-        begin
-          ShowMessage('无法创建文件查看器: ' + E.Message);
-          Log('创建SynEditForm失败: ' + E.Message);
-          Exit;
-        end;
-      end;
-    end;
-
-    // 直接加载文件内容，SynEdit会自动处理编码
-    try
-      SynEditForm.LoadFile(FileName);
-    except
-      on E: Exception do
-      begin
-        ShowMessage('无法加载文件: ' + E.Message);
-        Log('SynEditForm.LoadFile失败: ' + E.Message);
-        Exit;
-      end;
-    end;
-
-    // 定位窗体在主窗体右侧(如果屏幕空间足够)
-    try
-      if Self.Left + Self.Width + 20 + 600 < Screen.Width then
-        SynEditForm.Left := Self.Left + Self.Width + 20
-      else
-        SynEditForm.Left := (Screen.Width - SynEditForm.Width) div 2;
-
-      SynEditForm.Top := Self.Top + 50; // 略微偏下
-
-      // 调整窗体大小为合理值
-      SynEditForm.Width := 800;
-      SynEditForm.Height := 600;
-
-      // 显示窗体(非模态)
-      SynEditForm.Show;
-
-      // 记录日志
-      Log('已打开文件: ' + FileName);
-    except
-      on E: Exception do
-      begin
-        ShowMessage('显示窗体时发生错误: ' + E.Message);
-        Log('显示SynEditForm失败: ' + E.Message);
-      end;
-    end;
-  except
-    on E: Exception do
-    begin
-      ShowMessage('无法打开文件: ' + E.Message);
-      Log('打开文件失败: ' + E.Message);
-    end;
-  end;
-end;
-
-procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-begin
-  // 如果按下Shift+Ctrl+W组合键，则调整表格列宽
-  if (Key = Ord('W')) and (ssCtrl in Shift) and (ssShift in Shift) then
-  begin
-    AdjustGridColumnWidths;
-    Log('表格列宽已调整');
-    Key := 0; // 防止按键继续处理
-  end;
-end;
-
-procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
-begin
-  // 安全释放全局的SynEditForm实例
-  try
-    if Assigned(SynEditForm) then
-    begin
-      // 首先尝试隐藏窗体
-      try
-        if SynEditForm.Visible then
-        begin
-          SynEditForm.Hide;
-          Log('已隐藏SynEditForm窗体');
-          Application.ProcessMessages; // 给系统一些时间处理隐藏操作
-          Sleep(100); // 等待一下，确保窗体已隐藏
-        end;
-      except
-        on E: Exception do
-        begin
-          Log('隐藏SynEditForm失败: ' + E.Message);
-          // 即使隐藏失败也继续尝试释放
-        end;
-      end;
-
-      // 然后尝试释放实例
-      try
-        // 使用Release而非Free，让VCL在下一个消息循环中释放实例
-        SynEditForm.Release;
-        SynEditForm := nil;
-        Log('已释放SynEditForm实例');
-      except
-        on E: Exception do
-        begin
-          Log('释放SynEditForm失败: ' + E.Message);
-          // 如果Release失败，尝试使用FreeAndNil
-          try
-            FreeAndNil(SynEditForm);
-            Log('使用FreeAndNil释放SynEditForm实例');
-          except
-            on E2: Exception do
-              Log('使用FreeAndNil释放SynEditForm也失败: ' + E2.Message);
-          end;
-        end;
-      end;
-    end;
-  except
-    on E: Exception do
-    begin
-      Log('关闭时处理SynEditForm失败: ' + E.Message);
-      // 忽略最终错误，确保主窗体可以关闭
+      Log('粘贴的内容不是有效的SVG');
     end;
   end;
 end;
 
 procedure TForm1.chkIncludeSubdirsClick(Sender: TObject);
 begin
-  // 更新子目录包含状态
   FIncludeSubdirs := chkIncludeSubdirs.Checked;
-
-  // 记录状态变化并在界面上提供清晰的反馈
-  if FIncludeSubdirs then
-  begin
-    Log('已启用子目录搜索 - 将包含所有子文件夹中的文件');
-    ShowLocalizedMessage('MsgSubdirEnabled');
-  end
-  else
-    Log('已禁用子目录搜索 - 只搜索当前文件夹');
-
-  // 更新文件列表以反映子目录包含状态
-  Screen.Cursor := crHourGlass;
-  try
-    UpdateFileGrid(FSelectedFolder);
-  finally
-    Screen.Cursor := crDefault;
-  end;
-
-  // 在日志中显示文件数量信息
-  Log('文件列表已更新，当前共显示 ' + IntToStr(StringGrid1.RowCount - 1) + ' 个文件');
+  
+  // 记录日志
+  Log('子目录包含状态已更改: ' + BoolToStr(FIncludeSubdirs, True));
+  
+  // 更新文件列表
+  UpdateFileGrid(FSelectedFolder);
 end;
 
-procedure TForm1.btnSVG2ICONClick(Sender: TObject);
+procedure TForm1.SwitchToLanguageCode(const LangCode: string);
 begin
-  // 功能已移除
+  // 设置当前语言
+  FCurrentLanguage := LangCode;
+  
+  // 只记录语言代码，不更新配置（因为没有Lang属性）
+  // FConfig.Lang := LangCode;
+  
+  // 使用语言控制器切换语言
+  ControllerLanguage.SetLanguage(LangCode);
+  
+  // 更新UI
+  ApplyLanguageStrings;
+  
+  // 记录日志
+  Log('已切换到语言: ' + LangCode);
+end;
+
+procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  // 处理快捷键
+  if (Shift = [ssCtrl]) then
+  begin
+    case Key of
+      Ord('R'): // Ctrl+R: 刷新
+      begin
+        btnRefreshClick(nil);
+        Key := 0; // 阻止默认处理
+      end;
+      
+      Ord('C'): // Ctrl+C: 复制文件路径
+      begin
+        if (FSelectedRow > 0) and (FSelectedRow < StringGrid1.RowCount) then
+        begin
+          MenuItemCopyFullPathClick(nil);
+          Key := 0; // 阻止默认处理
+        end;
+      end;
+    end;
+  end;
+end;
+
+procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  // 记录日志
+  Log('应用程序关闭...');
+end;
+
+function TForm1.GetTempDirectory: string;
+begin
+  Result := TPath.GetTempPath;
+end;
+
+procedure TForm1.LogAdd(const AMessage: string);
+begin
+  Log(AMessage);
+end;
+
+function TForm1.GetLangString(const AKey: string): string;
+begin
+  Result := GetLocalizedMessage(AKey);
+end;
+
+function TForm1.GetSVGSize(const ASVGContent: string): TPoint;
+var
+  SVG: TSkSvg;
+  Form: TForm;
+begin
+  Result := Point(256, 256); // 默认大小
+  
+  // 创建临时表单和控件
+  Form := TForm.Create(nil);
+  try
+    Form.Visible := False;
+    
+    // 创建SVG控件
+    SVG := TSkSvg.Create(Form);
+    try
+      SVG.Parent := Form;
+      
+      // 尝试加载SVG内容
+      try
+        SVG.Svg.Source := ASVGContent;
+        
+        // 由于我们无法直接访问Root属性，这里简单返回默认尺寸
+        // 实际应用中可能需要扩展此方法
+      except
+        on E: Exception do
+          Log('获取SVG尺寸失败: ' + E.Message);
+      end;
+    finally
+      SVG.Free;
+    end;
+  finally
+    Form.Free;
+  end;
+end;
+
+procedure TForm1.HandleSVGProgress(const AMessage: string);
+begin
+  Log('SVG进度: ' + AMessage);
+end;
+
+procedure TForm1.HandleSVGError(const AMessage: string);
+begin
+  Log('SVG错误: ' + AMessage);
+end;
+
+procedure TForm1.HandleSVGSuccess(const AMessage: string);
+begin
+  Log('SVG成功: ' + AMessage);
+end;
+
+procedure TCustomMemo.WMPaste(var Message: TWMPaste);
+begin
+  inherited;
+  if Assigned(FOnPaste) then
+    FOnPaste(Self);
+end;
+
+procedure TForm1.ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
+var
+  SelectedFile: string;
+begin
+  SelectedFile := FileName;
+  
+  // 调用现有方法
+  if FileExists(SelectedFile) then
+  begin
+    // 检查文件是否为文本文件
+    if FFileHelper.IsNormalTextFile(SelectedFile) then
+    begin
+      // 设置选中行
+      for var i := 1 to StringGrid1.RowCount - 1 do
+      begin
+        if ExtractFileName(SelectedFile) = StringGrid1.Cells[1, i] then
+        begin
+          FSelectedRow := i;
+          StringGrid1.Row := i;
+          Break;
+        end;
+      end;
+      
+      try
+        // 尝试显示文件内容
+        btnShowContentClick(nil);
+        
+        // 记录文件编码信息
+        Log('文件编码: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+        
+        // 如果指定了编码，可以在这里使用Encoding参数
+        // 这里简单记录一下
+        if Assigned(Encoding) then
+          Log('使用指定编码: ' + IntToStr(Encoding.CodePage));
+      except
+        on E: Exception do
+          Log('显示文件内容失败: ' + E.Message);
+      end;
+    end
+    else
+    begin
+      Log('文件不是文本文件: ' + SelectedFile);
+      ShowMessage('文件不是文本文件');
+    end;
+  end
+  else
+  begin
+    Log('文件不存在: ' + SelectedFile);
+    ShowMessage('文件不存在');
+  end;
 end;
 
 end.

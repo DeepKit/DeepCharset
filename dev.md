@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-TransSuccess 是一款文件编码转换工具，旨在提供简单、高效、可靠的文件编码转换功能。本项目使用 Delphi 开发，支持多种编码格式之间的转换，包括 UTF-8、UTF-16、GBK、BIG5、Shift-JIS 等。
+TransSuccess 是一个专注于文本编码检测和转换的工具，支持多种编码格式的自动识别和转换。
 
 ## 技术架构
 
@@ -246,7 +246,7 @@ TransSuccess 支持以下 16 种常用语言：
 
 ## 编码支持
 
-TransSuccess 支持多种编码格式之间的转换，包括：
+TransSuccess 支持联合国多语言标准，覆盖全球范围内的主要编码格式，包括：
 
 1. **Unicode 编码**：
    - UTF-8（带 BOM 和不带 BOM）
@@ -254,67 +254,99 @@ TransSuccess 支持多种编码格式之间的转换，包括：
    - UTF-16BE（大端序）
    - UTF-32LE（小端序）
    - UTF-32BE（大端序）
+   - UTF-7
 
-2. **中文编码**：
-   - GB2312
-   - GBK
-   - GB18030
-   - BIG5
-   - BIG5-HKSCS
-
-3. **日文编码**：
-   - Shift-JIS
-   - EUC-JP
-   - ISO-2022-JP
-
-4. **韩文编码**：
-   - EUC-KR
-   - Johab
-   - ISO-2022-KR
-
-5. **欧洲语言编码**：
+2. **西欧/美洲编码**：
+   - Windows-1252 (西欧Windows)
+   - Windows-1250 (中欧Windows)
+   - MacRoman (苹果西欧)
+   - IBM850 (DOS西欧)
+   - IBM437 (DOS美国)
+   - IBM865 (DOS北欧)
+   - IBM860 (DOS葡萄牙语)
    - ISO-8859-1 (Latin-1)
-   - ISO-8859-2 (Latin-2)
-   - ISO-8859-3 (Latin-3)
-   - ISO-8859-4 (Latin-4)
-   - ISO-8859-5 (Cyrillic)
-   - ISO-8859-6 (Arabic)
-   - ISO-8859-7 (Greek)
-   - ISO-8859-8 (Hebrew)
-   - ISO-8859-9 (Turkish)
-   - ISO-8859-10 (Nordic)
-   - ISO-8859-13 (Baltic)
-   - ISO-8859-14 (Celtic)
-   - ISO-8859-15 (Latin-9)
-   - ISO-8859-16 (Romanian)
+   - ISO-8859-15 (Latin-9，含欧元符号)
 
-6. **Windows 代码页**：
-   - Windows-1250 (Central European)
-   - Windows-1251 (Cyrillic)
-   - Windows-1252 (Western European)
-   - Windows-1253 (Greek)
-   - Windows-1254 (Turkish)
-   - Windows-1255 (Hebrew)
-   - Windows-1256 (Arabic)
-   - Windows-1257 (Baltic)
-   - Windows-1258 (Vietnamese)
-   - Windows-874 (Thai)
+3. **东欧/斯拉夫编码**：
+   - Windows-1253 (希腊Windows)
+   - Windows-1254 (土耳其Windows)
+   - Windows-1257 (波罗的海Windows)
+   - Windows-1251 (西里尔Windows)
+   - KOI8-R (俄语)
+   - KOI8-U (乌克兰语)
+   - MacCyrillic (苹果西里尔)
+   - MacGreek (苹果希腊语)
+   - MacTurkish (苹果土耳其语)
+   - ISO-8859-2 (Latin-2，中欧)
+   - ISO-8859-3 (Latin-3，南欧)
+   - ISO-8859-4 (Latin-4，北欧)
+   - ISO-8859-5 (Cyrillic，斯拉夫)
+   - ISO-8859-7 (Greek，希腊)
+   - ISO-8859-9 (Turkish，土耳其)
+   - ISO-8859-10 (Nordic，北欧)
+   - ISO-8859-13 (Baltic，波罗的海)
+   - ISO-8859-14 (Celtic，凯尔特)
+   - ISO-8859-16 (Romanian，罗马尼亚)
+
+4. **中东/希伯来/阿拉伯编码**：
+   - Windows-1255 (希伯来Windows)
+   - Windows-1256 (阿拉伯Windows)
+   - CP862 (DOS希伯来)
+   - CP864 (DOS阿拉伯)
+   - ISO-8859-6 (阿拉伯)
+   - ISO-8859-6-I (阿拉伯方向反转)
+   - ISO-8859-8 (希伯来)
+   - MacArabic (苹果阿拉伯)
+   - MacHebrew (苹果希伯来)
+   - ARMSCII-8 (亚美尼亚)
+   - GEOSTD8 (格鲁吉亚)
+
+5. **亚洲编码**：
+   - **中文**：
+     - GB2312 (简体中文基本编码)
+     - GBK (中文扩展编码)
+     - GB18030 (中文国家标准编码)
+     - CP936 (简体中文Windows)
+     - Big5 (繁体中文编码)
+     - CP950 (繁体中文Windows)
+     - Big5-HKSCS (香港繁体中文增补字符集)
+     - EUC-TW (台湾EUC编码)
+   - **日文**：
+     - Shift-JIS (日文主要编码)
+     - CP932 (日本Windows编码)
+     - EUC-JP (日文扩展Unix编码)
+     - ISO-2022-JP (日文邮件和网络编码)
+   - **韩文**：
+     - EUC-KR (韩文扩展Unix编码)
+     - CP949 (韩国Windows编码)
+     - Johab (韩文Johab编码)
+     - ISO-2022-KR (韩文邮件和网络编码)
+
+6. **南亚和东南亚编码**：
+   - **印度语系**：
+     - ISCII-Devanagari (印地语等)
+     - ISCII-Bengali (孟加拉语)
+     - ISCII-Tamil (泰米尔语)
+     - ISCII-Telugu (泰卢固语)
+     - ISCII-Assamese (阿萨姆语)
+     - ISCII-Oriya (奥里亚语)
+     - ISCII-Kannada (卡纳达语)
+     - ISCII-Malayalam (马拉雅拉姆语)
+     - ISCII-Gujarati (古吉拉特语)
+     - ISCII-Punjabi (旁遮普语)
+   - TSCII (泰米尔语专用编码)
+   - TIS-620 (泰语编码)
+   - Windows-874 (泰语Windows编码)
+   - VISCII (越南语编码)
+   - Windows-1258 (越南语Windows编码)
 
 7. **其他编码**：
-   - KOI8-R (Russian)
-   - KOI8-U (Ukrainian)
-   - ASCII
-   - EBCDIC
-   - ISCII (Indian Script Code)
-   - VISCII (Vietnamese)
-   - TSCII (Tamil)
-   - TIS-620 (Thai)
-   - MacRoman
-   - MacCyrillic
-   - MacGreek
-   - MacTurkish
-   - MacArabic
-   - MacHebrew
+   - ASCII (基本ASCII编码)
+   - EBCDIC-US (IBM大型机美国编码)
+   - EBCDIC-International (IBM大型机国际编码)
+   - EBCDIC-Latin-9 (IBM大型机拉丁9编码)
+
+所有上述编码均支持互相转换，对于某些特殊编码对，转换过程会通过 UTF-8 作为中间格式进行两步转换，以确保转换的精确性。此外，系统针对各地区特殊编码提供了专门的检测算法，大大提升了无BOM文件的编码识别准确率。
 
 ## 功能特性
 

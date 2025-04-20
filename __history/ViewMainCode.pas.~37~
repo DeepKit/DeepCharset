@@ -48,6 +48,7 @@ Type
     Panel8: TPanel;
     btnConvert: TButton;
     btnSingleFile: TButton;
+    btnRefresh: TButton;
     btnToggleSelect: TButton;
     Label1: TLabel;
     ComboBox1: TComboBox;
@@ -59,7 +60,6 @@ Type
     PageControl1: TPageControl;
     TabSheet1: TTabSheet;
     MemLog: TMemo;
-    btnRefresh: TButton;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
@@ -1374,18 +1374,15 @@ var
   i: Integer;
   Node: TTreeNode;
   NodeData: Integer;
-  NodeLevel: Integer;
 begin
   try
     // 遍历TreeView中的所有节点
     for i := 0 to TreeViewEncodings.Items.Count - 1 do
     begin
       Node := TreeViewEncodings.Items[i];
-      NodeLevel := Node.Level;
 
-      // 检查所有编码节点（非根节点和非分组标题节点）
-      // 注意：由于HelperUI.SetupEncodingList的实现，编码节点可能在Level=1或Level=2
-      if (NodeLevel > 0) and (Integer(Node.Data) >= 0) then
+      // 只检查第2级节点（编码选项，非分组标题）
+      if (Node.Level = 2) then
       begin
         NodeData := Integer(Node.Data);
 
@@ -1394,7 +1391,8 @@ begin
         begin
           // 检查编码是否为UTF-8且有BOM
           if (FEncodingModel.Encodings[NodeData].CodePage = 65001) and
-             (FEncodingModel.Encodings[NodeData].HasBOM) then
+             (FEncodingModel.Encodings[NodeData].HasBOM) and
+             (Pos('UTF-8 BOM', FEncodingModel.Encodings[NodeData].Name) > 0) then
           begin
             // 选中该节点
             TreeViewEncodings.Selected := Node;
@@ -1403,40 +1401,14 @@ begin
             Node.MakeVisible;
 
             // 记录日志
-            Log('默认选中编码: ' + Node.Text);
+            Log('默认选中编码: UTF-8 BOM');
 
             // 找到后退出循环
-            Exit;
+            Break;
           end;
         end;
       end;
     end;
-    
-    // 如果没有找到UTF-8 BOM，尝试查找普通UTF-8（无BOM）
-    for i := 0 to TreeViewEncodings.Items.Count - 1 do
-    begin
-      Node := TreeViewEncodings.Items[i];
-      
-      if (Node.Level > 0) and (Integer(Node.Data) >= 0) then
-      begin
-        NodeData := Integer(Node.Data);
-        
-        if (NodeData >= 0) and (NodeData < FEncodingModel.EncodingCount) then
-        begin
-          // 查找普通UTF-8
-          if (FEncodingModel.Encodings[NodeData].CodePage = 65001) and
-             (not FEncodingModel.Encodings[NodeData].HasBOM) then
-          begin
-            TreeViewEncodings.Selected := Node;
-            Node.MakeVisible;
-            Log('没有找到UTF-8 BOM，选中普通UTF-8: ' + Node.Text);
-            Exit;
-          end;
-        end;
-      end;
-    end;
-    
-    Log('未找到UTF-8编码节点，未设置默认编码');
   except
     on E: Exception do
       Log('设置默认编码失败: ' + E.Message);
@@ -1690,43 +1662,6 @@ begin
   // 其他按钮
   btnSelectAllExt.Caption := LangStrings.BtnAllFileTypes;
   btnShowContent.Caption := LangStrings.BtnCheckContent;
-  
-  // 重建编码树视图以更新语言显示
-  TreeViewEncodings.Items.BeginUpdate;
-  try
-    // 记住选中的编码
-    var SelectedEncoding: Integer := -1;
-    if TreeViewEncodings.Selected <> nil then
-      SelectedEncoding := Integer(TreeViewEncodings.Selected.Data);
-      
-    // 清空并重新构建编码列表
-    FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
-    
-    // 如果之前有选中的编码，尝试恢复选择
-    if SelectedEncoding >= 0 then
-    begin
-      // 尝试查找并选中之前选中的节点
-      for var i := 0 to TreeViewEncodings.Items.Count - 1 do
-      begin
-        var Node := TreeViewEncodings.Items[i];
-        if (Node.Level > 0) and (Integer(Node.Data) >= 0) and 
-           (Integer(Node.Data) = SelectedEncoding) then
-        begin
-          TreeViewEncodings.Selected := Node;
-          Node.MakeVisible;
-          Log('已恢复选中的编码节点');
-          Break;
-        end;
-      end;
-    end
-    else
-    begin
-      // 如果之前没有选中节点，默认选中UTF-8 BOM
-      SelectUTF8BOMInTreeView;
-    end;
-  finally
-    TreeViewEncodings.Items.EndUpdate;
-  end;
 
   // 记录日志
   Log('已应用语言字符串: ' + FCurrentLanguage);
@@ -1744,7 +1679,7 @@ begin
   ControllerLanguage.SetLanguage(LangCode);
   FCurrentLanguage := LangCode;
 
-  // 应用语言字符串（此方法中已包含重建编码列表的逻辑）
+  // 应用语言字符串
   ApplyLanguageStrings;
 
   // 更新语言选择器选中项
