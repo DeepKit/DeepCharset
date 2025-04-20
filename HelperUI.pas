@@ -190,12 +190,12 @@ begin
       begin
         // 获取编码名称的本地化文本
         DisplayText := GetTranslatedText('Encoding_' + EncodingInfo.ShortName, EncodingInfo.Name);
-        
+
         // 如果有描述，也添加翻译后的描述
         if EncodingInfo.Description <> '' then
-          DisplayText := DisplayText + ' - ' + 
+          DisplayText := DisplayText + ' - ' +
             GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
-          
+
         // 添加带描述的编码节点
         EncodingNode := TreeView.Items.AddChildObject(GroupNode, DisplayText, Pointer(i)); // Store index in Data
       end
@@ -203,11 +203,11 @@ begin
       begin
          // Fallback: add directly under the root (shouldn't happen ideally)
          DisplayText := GetTranslatedText('Encoding_' + EncodingInfo.ShortName, EncodingInfo.Name);
-         
+
          if EncodingInfo.Description <> '' then
-           DisplayText := DisplayText + ' - ' + 
+           DisplayText := DisplayText + ' - ' +
              GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
-           
+
          EncodingNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
       end;
     end;
@@ -216,11 +216,11 @@ begin
     if Assigned(RootNode) then
     begin
       RootNode.Expand(True);
-      
+
       // 展开第一个分组（Unicode编码组）
       if (RootNode.Count > 0) and (RootNode.Item[0] <> nil) then
         RootNode.Item[0].Expand(True);
-        
+
       // 展开第二个分组（亚洲编码组）
       if (RootNode.Count > 1) and (RootNode.Item[1] <> nil) then
         RootNode.Item[1].Expand(True);
@@ -284,75 +284,67 @@ var
 begin
   // 初始化变量
   TransKey := '';
-  
+
   // 检查LanguageManager是否可用
   if Assigned(LanguageManager) and (LanguageManager.CurrentLanguage <> '') then
   begin
     LangCode := LanguageManager.CurrentLanguage;
-    
-    // 先尝试从语言管理器获取通用字符串
-    Result := GetString(Key);
-    
-    // 如果通过GetString找不到，尝试直接从INI文件读取
-    // 这对于编码相关的字符串特别有用，因为它们通常在[Encodings]区域
-    if (Result = '') or (Result = Key) then
-    begin
-      try
-        // 确定INI文件的路径
-        if IniDir <> '' then
-          FullPath := System.SysUtils.IncludeTrailingPathDelimiter(IniDir) + LangCode + '.ini'
-        else
-          FullPath := ExtractFilePath(Application.ExeName) + 'ini\' + LangCode + '.ini';
-          
-        // 检查INI文件是否存在
-        if FileExists(FullPath) then
-        begin
-          LangIniFile := TMemIniFile.Create(FullPath, TEncoding.UTF8);
-          try
-            // 根据键名前缀确定查找的节
-            if Key.StartsWith('TreeViewRootNode') then
-            begin
-              Section := 'Strings';
-              TransKey := 'TreeViewRootNode';
-            end
-            else if Key.StartsWith('EncodingGroup_') then
-            begin
-              Section := 'Encodings';
-              TransKey := Copy(Key, Length('EncodingGroup_') + 1, Length(Key));
-            end
-            else if Key.StartsWith('Encoding_') then
-            begin
-              Section := 'Encodings';
-              TransKey := Copy(Key, Length('Encoding_') + 1, Length(Key));
-            end
-            else if Key.StartsWith('EncodingDesc_') then
-            begin
-              // 描述目前没有单独存储在INI文件中，忽略
-              Result := DefaultValue;
-              Exit;
-            end
-            else
-            begin
-              Section := 'Strings';
-              TransKey := Key;
-            end;
-            
-            // 从INI文件读取翻译
-            Result := LangIniFile.ReadString(Section, TransKey, DefaultValue);
-            
-            // 如果读取到空字符串，使用默认值
-            if Result = '' then
-              Result := DefaultValue;
-          finally
-            LangIniFile.Free;
+
+    try
+      // 确定INI文件的路径
+      if IniDir <> '' then
+        FullPath := System.SysUtils.IncludeTrailingPathDelimiter(IniDir) + LangCode + '.ini'
+      else
+        FullPath := ExtractFilePath(Application.ExeName) + 'ini\' + LangCode + '.ini';
+
+      // 检查INI文件是否存在
+      if FileExists(FullPath) then
+      begin
+        LangIniFile := TMemIniFile.Create(FullPath, TEncoding.UTF8);
+        try
+          // 根据键名前缀确定查找的节
+          if Key.StartsWith('TreeViewRootNode') then
+          begin
+            Section := 'Strings';
+            TransKey := 'TreeViewRootNode';
+          end
+          else if Key.StartsWith('EncodingGroup_') then
+          begin
+            Section := 'Encodings';
+            TransKey := Copy(Key, Length('EncodingGroup_') + 1, Length(Key));
+          end
+          else if Key.StartsWith('Encoding_') then
+          begin
+            Section := 'Encodings';
+            TransKey := Copy(Key, Length('Encoding_') + 1, Length(Key));
+          end
+          else if Key.StartsWith('EncodingDesc_') then
+          begin
+            // 描述目前没有单独存储在INI文件中，忽略
+            Result := DefaultValue;
+            Exit;
+          end
+          else
+          begin
+            Section := 'Strings';
+            TransKey := Key;
           end;
-        end
-        else
-          Result := DefaultValue;
-      except
-        // 异常处理，使用默认值
+
+          // 从INI文件读取翻译
+          Result := LangIniFile.ReadString(Section, TransKey, DefaultValue);
+
+          // 如果读取到空字符串，使用默认值
+          if Result = '' then
+            Result := DefaultValue;
+        finally
+          LangIniFile.Free;
+        end;
+      end
+      else
         Result := DefaultValue;
-      end;
+    except
+      // 异常处理，使用默认值
+      Result := DefaultValue;
     end;
   end
   else
