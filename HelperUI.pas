@@ -5,7 +5,8 @@ interface
 uses
   System.SysUtils, System.Classes, Vcl.StdCtrls, Vcl.Controls, Vcl.Grids,
   Vcl.Forms, Vcl.Graphics, System.Types, Vcl.CheckLst, ModelEncoding,
-  Winapi.Windows, Winapi.Messages, Vcl.ComCtrls, HelperLanguage, System.IniFiles, UtilsTypes;
+  Winapi.Windows, Winapi.Messages, Vcl.ComCtrls, HelperLanguage, System.IniFiles, UtilsTypes,
+  System.Rtti, System.TypInfo;
 
 type
   // UI 辅助类
@@ -64,7 +65,21 @@ end;
 
 procedure TUIHelper.AppendLog(LogMemo: TMemo; const Text: string);
 begin
-  LogMemo.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + Text);
+  // 确保使用UTF-8编码添加日志，避免乱码
+  var TimeStamp := FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now);
+  var LogText := TimeStamp + Text;
+
+  // 使用UTF-8编码添加日志
+  LogMemo.Lines.BeginUpdate;
+  try
+    // 设置TMemo的编码为UTF-8
+    LogMemo.Font.Charset := DEFAULT_CHARSET;
+
+    // 添加日志
+    LogMemo.Lines.Add(LogText);
+  finally
+    LogMemo.Lines.EndUpdate;
+  end;
 
   // 滚动到底部
   LogMemo.SelStart := Length(LogMemo.Text);
@@ -163,6 +178,7 @@ var
   EncodingInfo: ModelEncoding.TEncodingInfo;
   DisplayText: string;      // 完整显示文本，包含名称和描述
   RootText: string;         // 根节点文本，支持多语言
+  Description: string;      // 编码描述
 begin
   TreeView.Items.BeginUpdate;
   try
@@ -184,17 +200,23 @@ begin
       begin
         // 获取分组标题的本地化文本
         DisplayText := GetTranslatedText('EncodingGroup_' + EncodingInfo.ShortName, EncodingInfo.Name);
+
+        if DisplayText = '' then
+          DisplayText := EncodingInfo.Name;
+
         GroupNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i)); // Store index, mark as group
       end
       else if Assigned(GroupNode) then // Ensure we have a category to add to
       begin
-        // 获取编码名称的本地化文本
-        DisplayText := GetTranslatedText('Encoding_' + EncodingInfo.ShortName, EncodingInfo.Name);
+        // 获取编码名称
+        DisplayText := EncodingInfo.Name;
 
-        // 如果有描述，也添加翻译后的描述
-        if EncodingInfo.Description <> '' then
-          DisplayText := DisplayText + ' - ' +
-            GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
+        // 获取编码描述
+        Description := GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
+
+        // 如果有描述，添加到显示文本中
+        if Description <> '' then
+          DisplayText := DisplayText + ' - ' + Description;
 
         // 添加带描述的编码节点
         EncodingNode := TreeView.Items.AddChildObject(GroupNode, DisplayText, Pointer(i)); // Store index in Data
@@ -202,12 +224,7 @@ begin
       else
       begin
          // Fallback: add directly under the root (shouldn't happen ideally)
-         DisplayText := GetTranslatedText('Encoding_' + EncodingInfo.ShortName, EncodingInfo.Name);
-
-         if EncodingInfo.Description <> '' then
-           DisplayText := DisplayText + ' - ' +
-             GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
-
+         DisplayText := EncodingInfo.Name;
          EncodingNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
       end;
     end;
@@ -320,8 +337,22 @@ begin
           end
           else if Key.StartsWith('EncodingDesc_') then
           begin
-            // 描述目前没有单独存储在INI文件中，忽略
-            Result := DefaultValue;
+            // 从INI文件中获取编码描述
+            Section := 'EncodingDescriptions';
+            TransKey := Copy(Key, Length('EncodingDesc_') + 1, Length(Key));
+
+            // 如果在EncodingDescriptions节中找不到，尝试在Encodings节中查找
+            Result := LangIniFile.ReadString(Section, TransKey, '');
+            if Result = '' then
+            begin
+              Section := 'Encodings';
+              Result := LangIniFile.ReadString(Section, TransKey, DefaultValue);
+            end;
+
+            // 如果仍然为空，使用默认值
+            if Result = '' then
+              Result := DefaultValue;
+
             Exit;
           end
           else

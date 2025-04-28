@@ -1,0 +1,7 @@
+This is an ASCII encoded test file.
+It contains only English characters.
+
+Numbers: 0123456789
+Symbols: !@#$%^&*()_+-=[]{}|;':",./<>?
+
+This file is used to test encoding detection and conversion functionality.

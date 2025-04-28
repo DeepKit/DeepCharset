@@ -309,15 +309,14 @@ begin
 
   try
     // Execute conversion
-    FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
-      TProc<string>(
-        procedure(const FilePath: string)
-        begin
-          UpdateSingleFileInGrid(FilePath);
-          Inc(SuccessCount);
-        end
-      )
-    );
+    for var j := 0 to High(SelectedFiles) do
+    begin
+      if FEncodingController.ConvertSingleFile(SelectedFiles[j], TargetInfo.ShortName, WithBOM) then
+      begin
+        UpdateSingleFileInGrid(SelectedFiles[j]);
+        Inc(SuccessCount);
+      end;
+    end;
 
     // Record conversion result
     Log(System.SysUtils.Format('批量转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]));
@@ -582,7 +581,7 @@ begin
       DetectedEncoding := FFileHelper.DetectFileEncoding(AllFiles[i], HasBOM);
 
       // Try conversion
-      if FEncodingController.ConvertFile(AllFiles[i], Encoding) then
+      if FEncodingController.ConvertSingleFile(AllFiles[i], FEncodingModel.GetEncodingName(Encoding), True) then
       begin
         Inc(SuccessCount);
         Log('- 成功转换: ' + AllFiles[i] + ' (从 ' + DetectedEncoding + ' 到 ' +
@@ -638,15 +637,14 @@ begin
   SuccessCount := 0;
 
   // 执行转换
-  FEncodingController.ConvertFilesByName(SelectedFiles, TargetInfo.ShortName, WithBOM,
-    TProc<string>(
-      procedure(const FilePath: string)
-      begin
-        UpdateSingleFileInGrid(FilePath);
-        Inc(SuccessCount);
-      end
-    )
-  );
+  for var j := 0 to High(SelectedFiles) do
+  begin
+    if FEncodingController.ConvertSingleFile(SelectedFiles[j], TargetInfo.ShortName, WithBOM) then
+    begin
+      UpdateSingleFileInGrid(SelectedFiles[j]);
+      Inc(SuccessCount);
+    end;
+  end;
   Log(System.SysUtils.Format('批量转换完成: %d 个文件', [SuccessCount]));
 end;
 
@@ -709,7 +707,7 @@ begin
       DetectedEncoding := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
 
       // Try conversion
-      if FEncodingController.ConvertFile(FilePath, Encoding) then
+      if FEncodingController.ConvertSingleFile(FilePath, FEncodingModel.GetEncodingName(Encoding), True) then
       begin
         Inc(SuccessCount);
         Log('- 成功转换: ' + FilePath + ' (从 ' + DetectedEncoding + ' 到 ' +
@@ -1068,6 +1066,10 @@ end;
 procedure TForm1.btnShowContentClick(Sender: TObject);
 var
   SelectedFile: string;
+  EncodingInfo: TEncodingInfo;
+  DetectedEncoding: string;
+  HasBOM: Boolean;
+  Encoding: TEncoding;
 begin
   // 确保选中了有效的行
   if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
@@ -1092,6 +1094,14 @@ begin
   end;
 
   try
+    // 检测文件编码
+    Log('正在检测文件编码: ' + SelectedFile);
+    HasBOM := False;
+    DetectedEncoding := FFileHelper.DetectFileEncoding(SelectedFile, HasBOM);
+    Encoding := nil; // 我们将使用名称而不是编码对象
+
+    Log('检测到文件编码: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+
     // 安全地处理先前的实例
     if Assigned(SynEditForm) then
     begin
@@ -1153,15 +1163,57 @@ begin
     // 使用实例加载文件
     Log('正在打开文件: ' + SelectedFile);
     try
-      SynEditForm.LoadFile(SelectedFile);
-      Log('成功加载文件到SynEditForm');
+      // 使用检测到的编码加载文件
+      Log('使用检测到的编码加载文件: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+
+      // 根据检测到的编码创建相应的TEncoding对象
+      var FileEncoding: TEncoding := nil;
+      try
+        if SameText(DetectedEncoding, 'UTF-8') or SameText(DetectedEncoding, 'UTF-8 with BOM') then
+          FileEncoding := TEncoding.UTF8
+        else if SameText(DetectedEncoding, 'UTF-16LE') then
+          FileEncoding := TEncoding.Unicode
+        else if SameText(DetectedEncoding, 'UTF-16BE') then
+          FileEncoding := TEncoding.BigEndianUnicode
+        else if SameText(DetectedEncoding, 'GBK') or SameText(DetectedEncoding, 'GB2312') then
+          FileEncoding := TEncoding.GetEncoding(936) // GBK代码页
+        else if SameText(DetectedEncoding, 'BIG5') then
+          FileEncoding := TEncoding.GetEncoding(950) // BIG5代码页
+        else
+          FileEncoding := TEncoding.Default;
+
+        // 使用指定编码加载文件
+        SynEditForm.SetFileInfo(SelectedFile, DetectedEncoding, HasBOM);
+        SynEditForm.LoadFileWithEncoding(SelectedFile, FileEncoding, DetectedEncoding, HasBOM);
+        Log('成功加载文件到SynEditForm，编码: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+      finally
+        // 释放非标准编码对象
+        if Assigned(FileEncoding) and
+           (FileEncoding <> TEncoding.UTF8) and
+           (FileEncoding <> TEncoding.Unicode) and
+           (FileEncoding <> TEncoding.BigEndianUnicode) and
+           (FileEncoding <> TEncoding.Default) then
+          FileEncoding.Free;
+      end;
     except
       on E: Exception do
       begin
         ShowLocalizedMessageFmt('MsgCannotLoadFile', [E.Message]);
-        Log('LoadFile失败: ' + E.Message);
-        // 不释放实例，只是退出
-        Exit;
+        Log('LoadFileWithEncoding失败: ' + E.Message);
+
+        // 如果加载失败，尝试使用默认编码
+        try
+          Log('尝试使用默认编码加载文件...');
+          SynEditForm.LoadFile(SelectedFile);
+          Log('使用默认编码成功加载文件');
+        except
+          on E2: Exception do
+          begin
+            Log('使用默认编码加载文件也失败: ' + E2.Message);
+            // 不释放实例，只是退出
+            Exit;
+          end;
+        end;
       end;
     end;
 

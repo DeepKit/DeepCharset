@@ -91,6 +91,7 @@ object Form1: TForm1
       Height = 155
       Align = alRight
       TabOrder = 0
+      ExplicitLeft = 751
       DesignSize = (
         282
         155)
@@ -103,7 +104,6 @@ object Form1: TForm1
         Caption = #36864#20986#36719#20214
         TabOrder = 0
         OnClick = btnCloseClick
-        ExplicitLeft = 288
       end
       object btnRefresh: TButton
         Left = 140
@@ -114,7 +114,6 @@ object Form1: TForm1
         Caption = #21047#26032
         TabOrder = 1
         OnClick = btnRefreshClick
-        ExplicitLeft = 288
       end
     end
     object PageControl1: TPageControl
@@ -127,7 +126,7 @@ object Form1: TForm1
       MultiLine = True
       TabOrder = 1
       TabPosition = tpRight
-      ExplicitWidth = 596
+      ExplicitWidth = 744
       object TabSheet1: TTabSheet
         Caption = 'Log'
         object MemLog: TMemo
@@ -139,6 +138,7 @@ object Form1: TForm1
           Lines.Strings = (
             'MemLog')
           TabOrder = 0
+          ExplicitWidth = 713
         end
       end
     end
@@ -309,9 +309,8 @@ object Form1: TForm1
       OnClick = StringGrid1Click
       OnContextPopup = StringGrid1ContextPopup
       OnSelectCell = StringGridSelectCell
-      ExplicitTop = 52
       ExplicitWidth = 449
-      ExplicitHeight = 339
+      ExplicitHeight = 345
     end
     object Panel7: TPanel
       Left = 1
@@ -320,8 +319,7 @@ object Form1: TForm1
       Height = 362
       Align = alLeft
       TabOrder = 1
-      ExplicitTop = 52
-      ExplicitHeight = 339
+      ExplicitHeight = 345
       object CheckListBox1: TCheckListBox
         Left = 1
         Top = 1
@@ -331,6 +329,7 @@ object Form1: TForm1
         Columns = 1
         ItemHeight = 15
         TabOrder = 0
+        ExplicitHeight = 343
       end
     end
     object Panel8: TPanel
@@ -340,6 +339,7 @@ object Form1: TForm1
       Height = 42
       Align = alTop
       TabOrder = 2
+      ExplicitWidth = 521
       object btnConvert: TButton
         Left = 183
         Top = 5

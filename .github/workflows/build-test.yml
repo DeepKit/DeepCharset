@@ -1,0 +1,94 @@
+name: Delphi Encoding Converter CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Setup Delphi
+        uses: grijjy/setup-delphi@v1
+        with:
+          version: 11.0 # 使用Delphi 11 Alexandria
+      
+      - name: Install dependencies
+        run: |
+          # 如果需要安装DUnitX或其他依赖，在这里添加
+          # 例如：
+          # git clone https://github.com/VSoftTechnologies/DUnitX.git c:\DUnitX
+      
+      - name: Compile project and tests
+        run: |
+          call build.bat --clean
+        shell: cmd
+      
+      - name: Run tests
+        run: |
+          cd bin
+          .\EncodingTestRunner.exe -category:Basic -xml:..\testresults\basic.xml
+          .\EncodingTestRunner.exe -category:Performance -xml:..\testresults\performance.xml
+          .\EncodingTestRunner.exe -category:Security -xml:..\testresults\security.xml
+        shell: cmd
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: testresults/*.xml
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: encoding-converter
+          path: bin/*.exe
+      
+      - name: Parse test results
+        run: |
+          echo "Reading test results..."
+          powershell -command "Get-Content testresults\basic.xml | Select-String -Pattern '<test-run' | ForEach-Object { $_ -match 'passed=\"(\d+)\".*failed=\"(\d+)\"'; Write-Output ('Basic Tests: ' + $matches[1] + ' passed, ' + $matches[2] + ' failed') }"
+          powershell -command "Get-Content testresults\performance.xml | Select-String -Pattern '<test-run' | ForEach-Object { $_ -match 'passed=\"(\d+)\".*failed=\"(\d+)\"'; Write-Output ('Performance Tests: ' + $matches[1] + ' passed, ' + $matches[2] + ' failed') }"
+          powershell -command "Get-Content testresults\security.xml | Select-String -Pattern '<test-run' | ForEach-Object { $_ -match 'passed=\"(\d+)\".*failed=\"(\d+)\"'; Write-Output ('Security Tests: ' + $matches[1] + ' passed, ' + $matches[2] + ' failed') }"
+        shell: cmd
+
+  # 发布版本配置
+  release:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: windows-latest
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: encoding-converter
+          path: release
+      
+      - name: Create release package
+        run: |
+          cd release
+          echo Creating release package...
+          mkdir EncodingConverter
+          copy *.exe EncodingConverter\
+          powershell -command "Compress-Archive -Path EncodingConverter -DestinationPath EncodingConverter.zip"
+        shell: cmd
+      
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: release/EncodingConverter.zip
+          name: Encoding Converter ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

@@ -148,6 +148,7 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="ControllerLanguage.pas"/>
+        <DCCReference Include="UtilsEncodingTypes.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -1,0 +1,10 @@
+﻿﻿这是一个带BOM的UTF-8编码测试文件。
+It contains both Chinese and English characters.
+它包含中文和英文字符。
+
+Special characters: ñ, é, ü, ç, ß, ø, å, æ, œ, ł
+数字: 0123456789
+符号: !@#$%^&*()_+-=[]{}|;':",./<>?
+
+这个文件用于测试编码检测和转换功能。
+This file is used to test encoding detection and conversion functionality.

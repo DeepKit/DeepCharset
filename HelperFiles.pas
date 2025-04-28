@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, System.IOUtils, Vcl.Dialogs, Vcl.Controls,
   System.Math, System.StrUtils, System.Generics.Collections, Vcl.Forms,
-  JclBOM, JclStrings, JclStringConversions, UtilsJCLEncoding, UtilsTypes, ModelEncoding;
+  UtilsTypes, ModelEncoding, JclBOM, JclEncodingUtils;
 
 type
   TFileFilterFunc = reference to function(const FilePath: string): Boolean;
@@ -26,19 +26,8 @@ type
     function GetFilesInFolder(const FolderPath: string;
       const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False): TArray<string>;
 
-    // 检测文件编码
-    function DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
-
     // 判断文件是否是正常的文本文件
     function IsNormalTextFile(const FileName: string): Boolean;
-
-    // 转换文件编码
-    function ConvertFile(const SourceFile, TargetFile: string;
-      TargetEncoding: TEncoding; AddBOM: Boolean): Boolean;
-
-    // 批量转换文件
-    function BatchConvert(const Files: TArray<string>;
-      TargetEncoding: TEncoding; AddBOM: Boolean): Integer;
 
     // 文件路径处理
     function PathWithSeparator(const Path: string): string;
@@ -52,10 +41,14 @@ type
     // 获取应用程序根目录
     function GetRootDir: string;
 
-    function GetSelectedFilesInFolder(const FolderPath: string; 
-      const Extensions: TStringList; 
+    // 获取选中的文件
+    function GetSelectedFilesInFolder(const FolderPath: string;
+      const Extensions: TStringList;
       const FilterFunc: TFileFilterFunc = nil;
       const IncludeSubDirs: Boolean = False): TArray<string>;
+
+    // 检测文件编码
+    function DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
   end;
 
 implementation
@@ -91,123 +84,9 @@ begin
   inherited;
 end;
 
-function TFileHelper.BatchConvert(const Files: TArray<string>;
-  TargetEncoding: TEncoding; AddBOM: Boolean): Integer;
-var
-  i: Integer;
-begin
-  Result := 0;
 
-  if Length(Files) = 0 then
-    Exit;
 
-  for i := 0 to High(Files) do
-  begin
-    if ConvertFile(Files[i], Files[i], TargetEncoding, AddBOM) then
-      Inc(Result);
-  end;
-end;
 
-function TFileHelper.ConvertFile(const SourceFile, TargetFile: string;
-  TargetEncoding: TEncoding; AddBOM: Boolean): Boolean;
-var
-  SourceEncoding: string;
-  TargetEncodingName: string;
-  SourceCodePage, TargetCodePage: Integer;
-  HasBOM: Boolean;
-begin
-  Result := False;
-  try
-    // 检查是否为正常文本文件
-    if not IsNormalTextFile(SourceFile) then
-    begin
-      if Assigned(FLogCallback) then
-        FLogCallback('跳过非文本文件: ' + SourceFile);
-      Exit;
-    end;
-
-    // 检测源文件编码
-    SourceEncoding := DetectFileEncoding(SourceFile, HasBOM);
-    if SourceEncoding = '未知' then
-    begin
-      if Assigned(FLogCallback) then
-        FLogCallback('无法检测文件编码: ' + SourceFile);
-      Exit;
-    end;
-
-    // 确定目标编码名称
-    case TargetEncoding.CodePage of
-      65001: begin
-        if AddBOM then
-          TargetEncodingName := ENCODING_UTF8_BOM
-        else
-          TargetEncodingName := ENCODING_UTF8;
-      end;
-      936: TargetEncodingName := ENCODING_GBK;
-      950: TargetEncodingName := ENCODING_BIG5;
-      1200: TargetEncodingName := ENCODING_UTF16_LE;
-      1201: TargetEncodingName := ENCODING_UTF16_BE;
-      else TargetEncodingName := ENCODING_ANSI;
-    end;
-
-    // 使用UtilsJCLEncoding替代直接调用ConvertFileByName
-    if UtilsJCLEncoding.ConvertFileByName(SourceFile, TargetFile, SourceEncoding, TargetEncodingName, AddBOM) then
-    begin
-      Result := True;
-
-      if Assigned(FLogCallback) then
-        FLogCallback('成功转换: ' + SourceFile + ' -> ' + TargetEncodingName);
-    end
-    else
-    begin
-      if Assigned(FLogCallback) then
-        FLogCallback('转换失败');
-    end;
-  except
-    on E: Exception do
-    begin
-      if Assigned(FLogCallback) then
-        FLogCallback('转换异常: ' + SourceFile + ' - ' + E.Message);
-      Result := False;
-    end;
-  end;
-end;
-
-function TFileHelper.DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
-var
-  EncodingName: string;
-begin
-  Result := '未知';
-  HasBOM := False;
-
-  if not FileExists(FileName) then
-    Exit;
-
-  try
-    // 使用UtilsJCLEncoding替代直接调用JclEncodingUtils
-    EncodingName := UtilsJCLEncoding.DetectFileEncoding(FileName);
-    if EncodingName <> 'Unknown' then
-    begin
-      Result := EncodingName;
-
-      // 检查是否有BOM
-      HasBOM := (Result = ENCODING_UTF8_BOM) or
-                (Result = ENCODING_UTF16_LE) or
-                (Result = ENCODING_UTF16_BE) or
-                (Result = ENCODING_UTF32_LE) or
-                (Result = ENCODING_UTF32_BE);
-
-      if Assigned(FLogCallback) then
-        FLogCallback('检测到文件编码: ' + FileName + ' -> ' + Result);
-    end;
-  except
-    on E: Exception do
-    begin
-      if Assigned(FLogCallback) then
-        FLogCallback('编码检测错误: ' + E.Message);
-    end;
-  end;
-end;
 
 function TFileHelper.EnsurePathExists(const Path: string): Boolean;
 begin
@@ -515,7 +394,7 @@ begin
 
     // 获取所有文件
     Files := TDirectory.GetFiles(FolderPath, '*.*', SearchOption);
-    
+
     // 过滤文件
     for i := 0 to High(Files) do
     begin
@@ -529,6 +408,46 @@ begin
     Result := FileList.ToArray;
   finally
     FileList.Free;
+  end;
+end;
+
+function TFileHelper.DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
+var
+  FileStream: TFileStream;
+  BOMType: TJclBOMType;
+begin
+  // 记录日志
+  if Assigned(FLogCallback) then
+    FLogCallback(Format('检测文件编码: %s', [FileName]));
+
+  try
+    // 使用JclEncodingUtils中的检测函数
+    Result := JclEncodingUtils.DetectFileEncoding(FileName);
+
+    // 检查是否有BOM
+    FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+    try
+      BOMType := JclBOM.DetectBOM(FileStream);
+      HasBOM := BOMType <> JclBOM.bomAnsi;
+
+      // 记录详细日志
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('检测到文件 %s 的编码为: %s (BOM: %s)',
+          [ExtractFileName(FileName), Result, BoolToStr(HasBOM, True)]));
+    finally
+      FileStream.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      // 如果检测失败，使用默认值
+      Result := 'ANSI';
+      HasBOM := False;
+
+      // 记录错误
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('检测文件编码失败: %s - %s', [FileName, E.Message]));
+    end;
   end;
 end;
 

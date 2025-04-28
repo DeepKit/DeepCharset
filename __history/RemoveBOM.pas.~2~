@@ -1,0 +1,133 @@
+﻿unit RemoveBOM;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.IOUtils, Winapi.Windows;
+
+// 从文件中移除UTF-8 BOM
+function RemoveUTF8BOM(const FileName: string): Boolean;
+
+// 向文件添加UTF-8 BOM
+function AddUTF8BOM(const FileName: string): Boolean;
+
+implementation
+
+function RemoveUTF8BOM(const FileName: string): Boolean;
+var
+  Content: TBytes;
+  HasBOM: Boolean;
+  TempFileName: string;
+begin
+  Result := False;
+
+  if not FileExists(FileName) then
+    Exit;
+
+  try
+    // 读取文件内容
+    Content := TFile.ReadAllBytes(FileName);
+
+    // 检查是否有BOM
+    if (Length(Content) >= 3) and
+       (Content[0] = $EF) and (Content[1] = $BB) and (Content[2] = $BF) then
+    begin
+      // 有BOM，移除它
+      TempFileName := ChangeFileExt(FileName, '.tmp');
+
+      // 创建一个新的字节数组，不包含BOM
+      var NewContent: TBytes;
+      SetLength(NewContent, Length(Content) - 3);
+      if Length(Content) > 3 then
+        Move(Content[3], NewContent[0], Length(Content) - 3);
+
+      // 写入到临时文件
+      TFile.WriteAllBytes(TempFileName, NewContent);
+
+      // 删除原文件
+      if FileExists(FileName) then
+        DeleteFile(PWideChar(FileName));
+
+      // 重命名临时文件
+      RenameFile(TempFileName, FileName);
+
+      Result := True;
+    end
+    else
+    begin
+      // 没有BOM，不需要处理
+      Result := True;
+    end;
+  except
+    on E: Exception do
+    begin
+      // 处理异常
+      OutputDebugString(PChar('RemoveUTF8BOM 错误: ' + E.Message));
+      Result := False;
+    end;
+  end;
+end;
+
+function AddUTF8BOM(const FileName: string): Boolean;
+var
+  Content: TBytes;
+  HasBOM: Boolean;
+  TempFileName: string;
+  BOM: TBytes;
+begin
+  Result := False;
+
+  if not FileExists(FileName) then
+    Exit;
+
+  try
+    // 读取文件内容
+    Content := TFile.ReadAllBytes(FileName);
+
+    // 检查是否已有BOM
+    if (Length(Content) >= 3) and
+       (Content[0] = $EF) and (Content[1] = $BB) and (Content[2] = $BF) then
+    begin
+      // 已有BOM，不需要处理
+      Result := True;
+      Exit;
+    end;
+
+    // 创建一个新的字节数组，包含BOM和原内容
+    TempFileName := ChangeFileExt(FileName, '.tmp');
+
+    // 创建一个新的字节数组，包含BOM和原内容
+    var NewContent: TBytes;
+    SetLength(NewContent, Length(Content) + 3);
+
+    // 添加BOM
+    NewContent[0] := $EF;
+    NewContent[1] := $BB;
+    NewContent[2] := $BF;
+
+    // 复制原内容
+    if Length(Content) > 0 then
+      Move(Content[0], NewContent[3], Length(Content));
+
+    // 写入到临时文件
+    TFile.WriteAllBytes(TempFileName, NewContent);
+
+    // 删除原文件
+    if FileExists(FileName) then
+      DeleteFile(FileName);
+
+    // 重命名临时文件
+    RenameFile(TempFileName, FileName);
+
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      // 处理异常
+      OutputDebugString(PChar('AddUTF8BOM 错误: ' + E.Message));
+      Result := False;
+    end;
+  end;
+end;
+
+end.

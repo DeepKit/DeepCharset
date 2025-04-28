@@ -1208,6 +1208,60 @@ begin
         Exit;
       end;
 
+      // 特殊处理：如果检测到的是UTF-8但没有BOM，我们需要确保添加BOM
+      if (BOMType = bomAnsi) and (DetectFileEncoding(SourceFileName) = ENCODING_UTF8) then
+      begin
+        OutputDebugString('检测到UTF-8文件但没有BOM，将添加BOM...');
+
+        // 直接读取文件内容并添加BOM
+        var UTF8SourceBytes := TFile.ReadAllBytes(SourceFileName);
+        var UTF8BOMHeader := TBytes.Create($EF, $BB, $BF);
+
+        // 合并BOM和内容
+        var UTF8FinalBytes: TBytes;
+        SetLength(UTF8FinalBytes, Length(UTF8BOMHeader) + Length(UTF8SourceBytes));
+        if Length(UTF8BOMHeader) > 0 then
+          Move(UTF8BOMHeader[0], UTF8FinalBytes[0], Length(UTF8BOMHeader));
+        if Length(UTF8SourceBytes) > 0 then
+          Move(UTF8SourceBytes[0], UTF8FinalBytes[Length(UTF8BOMHeader)], Length(UTF8SourceBytes));
+
+        // 写入目标文件
+        try
+          // 先检查目标文件是否可写
+          if FileExists(TargetFileName) then
+          begin
+            // 尝试设置文件属性为可写
+            {$IFDEF MSWINDOWS}
+            if FileGetAttr(TargetFileName) and faReadOnly <> 0 then
+              FileSetAttr(TargetFileName, FileGetAttr(TargetFileName) and not faReadOnly);
+            {$ENDIF}
+
+            // 删除已存在的文件
+            DeleteFile(PChar(TargetFileName));
+          end;
+
+          // 写入新文件
+          TFile.WriteAllBytes(TargetFileName, UTF8FinalBytes);
+          Result := True;
+
+          // 输出调试信息
+          OutputDebugString(PWideChar(string(Format('成功添加BOM到UTF-8文件: %s, 大小: %d 字节',
+                           [TargetFileName, Length(UTF8FinalBytes)]))));
+
+          // 关闭文件流并退出
+          FileStream.Free;
+          Exit;
+        except
+          on E: Exception do
+          begin
+            // 捕获写入错误
+            OutputDebugString(PWideChar(string(Format('添加BOM失败: %s - %s',
+                           [TargetFileName, E.Message]))));
+            // 继续执行，尝试使用标准方法
+          end;
+        end;
+      end;
+
       // 重置文件指针
       FileStream.Position := 0;
 

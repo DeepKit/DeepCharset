@@ -1,0 +1,3 @@
+This is an ANSI encoded test file.
+It contains only English characters.
+ANSI encoding is the default encoding in Windows.

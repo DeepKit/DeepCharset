@@ -1,0 +1,3 @@
+这是一个UTF-8编码的测试文件。
+It contains both Chinese and English characters.
+UTF-8编码可以表示世界上大多数语言的字符。
