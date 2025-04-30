@@ -177,7 +177,7 @@
             <div class="subtitle">高效、可靠的文件编码转换工具</div>
         </div>
     </header>
-    
+
     <nav>
         <div class="container">
             <ul>
@@ -188,21 +188,21 @@
             </ul>
         </div>
     </nav>
-    
+
     <div class="container">
         <div class="page-title">
             <h2>关于我们</h2>
             <p>了解 TransSuccess 的开发团队、历史和使命。</p>
         </div>
-        
+
         <div class="about-content">
             <section class="about-section">
                 <h3>我们的故事</h3>
                 <p>TransSuccess 项目起源于开发团队在日常工作中频繁遇到的文件编码问题。作为软件开发人员，我们经常需要处理来自不同系统、不同语言环境的文本文件，这些文件可能使用各种不同的字符编码。</p>
                 <p>在尝试了市场上的多款编码转换工具后，我们发现它们要么功能过于简单，要么操作复杂，要么收费昂贵。因此，我们决定开发一款既功能强大又易于使用的免费工具，以解决这一普遍问题。</p>
-                <p>经过数月的开发和测试，TransSuccess 于 2023 年正式发布。自发布以来，我们一直根据用户反馈不断改进和完善，力求打造最好的文件编码转换工具。</p>
+                <p>经过数月的开发和测试，TransSuccess 于 2023 年正式发布。自发布以来，我们一直根据用户反馈不断改进和完善，特别是在编码检测和转换算法方面进行了重大改进，解决了UTF-8文件被错误检测为ANSI的问题，以及UTF-8到UTF-8+BOM的转换问题，力求打造最好的文件编码转换工具。</p>
             </section>
-            
+
             <section class="about-section">
                 <h3>我们的使命</h3>
                 <p>TransSuccess 的使命是简化文件编码转换过程，帮助用户轻松解决文本文件编码问题。我们致力于：</p>
@@ -210,11 +210,13 @@
                     <li>提供简单直观的用户界面，让任何人都能轻松上手</li>
                     <li>支持广泛的编码格式，满足不同用户的需求</li>
                     <li>确保转换过程安全可靠，不损坏原始文件</li>
+                    <li>提供准确的编码检测和转换算法，解决常见编码问题</li>
+                    <li>支持多语言国际化，服务全球用户</li>
                     <li>持续改进和创新，提供更多实用功能</li>
                     <li>保持软件免费开放，让所有人都能受益</li>
                 </ul>
             </section>
-            
+
             <section class="about-section">
                 <h3>版本历史</h3>
                 <table class="version-history">
@@ -293,24 +295,29 @@
                             </td>
                         </tr>
                         <tr>
-                            <td>1.5.1</td>
+                            <td>2.0.0</td>
                             <td>2024-07-15</td>
                             <td>
                                 <ul>
-                                    <li>修复 SVG 转 ICO 功能的问题</li>
-                                    <li>改进文件编码检测准确性</li>
-                                    <li>优化用户界面响应速度</li>
+                                    <li>重写编码检测和转换算法</li>
+                                    <li>解决UTF-8文件被错误检测为ANSI的问题</li>
+                                    <li>修复UTF-8到UTF-8+BOM的转换问题</li>
+                                    <li>添加编码转换验证功能</li>
+                                    <li>支持16种语言的国际化</li>
+                                    <li>整合JCL库中的编码检测算法</li>
+                                    <li>改进中文编码检测</li>
+                                    <li>实现BOM检测优化</li>
                                 </ul>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </section>
-            
+
             <section class="about-section">
                 <h3>技术支持</h3>
                 <p>如果您在使用 TransSuccess 过程中遇到任何问题，或者有任何建议和反馈，欢迎通过以下方式联系我们：</p>
-                
+
                 <div class="contact-info">
                     <div class="contact-item">
                         <h4>电子邮件</h4>
@@ -330,11 +337,11 @@
                     </div>
                 </div>
             </section>
-            
+
             <section class="about-section">
                 <h3>许可协议</h3>
                 <p>TransSuccess 是免费软件，根据 MIT 许可证发布。您可以自由使用、复制、修改、合并、出版发行、散布、再授权和/或销售本软件的副本，但需要在所有副本上包含上述版权声明和本许可声明。</p>
-                
+
                 <div class="license-box">
                     <p>MIT License</p>
                     <p>Copyright (c) 2023-2024 TransSuccess Team</p>
@@ -343,12 +350,13 @@
                     <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
                 </div>
             </section>
-            
+
             <section class="about-section">
                 <h3>致谢</h3>
                 <p>TransSuccess 的开发离不开以下开源项目和社区的支持：</p>
                 <ul>
                     <li>Delphi VCL 框架</li>
+                    <li>JEDI Code Library (JCL)</li>
                     <li>SynEdit 文本编辑器组件</li>
                     <li>Skia 图形库</li>
                     <li>ICO 文件格式规范</li>
@@ -358,7 +366,7 @@
             </section>
         </div>
     </div>
-    
+
     <footer>
         <div class="container">
             <p>&copy; 2024 TransSuccess. 保留所有权利。</p>

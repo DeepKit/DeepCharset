@@ -4,8 +4,8 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, Vcl.Dialogs, Vcl.Controls,
-  System.Math, System.StrUtils, System.Generics.Collections, Vcl.Forms,
-  UtilsTypes, ModelEncoding, JclBOM, JclEncodingUtils;
+  System.Math, System.StrUtils, System.Generics.Collections, Vcl.Forms, System.TypInfo,
+  UtilsTypes, ModelEncoding, JclBOM, JclEncodingUtils, UTF8BOMConverter_Simple;
 
 type
   TFileFilterFunc = reference to function(const FilePath: string): Boolean;
@@ -76,7 +76,7 @@ begin
   FLogCallback := ALogCallback;
 
   if Assigned(FLogCallback) then
-    FLogCallback('文件助手已初始化，使用JCL编码支持');
+    FLogCallback('文件助手已初始化，使用改进的编码检测支持');
 end;
 
 destructor TFileHelper.Destroy;
@@ -415,20 +415,81 @@ function TFileHelper.DetectFileEncoding(const FileName: string; out HasBOM: Bool
 var
   FileStream: TFileStream;
   BOMType: TJclBOMType;
+  IsUTF8: Boolean;
+  FileExt: string;
 begin
   // 记录日志
   if Assigned(FLogCallback) then
     FLogCallback(Format('检测文件编码: %s', [FileName]));
 
-  try
-    // 使用JclEncodingUtils中的检测函数
-    Result := JclEncodingUtils.DetectFileEncoding(FileName);
+  // 获取文件扩展名
+  FileExt := LowerCase(ExtractFileExt(FileName));
+  if Assigned(FLogCallback) then
+    FLogCallback(Format('文件扩展名: %s', [FileExt]));
 
-    // 检查是否有BOM
+  try
+    // 首先检查是否有BOM
     FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
     try
       BOMType := JclBOM.DetectBOM(FileStream);
       HasBOM := BOMType <> JclBOM.bomAnsi;
+
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('BOM检测结果: %s', [GetEnumName(TypeInfo(TJclBOMType), Ord(BOMType))]));
+
+      // 根据BOM确定编码
+      case BOMType of
+        bomUTF8: Result := 'UTF-8 with BOM';
+        bomUTF16LE: Result := 'UTF-16LE';
+        bomUTF16BE: Result := 'UTF-16BE';
+        bomUTF32LE: Result := 'UTF-32LE';
+        bomUTF32BE: Result := 'UTF-32BE';
+        else
+          // 对于特定的文本文件类型，优先考虑UTF-8
+          if (FileExt = '.md') or (FileExt = '.txt') or (FileExt = '.json') or
+             (FileExt = '.xml') or (FileExt = '.html') or (FileExt = '.htm') or
+             (FileExt = '.css') or (FileExt = '.js') or (FileExt = '.ts') or
+             (FileExt = '.yaml') or (FileExt = '.yml') then
+          begin
+            // 使用改进的UTF-8检测器
+            if Assigned(FLogCallback) then
+              FLogCallback('文件类型适合UTF-8，使用改进的UTF-8检测器');
+
+            IsUTF8 := TUTF8BOMConverter.IsUTF8File(FileName, HasBOM);
+
+            if Assigned(FLogCallback) then
+              FLogCallback(Format('UTF-8检测结果: %s', [BoolToStr(IsUTF8, True)]));
+
+            if IsUTF8 then
+              Result := 'UTF-8'
+            else
+              // 如果不是UTF-8，使用JCL的检测函数
+              Result := JclEncodingUtils.DetectFileEncoding(FileName);
+          end
+          else
+          begin
+            // 对于其他类型的文件，先使用JCL的检测函数
+            if Assigned(FLogCallback) then
+              FLogCallback('使用JCL编码检测函数');
+
+            Result := JclEncodingUtils.DetectFileEncoding(FileName);
+
+            // 如果JCL检测为ANSI，再尝试使用UTF-8检测器
+            if (Result = 'ANSI') or (Result = '') then
+            begin
+              if Assigned(FLogCallback) then
+                FLogCallback('JCL检测为ANSI，尝试使用UTF-8检测器');
+
+              IsUTF8 := TUTF8BOMConverter.IsUTF8File(FileName, HasBOM);
+
+              if Assigned(FLogCallback) then
+                FLogCallback(Format('UTF-8检测结果: %s', [BoolToStr(IsUTF8, True)]));
+
+              if IsUTF8 then
+                Result := 'UTF-8';
+            end;
+          end;
+      end;
 
       // 记录详细日志
       if Assigned(FLogCallback) then

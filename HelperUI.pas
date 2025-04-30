@@ -65,9 +65,12 @@ end;
 
 procedure TUIHelper.AppendLog(LogMemo: TMemo; const Text: string);
 begin
+  if not Assigned(LogMemo) then
+    Exit;
+
   // 确保使用UTF-8编码添加日志，避免乱码
   var TimeStamp := FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now);
-  var LogText := TimeStamp + Text;
+  var LogText := '';
 
   // 使用UTF-8编码添加日志
   LogMemo.Lines.BeginUpdate;
@@ -75,16 +78,78 @@ begin
     // 设置TMemo的编码为UTF-8
     LogMemo.Font.Charset := DEFAULT_CHARSET;
 
-    // 添加日志
-    LogMemo.Lines.Add(LogText);
+    // 确保日志文本是有效的UTF-8
+    try
+      // 检查文本是否包含非ASCII字符
+      var ContainsNonAscii := False;
+      for var i := 1 to Length(Text) do
+      begin
+        if Ord(Text[i]) > 127 then
+        begin
+          ContainsNonAscii := True;
+          Break;
+        end;
+      end;
+
+      // 如果包含非ASCII字符，进行编码转换
+      if ContainsNonAscii then
+      begin
+        // 尝试将文本转换为UTF-8，以处理可能的非UTF-8字符
+        try
+          // 先尝试使用默认编码转换为字节数组
+          var DefaultBytes := TEncoding.Default.GetBytes(Text);
+
+          // 然后尝试将字节数组转换为UTF-8字符串
+          var Utf8Text := TEncoding.UTF8.GetString(DefaultBytes);
+
+          // 最后再转换回字节数组，确保是有效的UTF-8
+          var Utf8Bytes := TEncoding.UTF8.GetBytes(Utf8Text);
+          var ValidText := TEncoding.UTF8.GetString(Utf8Bytes);
+
+          LogText := TimeStamp + ValidText;
+        except
+          // 如果转换失败，使用原始文本
+          LogText := TimeStamp + '(可能包含乱码) ' + Text;
+          OutputDebugString(PChar('日志编码转换失败，使用原始文本'));
+        end;
+      end
+      else
+      begin
+        // 如果只包含ASCII字符，直接使用
+        LogText := TimeStamp + Text;
+      end;
+
+      // 添加日志
+      LogMemo.Lines.Add(LogText);
+    except
+      on E: Exception do
+      begin
+        // 如果处理过程中出现异常，使用安全的方式添加日志
+        try
+          LogMemo.Lines.Add(TimeStamp + '(日志编码错误) ' + StringReplace(Text, #0, '', [rfReplaceAll]));
+        except
+          // 如果仍然失败，尝试只添加时间戳
+          try
+            LogMemo.Lines.Add(TimeStamp + '(无法显示日志内容)');
+          except
+            // 忽略所有错误
+          end;
+        end;
+        OutputDebugString(PChar('日志编码错误: ' + E.Message));
+      end;
+    end;
   finally
     LogMemo.Lines.EndUpdate;
   end;
 
   // 滚动到底部
-  LogMemo.SelStart := Length(LogMemo.Text);
-  LogMemo.SelLength := 0;
-  LogMemo.Perform(EM_SCROLLCARET, 0, 0);
+  try
+    LogMemo.SelStart := Length(LogMemo.Text);
+    LogMemo.SelLength := 0;
+    LogMemo.Perform(EM_SCROLLCARET, 0, 0);
+  except
+    // 忽略滚动错误
+  end;
 end;
 
 procedure TUIHelper.ClearGrid(Grid: TStringGrid);
@@ -132,13 +197,13 @@ begin
 
   // 设置列宽
   Grid.ColWidths[0] := 40;        // 选择框列
-  Grid.ColWidths[1] := 500;       // 文件名列 (原来是200，增大到2.5倍)
-  Grid.ColWidths[2] := 225;       // 编码列 (原来是150，增大到1.5倍)
+  Grid.ColWidths[1] := 112;       // 编码列 (减少到原来的一半)
+  Grid.ColWidths[2] := 613;       // 文件名列 (增加编码列减少的部分)
 
   // 设置表头
   Grid.Cells[0, 0] := '选择';
-  Grid.Cells[1, 0] := '文件名';
-  Grid.Cells[2, 0] := '当前编码';
+  Grid.Cells[1, 0] := '当前编码';
+  Grid.Cells[2, 0] := '文件名';
 
   // 清空数据行
   Grid.Rows[1].Clear;
@@ -165,8 +230,8 @@ begin
   else
     Grid.Cells[0, RowIndex] := '';
 
-  Grid.Cells[1, RowIndex] := FileName;
-  Grid.Cells[2, RowIndex] := EncodingName;
+  Grid.Cells[1, RowIndex] := EncodingName;
+  Grid.Cells[2, RowIndex] := FileName;
 end;
 
 procedure TUIHelper.SetupEncodingList(TreeView: TTreeView; EncodingModel: TEncodingModel);
@@ -257,7 +322,7 @@ begin
   HasChecked := False;
   for i := 1 to Grid.RowCount - 1 do
   begin
-    if (Grid.Cells[1, i] <> '') and (Grid.Cells[0, i] = '√') then
+    if (Grid.Cells[2, i] <> '') and (Grid.Cells[0, i] = '√') then
     begin
       HasChecked := True;
       Break;
@@ -267,7 +332,7 @@ begin
   // 根据当前状态切换选择
   for i := 1 to Grid.RowCount - 1 do
   begin
-    if Grid.Cells[1, i] <> '' then
+    if Grid.Cells[2, i] <> '' then
     begin
       if HasChecked then
         Grid.Cells[0, i] := ''

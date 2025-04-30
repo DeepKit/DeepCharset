@@ -148,7 +148,7 @@
             <div class="subtitle">高效、可靠的文件编码转换工具</div>
         </div>
     </header>
-    
+
     <nav>
         <div class="container">
             <ul>
@@ -159,19 +159,19 @@
             </ul>
         </div>
     </nav>
-    
+
     <div class="container">
         <div class="page-title">
             <h2>功能介绍</h2>
             <p>TransSuccess 提供丰富的功能，满足您的各种文件编码转换需求。</p>
         </div>
-        
+
         <section class="feature-section">
             <h3>核心功能</h3>
             <div class="feature-grid">
                 <div class="feature-item">
                     <h4>多种编码格式支持</h4>
-                    <p>支持多种编码格式之间的转换，包括 UTF-8、UTF-16、GBK、BIG5、Shift-JIS、EUC-JP、ISO-8859 系列等。</p>
+                    <p>支持多种编码格式之间的转换，包括 UTF-8、UTF-16LE/BE、UTF-32LE/BE、GBK、GB18030、BIG5、GB2312、Shift-JIS、EUC-JP、ISO-8859 系列等。</p>
                 </div>
                 <div class="feature-item">
                     <h4>批量转换</h4>
@@ -179,11 +179,11 @@
                 </div>
                 <div class="feature-item">
                     <h4>智能编码检测</h4>
-                    <p>自动检测文件编码，准确识别多种编码格式，减少人工判断错误。</p>
+                    <p>采用改进的编码检测算法，准确识别多种编码格式，解决了UTF-8文件被错误检测为ANSI的问题，支持混合内容智能检测，减少人工判断错误。</p>
                 </div>
                 <div class="feature-item">
                     <h4>BOM 设置</h4>
-                    <p>可以选择是否添加 BOM（字节顺序标记），满足不同场景的需求。</p>
+                    <p>可以选择是否添加 BOM（字节顺序标记），支持UTF-8、UTF-16LE/BE、UTF-32LE/BE的BOM处理，修复了UTF-8到UTF-8+BOM的转换问题，满足不同场景的需求。</p>
                 </div>
                 <div class="feature-item">
                     <h4>文件备份</h4>
@@ -191,11 +191,11 @@
                 </div>
                 <div class="feature-item">
                     <h4>转换报告</h4>
-                    <p>详细的转换报告，清晰展示每个文件的转换结果，方便追踪和管理。</p>
+                    <p>详细的转换报告，清晰展示每个文件的转换结果，包括精确错误位置定位、转换错误恢复策略和转换结果验证，方便追踪和管理。</p>
                 </div>
             </div>
         </section>
-        
+
         <section class="feature-section">
             <h3>高级功能</h3>
             <div class="feature-grid">
@@ -209,7 +209,7 @@
                 </div>
                 <div class="feature-item">
                     <h4>语法高亮</h4>
-                    <p>预览代码文件时支持语法高亮，提高代码可读性，支持多种编程语言。</p>
+                    <p>预览代码文件时支持语法高亮，提高代码可读性，支持多种编程语言，帮助验证编码转换的正确性。</p>
                 </div>
                 <div class="feature-item">
                     <h4>命令行支持</h4>
@@ -220,16 +220,24 @@
                     <p>记录最近处理的文件，方便快速访问和再次处理。</p>
                 </div>
                 <div class="feature-item">
+                    <h4>国际化支持</h4>
+                    <p>支持16种语言的界面显示，所有70+编码在所有语言中都有完整的翻译，满足全球用户的需求。</p>
+                </div>
+                <div class="feature-item">
+                    <h4>编码转换验证</h4>
+                    <p>提供往返转换验证、特殊字符验证和转换结果比较功能，确保转换的准确性和可靠性。</p>
+                </div>
+                <div class="feature-item">
                     <h4>自定义设置</h4>
                     <p>提供丰富的自定义设置选项，满足不同用户的个性化需求。</p>
                 </div>
             </div>
         </section>
-        
+
         <section class="feature-section">
             <h3>支持的编码格式</h3>
             <p>TransSuccess 支持多种编码格式之间的转换，以下是主要支持的编码格式列表：</p>
-            
+
             <table class="encoding-table">
                 <thead>
                     <tr>
@@ -343,7 +351,7 @@
             </table>
         </section>
     </div>
-    
+
     <footer>
         <div class="container">
             <p>&copy; 2024 TransSuccess. 保留所有权利。</p>

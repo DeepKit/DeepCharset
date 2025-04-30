@@ -151,12 +151,7 @@ object Form1: TForm1
     Align = alTop
     TabOrder = 1
     ExplicitWidth = 1034
-    object Label1: TLabel
-      Left = 520
-      Top = 8
-      Width = 3
-      Height = 15
-    end
+
     object ComboBox1: TComboBox
       Left = 11
       Top = 5

@@ -657,8 +657,9 @@ var
   HasBOM: Boolean;
   DetectedEncoding: string;
   i: Integer;
+  CurrentRowFile: string;
 begin
-  // Get selected files
+  // 首先尝试获取选中的文件
   SelectedFiles := FFileHelper.GetSelectedFilesInFolder(FSelectedFolder, FFileExtensions,
     function(const FilePath: string): Boolean
     begin
@@ -667,8 +668,8 @@ begin
       // Find this file in the grid
       for var j := 1 to StringGrid1.RowCount - 1 do
       begin
-        if (StringGrid1.Cells[1, j] <> '') and
-           (FilePath = IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[1, j]) and
+        if (StringGrid1.Cells[2, j] <> '') and
+           (FilePath = IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, j]) and
            (StringGrid1.Cells[0, j] = '√') then
         begin
           Result := True;
@@ -679,11 +680,34 @@ begin
     FIncludeSubdirs
   );
 
-  // If no files selected, show message
+  // 如果没有选中的文件，使用当前行的文件
   if Length(SelectedFiles) = 0 then
   begin
-    ShowLocalizedMessage('MsgNoFilesSelected');
-    Exit;
+    // 检查当前行是否有效
+    if (FSelectedRow > 0) and (FSelectedRow < StringGrid1.RowCount) and
+       (StringGrid1.Cells[2, FSelectedRow] <> '') and
+       (StringGrid1.Cells[2, FSelectedRow] <> '(无文件)') and
+       (StringGrid1.Cells[2, FSelectedRow] <> '(目录不存在)') and
+       (StringGrid1.Cells[2, FSelectedRow] <> '(请选择至少一种文件类型)') then
+    begin
+      // 使用当前行的文件
+      CurrentRowFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, FSelectedRow];
+
+      // 检查文件是否存在
+      if FileExists(CurrentRowFile) then
+      begin
+        SetLength(SelectedFiles, 1);
+        SelectedFiles[0] := CurrentRowFile;
+        Log('使用当前行的文件: ' + CurrentRowFile);
+      end;
+    end;
+
+    // 如果仍然没有文件可转换，直接退出，不显示消息
+    if Length(SelectedFiles) = 0 then
+    begin
+      Log('没有选中文件，也没有有效的当前行文件，操作取消');
+      Exit;
+    end;
   end;
 
   // Get selected encoding (from TreeView)
@@ -761,7 +785,7 @@ begin
   end;
 
   // 获取选中的文件全路径
-  FullPath := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[1, FSelectedRow];
+  FullPath := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, FSelectedRow];
 
   // 复制到剪贴板
   Clipboard.AsText := FullPath;
@@ -876,8 +900,8 @@ begin
     // 获取当前选中的文件名
     for i := 1 to StringGrid1.RowCount - 1 do
     begin
-      if (StringGrid1.Cells[0, i] = '√') and (StringGrid1.Cells[1, i] <> '') then
-        SelectedFileNames.Add(StringGrid1.Cells[1, i]);
+      if (StringGrid1.Cells[0, i] = '√') and (StringGrid1.Cells[2, i] <> '') then
+        SelectedFileNames.Add(StringGrid1.Cells[2, i]);
     end;
 
     // 清空表格
@@ -886,7 +910,7 @@ begin
     // (Fix Deprecation Warning)
     if not System.SysUtils.DirectoryExists(FolderPath) then // Ensure qualified
     begin
-      StringGrid1.Cells[1, 1] := '(目录不存在)';
+      StringGrid1.Cells[2, 1] := '(目录不存在)';
       // 确保列宽正确
       AdjustGridColumnWidths;
       Exit;
@@ -912,7 +936,7 @@ begin
       if not HasSelectedExtensions then
       begin
         Log('未选择任何文件类型，不显示文件');
-        StringGrid1.Cells[1, 1] := '(请选择至少一种文件类型)';
+        StringGrid1.Cells[2, 1] := '(请选择至少一种文件类型)';
         // 确保列宽正确
         AdjustGridColumnWidths;
         Exit;
@@ -946,8 +970,8 @@ begin
       end;
 
       // 如果没有文件，添加提示
-      if StringGrid1.Cells[1, 1] = '' then
-        StringGrid1.Cells[1, 1] := '(无文件)';
+      if StringGrid1.Cells[2, 1] = '' then
+        StringGrid1.Cells[2, 1] := '(无文件)';
 
       // 确保列宽正确
       AdjustGridColumnWidths;
@@ -1046,19 +1070,19 @@ begin
   // 在表格中查找该文件
   Found := False;
   for i := 1 to StringGrid1.RowCount - 1 do
-begin
-    if StringGrid1.Cells[1, i] = FileName then
-begin
+  begin
+    if StringGrid1.Cells[2, i] = FileName then
+    begin
       // 更新编码信息
-      StringGrid1.Cells[2, i] := EncodingName;
+      StringGrid1.Cells[1, i] := EncodingName;
       Found := True;
       Break;
+    end;
   end;
-end;
 
   // 如果表格中没有该文件，可能需要考虑添加它
   if not Found and (FileName <> '') then
-begin
+  begin
     Log('文件 ' + FileName + ' 转换完成，编码: ' + EncodingName);
   end;
 end;
@@ -1079,7 +1103,7 @@ begin
   end;
 
   // 获取选中的文件路径
-  SelectedFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[1, FSelectedRow];
+  SelectedFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, FSelectedRow];
   if not FileExists(SelectedFile) then
   begin
     ShowLocalizedMessageFmt('MsgFileNotExists', [SelectedFile]);
@@ -1359,10 +1383,10 @@ begin
   // 获取总文件数量
   TotalFiles := 0;
   for i := 1 to StringGrid1.RowCount - 1 do
-    if (StringGrid1.Cells[1, i] <> '') and
-       (StringGrid1.Cells[1, i] <> '(无文件)') and
-       (StringGrid1.Cells[1, i] <> '(目录不存在)') and
-       (StringGrid1.Cells[1, i] <> '(请选择至少一种文件类型)') then
+    if (StringGrid1.Cells[2, i] <> '') and
+       (StringGrid1.Cells[2, i] <> '(无文件)') and
+       (StringGrid1.Cells[2, i] <> '(目录不存在)') and
+       (StringGrid1.Cells[2, i] <> '(请选择至少一种文件类型)') then
       Inc(TotalFiles);
 
   // 输出到日志
@@ -1498,8 +1522,8 @@ procedure TForm1.AdjustGridColumnWidths;
 begin
   // 设置列宽
   StringGrid1.ColWidths[0] := 40;        // 选择框列
-  StringGrid1.ColWidths[1] := 500;       // 文件名列 (增大到2.5倍)
-  StringGrid1.ColWidths[2] := 225;       // 编码列 (增大到1.5倍)
+  StringGrid1.ColWidths[1] := 112;       // 编码列 (减少到原来的一半)
+  StringGrid1.ColWidths[2] := 613;       // 文件名列 (增加编码列减少的部分)
 
   // 强制重绘
   StringGrid1.Invalidate;
@@ -1602,7 +1626,7 @@ begin
     UpdateFileExtensions(FSelectedFolder);
 
     // 在表格中显示提示消息
-    StringGrid1.Cells[1, 1] := '点击【刷新】按钮加载文件...';
+    StringGrid1.Cells[2, 1] := '点击【刷新】按钮加载文件...';
     AdjustGridColumnWidths;
 
     // 设置一个定时器，在程序启动后X秒再加载文件
@@ -1614,7 +1638,7 @@ begin
     on E: Exception do
     begin
       Log('初始化文件列表出错: ' + E.Message);
-      StringGrid1.Cells[1, 1] := '加载错误，请尝试点击刷新按钮';
+      StringGrid1.Cells[2, 1] := '加载错误，请尝试点击刷新按钮';
       AdjustGridColumnWidths;
     end;
   end;
@@ -1719,19 +1743,19 @@ begin
   // 应用到界面
   Self.Caption := LangStrings.WindowTitle;
   btnConvert.Caption := LangStrings.BtnConvert;
-  btnSingleFile.Caption := LangStrings.BtnSingleFile;
+  btnSingleFile.Caption := LangStrings.BtnSingleFile + ' 转换'; // 添加"转换"文本
   btnRefresh.Caption := LangStrings.BtnRefresh;
   btnClose.Caption := LangStrings.BtnClose;
   btnToggleSelect.Caption := LangStrings.BtnToggleSelect;
-  Label1.Caption := LangStrings.LanguageGroupCaption;
+
   StringGrid1.Cells[0, 0] := LangStrings.FileSelectColumn;
-  StringGrid1.Cells[1, 0] := LangStrings.FileNameColumn;
-  StringGrid1.Cells[2, 0] := LangStrings.EncodingColumn;
+  StringGrid1.Cells[1, 0] := LangStrings.EncodingColumn;
+  StringGrid1.Cells[2, 0] := LangStrings.FileNameColumn;
 
   // 菜单项
   MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
   MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
-  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile;
+  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile + ' 转换'; // 添加"转换"文本
   MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
   MenuItemViewContent.Caption := LangStrings.BtnPreview;
 
