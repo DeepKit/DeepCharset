@@ -125,16 +125,14 @@ object Form1: TForm1
       TabPosition = tpRight
       object TabSheet1: TTabSheet
         Caption = 'Log'
-        TabVisible = False
         object MemLog: TMemo
           Left = 0
           Top = 0
-          Width = 742
+          Width = 719
           Height = 147
           Align = alClient
           Lines.Strings = (
             'MemLog')
-          ScrollBars = ssVertical
           TabOrder = 0
         end
       end

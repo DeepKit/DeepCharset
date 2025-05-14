@@ -168,19 +168,46 @@ function TUIHelper.GetSelectedFiles(Grid: TStringGrid; const FolderPath: string)
 var
   i, Count: Integer;
   Files: TArray<string>;
+  FileName: string;
+  FullPath: string;
 begin
   SetLength(Files, 0);
   Count := 0;
 
+  // 记录开始处理
+  OutputDebugString(PChar('开始获取选中文件，文件夹路径: ' + FolderPath));
+
   for i := 1 to Grid.RowCount - 1 do
   begin
-    if (Grid.Cells[0, i] = '√') and (Grid.Cells[1, i] <> '') then
+    // 检查是否选中且文件名不为空
+    if (Grid.Cells[0, i] = '√') and (Grid.Cells[2, i] <> '') then
     begin
-      Inc(Count);
-      SetLength(Files, Count);
-      Files[Count - 1] := IncludeTrailingPathDelimiter(FolderPath) + Grid.Cells[1, i];
+      // 获取文件名（从第3列，索引为2）
+      FileName := Grid.Cells[2, i];
+
+      // 构建完整路径
+      FullPath := IncludeTrailingPathDelimiter(FolderPath) + FileName;
+
+      // 检查文件是否存在
+      if FileExists(FullPath) then
+      begin
+        Inc(Count);
+        SetLength(Files, Count);
+        Files[Count - 1] := FullPath;
+
+        // 记录添加的文件
+        OutputDebugString(PChar('添加选中文件: ' + FullPath));
+      end
+      else
+      begin
+        // 记录文件不存在
+        OutputDebugString(PChar('文件不存在，跳过: ' + FullPath));
+      end;
     end;
   end;
+
+  // 记录处理结果
+  OutputDebugString(PChar('共找到 ' + IntToStr(Count) + ' 个选中文件'));
 
   Result := Files;
 end;

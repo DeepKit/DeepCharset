@@ -1,0 +1,252 @@
+[Meta]
+LanguageCode=ko-KR
+LanguageName=Korean
+NativeName=한국어
+Version=1.0
+ExportDate=2023-08-28 10:00:00
+
+[Strings]
+WindowTitle=UTF-8 BOM 인코딩 변환기
+BtnConvert=일괄 변환
+BtnSingleFile=단일 파일
+BtnRefresh=새로고침
+BtnClose=닫기
+BtnToggleSelect=일괄 선택/해제
+BtnPreview=미리보기
+BtnAllFileTypes=모든 파일 유형 선택
+BtnCheckContent=내용 확인
+LanguageGroupCaption=언어
+DirectoryListBoxLabel=디렉토리
+FileListLabel=파일 목록
+CurrentEncodingLabel=현재 인코딩
+FileSelectColumn=선택
+FileNameColumn=파일명
+EncodingColumn=현재 인코딩
+PopupMenuConvert=선택된 파일 변환
+PopupMenuToggleSelect=일괄 선택/해제
+NoFilesText=(파일 없음)
+ReadErrorText=(읽기 오류)
+LogSelectedDirectory=선택된 디렉토리:
+ChkIncludeSubdirs=하위 디렉토리 포함
+TreeViewRootNode=대상 인코딩
+
+[Messages]
+MsgSelectTargetEncoding=대상 인코딩을 선택하십시오.
+MsgSelectFiles=변환할 파일을 하나 이상 선택하십시오.
+MsgNoMatchingFiles=현재 디렉토리에서 선택된 유형의 어떤 파일도 찾을 수 없습니다.
+MsgConversionComplete=변환 결과: %d/%d 파일 처리
+MsgConversionFailed=변환 실패: 처리되지 않은 변환된 파일이 없습니다. 자세한 내용은 로그를 확인하십시오.
+MsgFileNotExists=파일이 존재하지 않습니다: %s
+MsgNotTextFile=파일 %s은(는) 텍스트 기반 파일이 아닙니다. 바이너리 파일이거나 손상된 파일을 읽을 수 없습니다.
+MsgSingleFileSuccess=파일 %s이(가) %s(으)로 성공적으로 변환되었습니다
+MsgSingleFileFailed=파일 %s 변환에 실패했습니다. 자세한 내용은 로그를 확인하십시오.
+MsgSelectFile=먼저 파일을 선택하십시오
+MsgCannotCreateViewer=파일 뷰어를 생성할 수 없습니다: %s
+MsgCannotLoadFile=파일을 로드할 수 없습니다: %s
+MsgViewerError=파일 미리보기 오류: %s
+MsgSubdirEnabled=하위 디렉토리 검색이 활성화되었습니다. 많은 하위 디렉토리가 있는 경우에는 파일 목록 로딩 시간이 길어질 수 있습니다.
+MsgConversionSuccess=변환 완료!
+
+[Encodings]
+Unicode=주요 표준 인코딩
+Asian=아시아 인코딩
+Western=서유럽 및 아메리카 인코딩
+Eastern=동유럽 및 러시아 인코딩
+MiddleEast=중동 및 히브리어/아랍어 인코딩
+Nordic=북유럽 및 스칸디나비아 인코딩
+Southern=남유럽 및 발칸반도 인코딩
+Other=기타 특수 인코딩
+
+UTF8=UTF-8
+UTF8BOM=UTF-8 BOM 포함
+UTF16LE=UTF-16 LE
+UTF16BE=UTF-16 BE
+UTF32LE=UTF-32 LE
+UTF32BE=UTF-32 BE
+ASCII=ASCII
+GBK=GBK (중국어)
+GB18030=GB18030 (중국어)
+BIG5=Big5 (번체 중국어)
+SHIFT_JIS=Shift-JIS (일본어)
+EUC_JP=EUC-JP (일본어)
+EUC_KR=EUC-KR (한국어)
+ISO8859_1=ISO-8859-1 (라틴어 1)
+ISO8859_2=ISO-8859-2 (라틴어 2)
+ISO8859_3=ISO-8859-3 (라틴어 3)
+ISO8859_4=ISO-8859-4 (라틴어 4)
+ISO8859_5=ISO-8859-5 (키릴 문자)
+ISO8859_6=ISO-8859-6 (아랍어)
+ISO8859_7=ISO-8859-7 (그리스어)
+ISO8859_8=ISO-8859-8 (히브리어)
+ISO8859_9=ISO-8859-9 (터키어)
+ISO8859_10=ISO-8859-10 (북유럽어)
+ISO8859_11=ISO-8859-11 (태국어)
+ISO8859_13=ISO-8859-13 (발트어)
+ISO8859_14=ISO-8859-14 (켈트어)
+ISO8859_15=ISO-8859-15 (라틴어 9)
+ISO8859_16=ISO-8859-16 (라틴어 10)
+WINDOWS1250=Windows-1250 (중부 유럽)
+WINDOWS1251=Windows-1251 (키릴 문자)
+WINDOWS1252=Windows-1252 (서유럽)
+WINDOWS1253=Windows-1253 (그리스어)
+WINDOWS1254=Windows-1254 (터키어)
+WINDOWS1255=Windows-1255 (히브리어)
+WINDOWS1256=Windows-1256 (아랍어)
+WINDOWS1257=Windows-1257 (발트어)
+WINDOWS1258=Windows-1258 (베트남어)
+KOI8R=KOI8-R (러시아어)
+KOI8U=KOI8-U (우크라이나어)
+
+[Log]
+# Log messages
+LogLanguageManagerInitialized=언어 관리자가 초기화되었습니다
+LogStartSearchingLanguageFiles=언어 파일 검색 시작, 디렉토리: %s
+LogCheckingLanguageFile=언어 파일 확인 중: %s
+LogFoundLanguageFile=언어 파일 발견: %s - %s
+LogTryingSwitchToLanguage=언어 전환 시도 중: %s
+LogRestoredSelectedEncodingNode=선택된 인코딩 노드 복원됨
+LogLanguageStringsApplied=언어 문자열 적용됨: %s
+LogFileHelperInitialized=파일 도우미가 개선된 인코딩 감지 지원으로 초기화되었습니다
+LogEncodingControllerInitialized=인코딩 컨트롤러가 초기화되었습니다
+LogFoundFilesExtractingExtensions=%s개의 파일을 찾았습니다, 확장자 추출 중
+LogSuccessfullyGotExtensions=%s개의 서로 다른 파일 확장자를 성공적으로 가져왔습니다
+LogStartSearchingFiles=파일 검색 시작: %s, 하위 디렉토리 포함: %s, 확장자: %s개
+LogFoundFiles=%s개의 파일을 찾았습니다
+LogFilteredFiles=필터링 후 %s개의 일치하는 파일이 있습니다
+LogFoundRootDirectory=루트 디렉토리를 찾았습니다: %s
+LogIniDirNotFound=INI 디렉토리를 찾을 수 없습니다, 현재 디렉토리를 루트로 사용합니다: %s
+LogDetectingFileEncoding=파일 인코딩 감지 중: %s
+LogFileExtension=파일 확장자: %s
+LogBOMDetectionResult=BOM 감지 결과: %s
+LogFileTypeUTF8Compatible=파일 유형이 UTF-8 호환됩니다, 개선된 UTF-8 감지기 사용 중
+LogUTF8DetectionResult=UTF-8 감지 결과: %s
+LogUsingJCLEncodingDetection=JCL 인코딩 감지 함수 사용 중
+LogJCLDetectedANSI=JCL이 ANSI로 감지했습니다, UTF-8 감지기 시도 중
+LogDetectedFileEncoding=파일 %s의 인코딩 감지 결과: %s (BOM: %s)
+LogDetectEncodingFailed=파일 인코딩 감지 실패: %s - %s
+LogFileHelperDetectedEncoding=FileHelper가 파일 %s의 인코딩을 감지했습니다: %s (BOM: %s)
+LogFileHelperNotAvailable=FileHelper를 사용할 수 없습니다, 내부 로직을 사용하여 파일 인코딩을 감지합니다: %s
+
+[ChineseMessages]
+# Chinese hardcoded message translations
+文件助手已初始化，使用改进的编码检测支持=파일 도우미가 초기화되었습니다, 개선된 인코딩 감지 지원 사용
+编码控制器已初始化=인코딩 컨트롤러가 초기화되었습니다
+检测文件编码=파일 인코딩 감지
+文件扩展名=파일 확장자
+BOM检测结果=BOM 감지 결과
+使用JCL编码检测函数=JCL 인코딩 감지 함수 사용
+JCL检测为ANSI，尝试使用UTF-8检测器=JCL이 ANSI로 감지했습니다, UTF-8 감지기 시도 중
+UTF-8检测结果=UTF-8 감지 결과
+检测到文件 %s 的编码为=파일 %s의 인코딩 감지 결과
+筛选后有=필터링 후
+个符合条件的文件=개의 일치하는 파일
+找到=발견
+个文件=개의 파일
+开始搜索文件，目录=파일 검색 시작, 디렉토리
+包含子目录=하위 디렉토리 포함
+已禁用子目录搜索 - 只搜索当前目录=하위 디렉토리 검색 비활성화 - 현재 디렉토리만 검색
+开始搜索文件=파일 검색 시작
+扩展名=확장자
+找到根目录=루트 디렉토리 발견
+默认选中编码=기본 선택 인코딩
+已应用语言字符串=언어 문자열 적용 완료
+自动切换到中文=중국어로 자동 전환
+语言选择器已创建，找到=언어 선택기가 생성되었습니다, 발견
+种语言=개의 언어
+当前选中语言=현재 선택된 언어
+已恢复选中的编码节点=선택된 인코딩 노드 복원
+使用上次记录的目录=이전 기록된 디렉토리 사용
+界面初始化完成，请点击刷新按钮加载文件列表=인터페이스 초기화 완료, 새로고침 버튼을 클릭하여 파일 목록을 로드하세요
+
+[EncodingDescriptions]
+# 유니코드 인코딩 설명
+UTF8=BOM이 없는 유니코드 인코딩, 웹 페이지 및 크로스 플랫폼 텍스트에 적합
+UTF8BOM=BOM이 있는 유니코드 인코딩, Windows에서 더 호환성이 높음
+UTF16LE=16비트 유니코드 인코딩, Windows 기본 형식
+UTF16BE=16비트 유니코드 인코딩, Mac/Unix에서 일반적인 형식
+UTF32LE=32비트 유니코드 인코딩, 모든 유니코드 문자 지원
+UTF32BE=32비트 유니코드 인코딩, 빅 엔디안 버전
+UTF7=7비트 ASCII 호환 유니코드 인코딩, 메일 시스템에서 사용
+
+# 기본 인코딩 설명
+ASCII=기본 영문 문자 세트, 영문 문자만 지원
+ANSI=현재 시스템 기본 인코딩, Windows에서는 보통 CP1252
+
+# 중국어 인코딩 설명
+GBK=중국 표준 확장, 간체자와 일부 번체를 지원
+GB18030=중국 국가 표준, 모든 중국어 문자 지원
+GB2312=기본 간체 중국어 인코딩, 일반적인 문자만 지원
+BIG5=주로 대만에서 사용되는 번체 중국어 인코딩
+BIG5_HKSCS=홍콩 특별 문자 세트, 홍콩 표준을 문자 지원
+CP936=Windows 간체 중국어 인코딩, 기본적으로 GBK와 동일
+CP950=Windows 번체 중국어 인코딩, 기본적으로 Big5와 동일
+EUC_TW=주로대만에서 사용되는 확장 유니코드 인코딩
+
+# 일본어 인코딩 설명
+SHIFT_JIS=가장 일반적인 일본어 인코딩, Windows 일본어 기본값
+EUC_JP=유닉스 시스템에서 확장 사용되는 일본어 인코딩
+CP932=Windows 일본어 인코딩, Shift-JIS의 확장 버전
+ISO_2022_JP=이메일 및 웹 페이지에서 사용되는 일본어 인코딩
+
+# 한국어 인코딩 설명
+EUC_KR=유닉스 시스템에서 확장 사용되는 한국어 인코딩
+CP949=Windows 한국어 인코딩, EUC-KR의 확장 버전
+ISO_2022_KR=메일 시스템에서 사용되는 한국어 인코딩
+
+# Windows 인코딩 설명
+WINDOWS1250=Windows 중부 유럽 인코딩, 폴란드어, 체코어 등 지원
+WINDOWS1251=Windows 키릴 문자 인코딩, 러시아어 등 지원
+WINDOWS1252=Windows 서유럽 인코딩, 영어, 프랑스어, 독일어 등 지원
+WINDOWS1253=Windows 그리스어 인코딩
+WINDOWS1254=Windows 터키어 인코딩
+WINDOWS1255=Windows 히브리어 인코딩, 오른쪽에서 왼쪽 표시됨
+WINDOWS1256=Windows 아랍어 인코딩, 오른쪽에서 왼쪽 표시됨
+WINDOWS1257=Windows 발트어 인코딩
+WINDOWS1258=Windows 베트남어 인코딩
+
+# ISO 인코딩 설명
+ISO8859_1=표준 서유럽 문자집합 1, 서유럽 언어
+ISO8859_2=표준 서유럽 문자집합 2, 중부 유럽 언어
+ISO8859_3=표준 서유럽 문자집합 3, 남유럽 언어
+ISO8859_4=표준 서유럽 문자집합 4, 북유럽 언어
+ISO8859_5=표준 키릴 문자집합, 러시아 언어
+ISO8859_6=표준 아랍 문자집합
+ISO8859_7=표준 그리스 문자집합
+ISO8859_8=표준 히브리 문자집합
+ISO8859_9=표준 서유럽 문자집합 5, 터키어
+ISO8859_10=표준 서유럽 문자집합 6, 북유럽 언어
+ISO8859_11=표준 태국 문자집합
+ISO8859_13=표준 서유럽 문자집합 7, 발트 언어
+ISO8859_14=표준 서유럽 문자집합 8, 켈트 언어
+ISO8859_15=표준 서유럽 문자집합 9, 유로화포함 서유럽
+ISO8859_16=표준 서유럽 문자집합 10, 동남 유럽 언어
+ISO_8859_6_I=표준 아랍 문자집합, 오른쪽에서 왼쪽 표시됨 지원
+
+# DOS/OEM 인코딩 설명
+IBM437=DOS 미국 영어 인코딩, 기본 그래픽 문자 포함
+IBM850=DOS 서유럽 인코딩
+IBM860=DOS 포르투갈어 인코딩
+IBM865=DOS 북유럽 인코딩
+CP862=DOS 히브리어 인코딩
+CP864=DOS 아랍어 인코딩
+
+# 기타 특수 인코딩 설명
+KOI8R=러시아어 인코딩, 소비에트 및 유닉스 시스템용
+KOI8U=우크라이나어 인코딩, KOI8-R의 확장
+MACROMAN=Apple Mac 시스템 서유럽 인코딩
+MACCYRILLIC=Apple Mac 시스템 키릴 문자 인코딩
+VISCII=베트남어 인코딩, 모든 베트남어 문자 지원
+TIS_620=태국 표준, 태국어 지원
+TSCII=타밀어 인코딩, 남인도 언어
+ISCII=인도 언어 인코딩, 여러 인도 언어 지원
+ARMSCII_8=아르메니아어 인코딩
+MONGOLIAN=몽골어 인코딩, 현대 몽골 문자 지원
+TIBETAN=티베트어 인코딩, 티베트 문자 지원
+LAO=라오스어 인코딩, 라오스 문자 지원
+KHMER=캄보디아 크메르어 인코딩
+MYANMAR=미얀마어 인코딩, 버마 문자 지원
+INDONESIAN=인도네시아어 인코딩
+MALAY=말레이시아어 인코딩
+GEEZ=에티오피아 게에즈어 인코딩
+AMHARIC=에티오피아 암하라어 인코딩
+CESU_8=라틴아메리카 유니코드 변종

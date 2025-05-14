@@ -49,6 +49,7 @@ Type
     btnConvert: TButton;
     btnSingleFile: TButton;
     btnToggleSelect: TButton;
+    Label1: TLabel;
     ComboBox1: TComboBox;
     btnShowContent: TButton;
     Button2: TButton;
@@ -611,96 +612,40 @@ var
   SelectedFiles: TArray<string>;
   SelectedIndex: Integer;
   SuccessCount: Integer;
-  FilePath: string;
-  HasBOM: Boolean;
-  DetectedEncoding: string;
-  i: Integer;
 begin
-  // 记录开始处理
-  Log('开始处理右键菜单【转换选中文件】请求');
-
-  if StringGrid1.RowCount <= 1 then
-  begin
-    Log('表格中没有文件，操作取消');
-    Exit; // No files loaded
-  end;
+  if StringGrid1.RowCount <= 1 then Exit; // No files loaded
 
   // 获取选中的编码信息
   if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
   begin
-    Log('未选择目标编码，操作取消');
     ShowLocalizedMessage('MsgSelectTargetEncoding');
     Exit;
   end;
   SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
   TargetInfo := FEncodingModel.Encodings[SelectedIndex];
   WithBOM := TargetInfo.HasBOM;
-  Log('选择的目标编码: ' + TargetInfo.Name + ', BOM: ' + BoolToStr(WithBOM, True));
 
   // 获取选中的文件
   SelectedFiles := FUIHelper.GetSelectedFiles(StringGrid1, FSelectedFolder);
-  Log('找到 ' + IntToStr(Length(SelectedFiles)) + ' 个选中的文件');
 
   if Length(SelectedFiles) = 0 then
   begin
-    Log('没有选中文件，操作取消');
     ShowMessage('请至少选择一个文件进行转换。');
     Exit;
   end;
 
-  // 开始批量转换
-  Log('开始批量转换选中的文件...');
-  StartLogBuffering;
   SuccessCount := 0;
 
-  try
-    // 设置等待光标
-    Screen.Cursor := crHourGlass;
-
-    // 遍历所有选中的文件进行转换
-    for i := 0 to High(SelectedFiles) do
+  // 执行转换
+  for var j := 0 to High(SelectedFiles) do
+  begin
+    if FEncodingController.ConvertSingleFile(SelectedFiles[j], TargetInfo.ShortName, WithBOM) then
     begin
-      FilePath := SelectedFiles[i];
-
-      // 检查文件是否存在
-      if not FileExists(FilePath) then
-      begin
-        Log('文件不存在，跳过: ' + FilePath);
-        Continue;
-      end;
-
-      // 检测当前编码
-      DetectedEncoding := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
-      Log('检测到文件编码: ' + FilePath + ' - ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
-
-      // 尝试转换
-      if FEncodingController.ConvertSingleFile(FilePath, TargetInfo.ShortName, WithBOM) then
-      begin
-        Inc(SuccessCount);
-        Log('- 成功转换: ' + FilePath + ' (从 ' + DetectedEncoding + ' 到 ' + TargetInfo.Name + ')');
-
-        // 更新表格中该文件的状态
-        UpdateSingleFileInGrid(FilePath);
-      end
-      else
-      begin
-        Log('- 转换失败: ' + FilePath);
-      end;
+      UpdateSingleFileInGrid(SelectedFiles[j]);
+      Inc(SuccessCount);
     end;
-
-    // 完成批量转换，显示结果
-    Log(System.SysUtils.Format('批量转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]));
-
-    if SuccessCount < Length(SelectedFiles) then
-      Log(System.SysUtils.Format('注意: %d 个文件未能成功转换 (可能是非文本文件或无法访问)',
-        [Length(SelectedFiles) - SuccessCount]));
-
-    ShowMessage(System.SysUtils.Format('转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]));
-  finally
-    // 恢复光标
-    Screen.Cursor := crDefault;
-    EndLogBuffering;
   end;
+  Log(System.SysUtils.Format('批量转换完成: %d 个文件', [SuccessCount]));
 end;
 
 procedure TForm1.MenuItemConvertCurrentClick(Sender: TObject);
@@ -713,69 +658,54 @@ var
   DetectedEncoding: string;
   i: Integer;
   CurrentRowFile: string;
-  FileName: string;
 begin
-  // 记录开始处理
-  Log('开始处理右键菜单转换文件请求');
-
-  // 首先检查当前选中的行是否有效
-  if (FSelectedRow > 0) and (FSelectedRow < StringGrid1.RowCount) and
-     (StringGrid1.Cells[2, FSelectedRow] <> '') and
-     (StringGrid1.Cells[2, FSelectedRow] <> '(无文件)') and
-     (StringGrid1.Cells[2, FSelectedRow] <> '(目录不存在)') and
-     (StringGrid1.Cells[2, FSelectedRow] <> '(请选择至少一种文件类型)') then
-  begin
-    // 获取文件名
-    FileName := StringGrid1.Cells[2, FSelectedRow];
-    Log('当前选中行的文件名: ' + FileName);
-
-    // 构建完整路径
-    CurrentRowFile := IncludeTrailingPathDelimiter(FSelectedFolder) + FileName;
-    Log('构建的完整路径: ' + CurrentRowFile);
-
-    // 检查文件是否存在
-    if FileExists(CurrentRowFile) then
+  // 首先尝试获取选中的文件
+  SelectedFiles := FFileHelper.GetSelectedFilesInFolder(FSelectedFolder, FFileExtensions,
+    function(const FilePath: string): Boolean
     begin
-      SetLength(SelectedFiles, 1);
-      SelectedFiles[0] := CurrentRowFile;
-      Log('使用当前行的文件: ' + CurrentRowFile);
-    end
-    else
-    begin
-      Log('文件不存在: ' + CurrentRowFile);
-      ShowMessage('文件不存在: ' + CurrentRowFile);
-      Exit;
-    end;
-  end
-  else
-  begin
-    // 如果当前行无效，尝试获取选中的文件
-    Log('当前行无效，尝试获取选中的文件');
-    SelectedFiles := FFileHelper.GetSelectedFilesInFolder(FSelectedFolder, FFileExtensions,
-      function(const FilePath: string): Boolean
+      Result := False; // Assume no file selected first
+
+      // Find this file in the grid
+      for var j := 1 to StringGrid1.RowCount - 1 do
       begin
-        Result := False; // Assume no file selected first
-
-        // Find this file in the grid
-        for var j := 1 to StringGrid1.RowCount - 1 do
+        if (StringGrid1.Cells[2, j] <> '') and
+           (FilePath = IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, j]) and
+           (StringGrid1.Cells[0, j] = '√') then
         begin
-          if (StringGrid1.Cells[2, j] <> '') and
-             (FilePath = IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, j]) and
-             (StringGrid1.Cells[0, j] = '√') then
-          begin
-            Result := True;
-            Break;
-          end;
+          Result := True;
+          Break;
         end;
-      end,
-      FIncludeSubdirs
-    );
+      end;
+    end,
+    FIncludeSubdirs
+  );
 
-    // 如果仍然没有文件可转换，直接退出
+  // 如果没有选中的文件，使用当前行的文件
+  if Length(SelectedFiles) = 0 then
+  begin
+    // 检查当前行是否有效
+    if (FSelectedRow > 0) and (FSelectedRow < StringGrid1.RowCount) and
+       (StringGrid1.Cells[2, FSelectedRow] <> '') and
+       (StringGrid1.Cells[2, FSelectedRow] <> '(无文件)') and
+       (StringGrid1.Cells[2, FSelectedRow] <> '(目录不存在)') and
+       (StringGrid1.Cells[2, FSelectedRow] <> '(请选择至少一种文件类型)') then
+    begin
+      // 使用当前行的文件
+      CurrentRowFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, FSelectedRow];
+
+      // 检查文件是否存在
+      if FileExists(CurrentRowFile) then
+      begin
+        SetLength(SelectedFiles, 1);
+        SelectedFiles[0] := CurrentRowFile;
+        Log('使用当前行的文件: ' + CurrentRowFile);
+      end;
+    end;
+
+    // 如果仍然没有文件可转换，直接退出，不显示消息
     if Length(SelectedFiles) = 0 then
     begin
       Log('没有选中文件，也没有有效的当前行文件，操作取消');
-      ShowMessage('请选择要转换的文件');
       Exit;
     end;
   end;

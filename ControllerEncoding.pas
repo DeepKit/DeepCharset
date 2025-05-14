@@ -271,6 +271,7 @@ begin
   IsUTF8BOMTarget := (SameText(TargetEncoding, 'UTF-8 with BOM') or
                       SameText(TargetEncoding, 'UTF-8-BOM') or
                       SameText(TargetEncoding, 'UTF8-BOM') or
+                      SameText(TargetEncoding, 'UTF8BOM') or
                       (SameText(TargetEncoding, 'UTF-8') and WithBOM));
 
   // 输出详细调试信息
@@ -423,23 +424,194 @@ begin
     end
     else
     begin
-      // 其他编码转换，使用传统方法
-      Log('使用传统方法进行编码转换...');
+      // 其他编码转换
+      Log('处理其他编码转换...');
 
-      // 复制文件到临时文件
-      try
-        TFile.Copy(FileName, TempFile, True);
+      // 检查是否是UTF-8到UTF-8+BOM的转换
+      if SameText(SourceEncodingName, 'UTF-8') and IsUTF8BOMTarget then
+      begin
+        Log('检测到UTF-8到UTF-8+BOM的转换，使用AddUTF8BOM方法');
+        var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.AddUTF8BOM(FileName);
+        Result := ConvResult.Success;
 
-        // 使用传统方法进行转换
-        // 这里需要实现其他编码的转换逻辑
-        // 暂时返回失败
-        Result := False;
-        Log(string('暂不支持其他编码的转换'));
-      except
-        on E: Exception do
-        begin
-          Log(Format(string('复制文件失败: %s - %s'), [FileName, E.Message]));
-          Result := False;
+        if Result then
+          Log('成功将UTF-8文件转换为UTF-8+BOM')
+        else
+          Log('将UTF-8文件转换为UTF-8+BOM失败: ' + ConvResult.ErrorMessage);
+      end
+      // 检查是否是UTF-8+BOM到UTF-8的转换
+      else if SameText(SourceEncodingName, 'UTF-8 with BOM') and SameText(TargetEncoding, 'UTF-8') and not WithBOM then
+      begin
+        Log('检测到UTF-8+BOM到UTF-8的转换，使用RemoveUTF8BOM方法');
+        var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.RemoveUTF8BOM(FileName);
+        Result := ConvResult.Success;
+
+        if Result then
+          Log('成功将UTF-8+BOM文件转换为UTF-8')
+        else
+          Log('将UTF-8+BOM文件转换为UTF-8失败: ' + ConvResult.ErrorMessage);
+      end
+      else
+      begin
+        // 其他编码转换，使用通用方法
+        Log(Format('使用通用方法进行编码转换: 从 %s 到 %s (BOM: %s)',
+          [SourceEncodingName, TargetEncoding, BoolToStr(WithBOM, True)]));
+
+        try
+          // 读取源文件内容
+          var SourceBytes: TBytes;
+          var SourceText: string;
+          var SourceEncoding: TEncoding;
+          var TargetBytes: TBytes;
+
+          // 读取源文件
+          SourceBytes := TFile.ReadAllBytes(FileName);
+
+          // 确定源编码
+          if SameText(SourceEncodingName, 'UTF-8') or SameText(SourceEncodingName, 'UTF-8 with BOM') then
+          begin
+            if HasBOM then
+            begin
+              // 跳过BOM
+              var TempBytes: TBytes;
+              SetLength(TempBytes, Length(SourceBytes) - 3);
+              if Length(TempBytes) > 0 then
+                Move(SourceBytes[3], TempBytes[0], Length(TempBytes));
+              SourceText := TEncoding.UTF8.GetString(TempBytes);
+            end
+            else
+              SourceText := TEncoding.UTF8.GetString(SourceBytes);
+          end
+          else if SameText(SourceEncodingName, 'UTF-16LE') or SameText(SourceEncodingName, 'UTF-16BE') then
+          begin
+            if SameText(SourceEncodingName, 'UTF-16LE') then
+              SourceEncoding := TEncoding.Unicode
+            else
+              SourceEncoding := TEncoding.BigEndianUnicode;
+
+            // 处理BOM
+            if HasBOM then
+            begin
+              // 跳过BOM
+              var TempBytes: TBytes;
+              SetLength(TempBytes, Length(SourceBytes) - 2);
+              if Length(TempBytes) > 0 then
+                Move(SourceBytes[2], TempBytes[0], Length(TempBytes));
+              SourceText := SourceEncoding.GetString(TempBytes);
+            end
+            else
+              SourceText := SourceEncoding.GetString(SourceBytes);
+          end
+          else
+          begin
+            // 默认使用ANSI编码
+            SourceText := TEncoding.Default.GetString(SourceBytes);
+          end;
+
+          // 转换为目标编码
+          if SameText(TargetEncoding, 'UTF-8') or SameText(TargetEncoding, 'UTF-8 with BOM') or IsUTF8BOMTarget then
+          begin
+            TargetBytes := TEncoding.UTF8.GetBytes(SourceText);
+
+            // 添加BOM
+            if WithBOM or IsUTF8BOMTarget then
+            begin
+              var BOM: TBytes;
+              SetLength(BOM, 3);
+              BOM[0] := $EF;
+              BOM[1] := $BB;
+              BOM[2] := $BF;
+
+              var FinalBytes: TBytes;
+              SetLength(FinalBytes, Length(TargetBytes) + 3);
+              Move(BOM[0], FinalBytes[0], 3);
+              if Length(TargetBytes) > 0 then
+                Move(TargetBytes[0], FinalBytes[3], Length(TargetBytes));
+              TargetBytes := FinalBytes;
+            end;
+          end
+          else if SameText(TargetEncoding, 'UTF-16LE') then
+          begin
+            TargetBytes := TEncoding.Unicode.GetBytes(SourceText);
+
+            // 添加BOM
+            if WithBOM then
+            begin
+              var BOM: TBytes;
+              SetLength(BOM, 2);
+              BOM[0] := $FF;
+              BOM[1] := $FE;
+
+              var FinalBytes: TBytes;
+              SetLength(FinalBytes, Length(TargetBytes) + 2);
+              Move(BOM[0], FinalBytes[0], 2);
+              if Length(TargetBytes) > 0 then
+                Move(TargetBytes[0], FinalBytes[2], Length(TargetBytes));
+              TargetBytes := FinalBytes;
+            end;
+          end
+          else if SameText(TargetEncoding, 'UTF-16BE') then
+          begin
+            TargetBytes := TEncoding.BigEndianUnicode.GetBytes(SourceText);
+
+            // 添加BOM
+            if WithBOM then
+            begin
+              var BOM: TBytes;
+              SetLength(BOM, 2);
+              BOM[0] := $FE;
+              BOM[1] := $FF;
+
+              var FinalBytes: TBytes;
+              SetLength(FinalBytes, Length(TargetBytes) + 2);
+              Move(BOM[0], FinalBytes[0], 2);
+              if Length(TargetBytes) > 0 then
+                Move(TargetBytes[0], FinalBytes[2], Length(TargetBytes));
+              TargetBytes := FinalBytes;
+            end;
+          end
+          else
+          begin
+            // 默认使用ANSI编码
+            TargetBytes := TEncoding.Default.GetBytes(SourceText);
+          end;
+
+          // 写入目标文件
+          try
+            // 创建备份
+            if FileExists(FileName + '.bak') then
+              DeleteFile(PChar(FileName + '.bak'));
+
+            if not RenameFile(PChar(FileName), PChar(FileName + '.bak')) then
+              Log('无法创建备份文件: ' + FileName + '.bak');
+
+            // 写入新文件
+            TFile.WriteAllBytes(FileName, TargetBytes);
+            Result := True;
+            Log(Format('成功转换文件: %s (从 %s 到 %s)',
+              [ExtractFileName(FileName), SourceEncodingName, TargetEncoding]));
+          except
+            on E: Exception do
+            begin
+              Log(Format('写入文件失败: %s - %s', [FileName, E.Message]));
+              Result := False;
+
+              // 尝试恢复备份
+              if FileExists(FileName + '.bak') then
+              begin
+                if RenameFile(PChar(FileName + '.bak'), PChar(FileName)) then
+                  Log('已恢复原始文件')
+                else
+                  Log('无法恢复原始文件');
+              end;
+            end;
+          end;
+        except
+          on E: Exception do
+          begin
+            Log(Format('编码转换过程中发生错误: %s - %s', [FileName, E.Message]));
+            Result := False;
+          end;
         end;
       end;
     end;
