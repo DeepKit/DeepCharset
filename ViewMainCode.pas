@@ -479,6 +479,14 @@ end;
 
 procedure TForm1.Log(const Msg: string);
 begin
+  // 检查MemLog是否已创建
+  if not Assigned(MemLog) then
+  begin
+    // 如果MemLog尚未创建，只输出到调试窗口
+    OutputDebugString(PChar('日志: ' + Msg));
+    Exit;
+  end;
+
   if FBufferingLogs then
   begin
     // 缓冲模式：将日志添加到缓冲区
@@ -487,7 +495,11 @@ begin
   else
   begin
     // 正常模式：直接添加到MemLog
-    FUIHelper.AppendLog(MemLog, Msg);
+    if Assigned(FUIHelper) then
+      FUIHelper.AppendLog(MemLog, Msg)
+    else
+      // 如果FUIHelper尚未创建，直接添加到MemLog
+      MemLog.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + Msg);
   end;
 end;
 
@@ -508,17 +520,32 @@ begin
   // 一次性添加所有缓冲的日志
   if FLogBuffer.Count > 0 then
   begin
-    // 如果日志太多，只显示最后100条
-    if FLogBuffer.Count > 100 then
-    begin
-      FUIHelper.AppendLog(MemLog, '共有 ' + IntToStr(FLogBuffer.Count) + ' 条日志，只显示最后100条...');
-      for i := FLogBuffer.Count - 100 to FLogBuffer.Count - 1 do
-        FUIHelper.AppendLog(MemLog, FLogBuffer[i]);
-    end
-    else
-    begin
-      for i := 0 to FLogBuffer.Count - 1 do
-        FUIHelper.AppendLog(MemLog, FLogBuffer[i]);
+    // 批量更新UI
+    MemLog.Lines.BeginUpdate;
+    try
+      // 如果日志太多，只显示最后100条
+      if FLogBuffer.Count > 100 then
+      begin
+        MemLog.Lines.Add('共有 ' + IntToStr(FLogBuffer.Count) + ' 条日志，只显示最后100条...');
+        for i := FLogBuffer.Count - 100 to FLogBuffer.Count - 1 do
+          MemLog.Lines.Add(FLogBuffer[i]);
+      end
+      else
+      begin
+        for i := 0 to FLogBuffer.Count - 1 do
+          MemLog.Lines.Add(FLogBuffer[i]);
+      end;
+    finally
+      MemLog.Lines.EndUpdate;
+    end;
+
+    // 滚动到底部
+    try
+      MemLog.SelStart := Length(MemLog.Text);
+      MemLog.SelLength := 0;
+      MemLog.Perform(EM_SCROLLCARET, 0, 0);
+    except
+      // 忽略滚动错误
     end;
 
     FLogBuffer.Clear;
@@ -963,7 +990,11 @@ var
   HasBOM: Boolean;
   SelectedFileNames: TStringList; // 用于存储刷新前选中的文件名
   HasSelectedExtensions: Boolean;
+  FileCount: Integer;
 begin
+  // 开始日志缓冲，减少UI更新
+  StartLogBuffering;
+
   // 保存当前选中的文件，以便在刷新后恢复选择状态
   SelectedFileNames := TStringList.Create;
   try
@@ -983,6 +1014,7 @@ begin
       StringGrid1.Cells[2, 1] := '(目录不存在)';
       // 确保列宽正确
       AdjustGridColumnWidths;
+      EndLogBuffering; // 结束日志缓冲
       Exit;
     end;
 
@@ -1009,6 +1041,7 @@ begin
         StringGrid1.Cells[2, 1] := '(请选择至少一种文件类型)';
         // 确保列宽正确
         AdjustGridColumnWidths;
+        EndLogBuffering; // 结束日志缓冲
         Exit;
       end;
 
@@ -1024,32 +1057,57 @@ begin
       // 获取文件列表 - 使用FIncludeSubdirs参数
       Files := FFileHelper.GetFilesInFolder(FolderPath, FileExtensions, FIncludeSubdirs);
 
-      // 添加到表格
-      for i := 0 to High(Files) do
-      begin
-        FileName := ExtractFileName(Files[i]);
+      // 记录找到的文件数量
+      FileCount := Length(Files);
+      Log(Format('找到 %d 个文件，开始检测编码...', [FileCount]));
 
-        // 检测文件编码
-        EncodingName := FFileHelper.DetectFileEncoding(Files[i], HasBOM);
+      // 禁用UI更新，提高性能
+      StringGrid1.BeginUpdate;
+      try
+        // 预先设置表格行数，避免动态增长
+        // 注意：我们设置为2，让AddFileToGridAt自动增加行数
+        StringGrid1.RowCount := 2;
 
-        // 检查该文件是否应该被选中 - 如果之前选中过则继续选中
-        ExtSelected := SelectedFileNames.IndexOf(FileName) >= 0;
+        // 添加到表格
+        for i := 0 to High(Files) do
+        begin
+          FileName := ExtractFileName(Files[i]);
 
-        // 添加到表格，使用保存的选择状态
-        FUIHelper.AddFileToGrid(StringGrid1, FileName, EncodingName, ExtSelected);
+          // 检测文件编码
+          EncodingName := FFileHelper.DetectFileEncoding(Files[i], HasBOM);
+
+          // 检查该文件是否应该被选中 - 如果之前选中过则继续选中
+          ExtSelected := SelectedFileNames.IndexOf(FileName) >= 0;
+
+          // 添加到表格，使用保存的选择状态（行索引从1开始）
+          FUIHelper.AddFileToGridAt(StringGrid1, i + 1, FileName, EncodingName, ExtSelected);
+
+          // 每处理10个文件更新一次进度
+          if (i > 0) and (i mod 10 = 0) then
+          begin
+            Log(Format('已处理 %d/%d 个文件 (%.1f%%)', [i, FileCount, i / FileCount * 100]));
+            Application.ProcessMessages; // 允许UI响应
+          end;
+        end;
+      finally
+        StringGrid1.EndUpdate;
       end;
 
       // 如果没有文件，添加提示
-      if StringGrid1.Cells[2, 1] = '' then
+      if (FileCount = 0) or (StringGrid1.Cells[2, 1] = '') then
         StringGrid1.Cells[2, 1] := '(无文件)';
 
       // 确保列宽正确
       AdjustGridColumnWidths;
+
+      // 记录完成信息
+      Log(Format('编码检测完成，共处理 %d 个文件', [FileCount]));
     finally
       Screen.Cursor := crDefault;
     end;
   finally
     SelectedFileNames.Free;
+    EndLogBuffering; // 结束日志缓冲，一次性更新日志
   end;
 end;
 
@@ -2036,6 +2094,15 @@ begin
           end;
         end;
       end;
+    end;
+
+    // 释放日志缓冲区
+    try
+      FUIHelper.FreeLogBuffer;
+      Log('已释放日志缓冲区');
+    except
+      on E: Exception do
+        Log('释放日志缓冲区失败: ' + E.Message);
     end;
   except
     on E: Exception do

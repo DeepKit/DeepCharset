@@ -497,6 +497,26 @@ function IsBigEndianEncoding(AEncoding: TEncoding): Boolean;
 /// </summary>
 function IsUnicodeEncoding(AEncoding: TEncoding): Boolean;
 
+// 编码常量
+const
+  ENCODING_UNKNOWN = 'UNKNOWN';
+  ENCODING_ANSI = 'ANSI';
+  ENCODING_UTF8 = 'UTF-8';
+  ENCODING_UTF16LE = 'UTF-16LE';
+  ENCODING_UTF16BE = 'UTF-16BE';
+  ENCODING_UTF32LE = 'UTF-32LE';
+  ENCODING_UTF32BE = 'UTF-32BE';
+  ENCODING_GBK = 'GBK';
+  ENCODING_GB18030 = 'GB18030';
+  ENCODING_GB2312 = 'GB2312';
+  ENCODING_BIG5 = 'Big5';
+  ENCODING_SHIFT_JIS = 'Shift-JIS';
+  ENCODING_EUC_JP = 'EUC-JP';
+  ENCODING_ISO_2022_JP = 'ISO-2022-JP';
+  ENCODING_EUC_KR = 'EUC-KR';
+  ENCODING_UHC = 'UHC';
+  ENCODING_ISO_2022_KR = 'ISO-2022-KR';
+
 /// <summary>
 /// Determines if an encoding is a multi-byte encoding
 /// </summary>

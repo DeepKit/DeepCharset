@@ -6,7 +6,7 @@ uses
   System.SysUtils, System.Classes, Vcl.StdCtrls, Vcl.Controls, Vcl.Grids,
   Vcl.Forms, Vcl.Graphics, System.Types, Vcl.CheckLst, ModelEncoding,
   Winapi.Windows, Winapi.Messages, Vcl.ComCtrls, HelperLanguage, System.IniFiles, UtilsTypes,
-  System.Rtti, System.TypInfo;
+  System.Rtti, System.TypInfo, System.DateUtils;
 
 type
   // UI 辅助类
@@ -35,6 +35,8 @@ type
     // 在表格中添加文件
     procedure AddFileToGrid(Grid: TStringGrid; const FileName: string;
       const EncodingName: string; Selected: Boolean);
+    procedure AddFileToGridAt(Grid: TStringGrid; RowIndex: Integer; const FileName: string;
+      const EncodingName: string; Selected: Boolean);
 
     // 清空表格
     procedure ClearGrid(Grid: TStringGrid);
@@ -47,7 +49,14 @@ type
 
     // 更新日志
     procedure AppendLog(LogMemo: TMemo; const Text: string);
+    procedure FlushLogBuffer;
+    procedure FreeLogBuffer;
+
+    // 内部静态方法
+    class procedure FlushLogBufferInternal;
   end;
+
+
 
 implementation
 
@@ -63,92 +72,225 @@ begin
   inherited;
 end;
 
+// 上次更新日志的时间
+var
+  LastLogUpdateTime: TDateTime = 0;
+  LogUpdateInterval: Integer = 500; // 毫秒
+  LogBuffer: TStringList = nil;
+  LogMemoRef: TMemo = nil;
+
 procedure TUIHelper.AppendLog(LogMemo: TMemo; const Text: string);
+var
+  TimeStamp: string;
+  LogText: string;
+  CurrentTime: TDateTime;
+  ElapsedMs: Integer;
+  ContainsNonAscii: Boolean;
+  i: Integer;
 begin
+  // 安全检查：确保LogMemo已创建且有效
   if not Assigned(LogMemo) then
+  begin
+    OutputDebugString(PChar('警告: 尝试向未创建的LogMemo添加日志: ' + Text));
     Exit;
-
-  // 确保使用UTF-8编码添加日志，避免乱码
-  var TimeStamp := FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now);
-  var LogText := '';
-
-  // 使用UTF-8编码添加日志
-  LogMemo.Lines.BeginUpdate;
-  try
-    // 设置TMemo的编码为UTF-8
-    LogMemo.Font.Charset := DEFAULT_CHARSET;
-
-    // 确保日志文本是有效的UTF-8
-    try
-      // 检查文本是否包含非ASCII字符
-      var ContainsNonAscii := False;
-      for var i := 1 to Length(Text) do
-      begin
-        if Ord(Text[i]) > 127 then
-        begin
-          ContainsNonAscii := True;
-          Break;
-        end;
-      end;
-
-      // 如果包含非ASCII字符，进行编码转换
-      if ContainsNonAscii then
-      begin
-        // 尝试将文本转换为UTF-8，以处理可能的非UTF-8字符
-        try
-          // 先尝试使用默认编码转换为字节数组
-          var DefaultBytes := TEncoding.Default.GetBytes(Text);
-
-          // 然后尝试将字节数组转换为UTF-8字符串
-          var Utf8Text := TEncoding.UTF8.GetString(DefaultBytes);
-
-          // 最后再转换回字节数组，确保是有效的UTF-8
-          var Utf8Bytes := TEncoding.UTF8.GetBytes(Utf8Text);
-          var ValidText := TEncoding.UTF8.GetString(Utf8Bytes);
-
-          LogText := TimeStamp + ValidText;
-        except
-          // 如果转换失败，使用原始文本
-          LogText := TimeStamp + '(可能包含乱码) ' + Text;
-          OutputDebugString(PChar('日志编码转换失败，使用原始文本'));
-        end;
-      end
-      else
-      begin
-        // 如果只包含ASCII字符，直接使用
-        LogText := TimeStamp + Text;
-      end;
-
-      // 添加日志
-      LogMemo.Lines.Add(LogText);
-    except
-      on E: Exception do
-      begin
-        // 如果处理过程中出现异常，使用安全的方式添加日志
-        try
-          LogMemo.Lines.Add(TimeStamp + '(日志编码错误) ' + StringReplace(Text, #0, '', [rfReplaceAll]));
-        except
-          // 如果仍然失败，尝试只添加时间戳
-          try
-            LogMemo.Lines.Add(TimeStamp + '(无法显示日志内容)');
-          except
-            // 忽略所有错误
-          end;
-        end;
-        OutputDebugString(PChar('日志编码错误: ' + E.Message));
-      end;
-    end;
-  finally
-    LogMemo.Lines.EndUpdate;
   end;
 
-  // 滚动到底部
+  // 确保LogMemo已经完全创建并可用
   try
-    LogMemo.SelStart := Length(LogMemo.Text);
-    LogMemo.SelLength := 0;
-    LogMemo.Perform(EM_SCROLLCARET, 0, 0);
+    // 简单测试LogMemo是否可用
+    if not LogMemo.HandleAllocated then
+    begin
+      OutputDebugString(PChar('警告: LogMemo句柄尚未分配，跳过日志: ' + Text));
+      Exit;
+    end;
   except
-    // 忽略滚动错误
+    on E: Exception do
+    begin
+      OutputDebugString(PChar('错误: 检查LogMemo时发生异常: ' + E.Message));
+      Exit;
+    end;
+  end;
+
+  // 初始化日志缓冲区
+  if not Assigned(LogBuffer) then
+  begin
+    LogBuffer := TStringList.Create;
+    LogMemoRef := LogMemo;
+  end;
+
+  // 如果引用的Memo变了，清空缓冲区
+  if (LogMemoRef <> LogMemo) and Assigned(LogMemoRef) then
+  begin
+    if Assigned(LogBuffer) and (LogBuffer.Count > 0) then
+    begin
+      // 将缓冲区内容写入旧的Memo
+      TUIHelper.FlushLogBufferInternal;
+    end;
+    LogMemoRef := LogMemo;
+  end;
+
+  // 生成时间戳
+  TimeStamp := FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now);
+
+  // 处理日志文本
+  try
+    // 检查文本是否包含非ASCII字符
+    ContainsNonAscii := False;
+    for i := 1 to Length(Text) do
+    begin
+      if Ord(Text[i]) > 127 then
+      begin
+        ContainsNonAscii := True;
+        Break;
+      end;
+    end;
+
+    // 如果包含非ASCII字符，进行编码转换
+    if ContainsNonAscii then
+    begin
+      // 尝试将文本转换为UTF-8，以处理可能的非UTF-8字符
+      try
+        // 先尝试使用默认编码转换为字节数组
+        var DefaultBytes := TEncoding.Default.GetBytes(Text);
+
+        // 然后尝试将字节数组转换为UTF-8字符串
+        var Utf8Text := TEncoding.UTF8.GetString(DefaultBytes);
+
+        // 最后再转换回字节数组，确保是有效的UTF-8
+        var Utf8Bytes := TEncoding.UTF8.GetBytes(Utf8Text);
+        var ValidText := TEncoding.UTF8.GetString(Utf8Bytes);
+
+        LogText := TimeStamp + ValidText;
+      except
+        // 如果转换失败，使用原始文本
+        LogText := TimeStamp + '(可能包含乱码) ' + Text;
+      end;
+    end
+    else
+    begin
+      // 如果只包含ASCII字符，直接使用
+      LogText := TimeStamp + Text;
+    end;
+  except
+    // 如果处理过程中出现异常，使用安全的方式添加日志
+    LogText := TimeStamp + '(日志编码错误) ' + StringReplace(Text, #0, '', [rfReplaceAll]);
+  end;
+
+  // 添加到缓冲区
+  LogBuffer.Add(LogText);
+
+  // 检查是否需要更新UI
+  CurrentTime := Now;
+  ElapsedMs := MilliSecondsBetween(LastLogUpdateTime, CurrentTime);
+
+  // 如果距离上次更新超过指定时间，或者缓冲区过大，则更新UI
+  if (ElapsedMs > LogUpdateInterval) or (LogBuffer.Count > 100) then
+    TUIHelper.FlushLogBufferInternal;
+end;
+
+// 将日志缓冲区内容写入Memo（内部静态方法）
+class procedure TUIHelper.FlushLogBufferInternal;
+begin
+  // 安全检查：确保LogBuffer和LogMemoRef已创建且有效
+  if not Assigned(LogBuffer) then
+  begin
+    OutputDebugString(PChar('警告: 尝试刷新未创建的LogBuffer'));
+    Exit;
+  end;
+
+  if not Assigned(LogMemoRef) then
+  begin
+    OutputDebugString(PChar('警告: 尝试刷新到未创建的LogMemoRef'));
+    Exit;
+  end;
+
+  // 确保LogMemoRef已经完全创建并可用
+  try
+    // 简单测试LogMemoRef是否可用
+    if not LogMemoRef.HandleAllocated then
+    begin
+      OutputDebugString(PChar('警告: LogMemoRef句柄尚未分配，跳过刷新'));
+      Exit;
+    end;
+  except
+    on E: Exception do
+    begin
+      OutputDebugString(PChar('错误: 检查LogMemoRef时发生异常: ' + E.Message));
+      Exit;
+    end;
+  end;
+
+  if LogBuffer.Count = 0 then
+    Exit;
+
+  try
+    // 批量更新UI
+    LogMemoRef.Lines.BeginUpdate;
+    try
+      // 设置TMemo的编码为UTF-8
+      LogMemoRef.Font.Charset := DEFAULT_CHARSET;
+
+      // 添加所有日志
+      LogMemoRef.Lines.AddStrings(LogBuffer);
+    finally
+      LogMemoRef.Lines.EndUpdate;
+    end;
+
+    // 滚动到底部
+    try
+      LogMemoRef.SelStart := Length(LogMemoRef.Text);
+      LogMemoRef.SelLength := 0;
+      LogMemoRef.Perform(EM_SCROLLCARET, 0, 0);
+    except
+      // 忽略滚动错误
+    end;
+
+    // 清空缓冲区
+    LogBuffer.Clear;
+
+    // 更新时间戳
+    LastLogUpdateTime := Now;
+  except
+    on E: Exception do
+    begin
+      OutputDebugString(PChar('错误: 刷新日志缓冲区时发生异常: ' + E.Message));
+      // 忽略所有错误，确保程序可以继续运行
+    end;
+  end;
+end;
+
+// 将日志缓冲区内容写入Memo（公共方法）
+procedure TUIHelper.FlushLogBuffer;
+begin
+  TUIHelper.FlushLogBufferInternal;
+end;
+
+// 在程序结束时释放资源
+procedure TUIHelper.FreeLogBuffer;
+begin
+  try
+    if Assigned(LogBuffer) then
+    begin
+      // 确保所有日志都被写入
+      try
+        TUIHelper.FlushLogBufferInternal;
+      except
+        on E: Exception do
+          OutputDebugString(PChar('警告: 释放日志缓冲区时刷新失败: ' + E.Message));
+      end;
+
+      // 释放缓冲区
+      try
+        LogBuffer.Free;
+        LogBuffer := nil;
+      except
+        on E: Exception do
+          OutputDebugString(PChar('警告: 释放日志缓冲区失败: ' + E.Message));
+      end;
+    end;
+  except
+    on E: Exception do
+      OutputDebugString(PChar('错误: FreeLogBuffer过程中发生异常: ' + E.Message));
   end;
 end;
 
@@ -250,6 +392,27 @@ begin
     Grid.RowCount := Grid.RowCount + 1;
     RowIndex := Grid.RowCount - 1;
   end;
+
+  // 设置单元格内容
+  if Selected then
+    Grid.Cells[0, RowIndex] := '√'
+  else
+    Grid.Cells[0, RowIndex] := '';
+
+  Grid.Cells[1, RowIndex] := EncodingName;
+  Grid.Cells[2, RowIndex] := FileName;
+end;
+
+procedure TUIHelper.AddFileToGridAt(Grid: TStringGrid; RowIndex: Integer; const FileName: string;
+  const EncodingName: string; Selected: Boolean);
+begin
+  // 确保行索引有效
+  if (RowIndex < 1) then
+    Exit;
+
+  // 如果行索引超出当前行数，增加行数
+  if (RowIndex >= Grid.RowCount) then
+    Grid.RowCount := RowIndex + 1;
 
   // 设置单元格内容
   if Selected then

@@ -3,12 +3,14 @@ unit ControllerEncoding;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, System.Math, System.TypInfo, ModelEncoding,
-  Winapi.Windows, UtilsEncodingBOM_Simple, UTF8BOMConverter_Simple, JclBOM, JclEncodingUtils,
-  HelperFiles;
+  System.SysUtils, System.Classes, System.IOUtils, System.Math, System.TypInfo, System.DateUtils,
+  ModelEncoding, Winapi.Windows, JclBOM, JclEncodingUtils, HelperFiles, UtilsEncodingTypes,
+  UtilsEncodingConstants, UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
+  ChineseEncodingDetector_Improved, JapaneseEncodingDetector_Improved, KoreanEncodingDetector_Improved,
+  UTF8BOMConverter_Improved, EncodingConverter_Improved;
 
 type
-  TEncodingConversionResult = (crSuccess, crFailed, crSkipped);
+  TEncodingConversionResultType = (crSuccess, crFailed, crSkipped);
 
   // 编码控制器类
   TEncodingController = class
@@ -115,10 +117,17 @@ end;
 
 function TEncodingController.DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
 var
+  JapaneseResult: TJapaneseEncodingResult;
+  KoreanResult: TKoreanEncodingResult;
   FileStream: TFileStream;
-  BOMType: TJclBOMType;
+  Buffer: TBytes;
+  DetectionInfo: TEncodingDetectionInfo;
   FileExt: string;
-  IsUTF8: Boolean;
+  StartTime: TDateTime;
+  ElapsedTime: Int64;
+  BOMResult: TBOMDetectionResult;
+  UTF8Result: TUTF8DetectionResult;
+  ChineseResult: TChineseEncodingResult;
 begin
   // 使用FileHelper的检测函数，它更全面
   if Assigned(FFileHelper) then
@@ -129,77 +138,128 @@ begin
     Exit;
   end;
 
-  // 如果FileHelper不可用，使用自己的检测逻辑
-  Log(Format('FileHelper不可用，使用内部逻辑检测文件编码: %s', [FileName]));
+  // 如果FileHelper不可用，使用改进版的检测逻辑
+  Log(Format('使用改进版检测算法检测文件编码: %s', [FileName]));
 
   // 获取文件扩展名
   FileExt := LowerCase(ExtractFileExt(FileName));
   Log(Format('文件扩展名: %s', [FileExt]));
 
+  // 初始化检测器（这些类都是静态类，不需要创建实例）
+
   try
-    // 首先检查是否有BOM
-    FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+    // 记录开始时间
+    StartTime := Now;
+
+    // 首先检查文件是否存在
+    if not FileExists(FileName) then
+    begin
+      Log(Format('文件不存在: %s', [FileName]));
+      Result := 'Unknown';
+      HasBOM := False;
+      Exit;
+    end;
+
+    // 读取文件内容
     try
-      BOMType := JclBOM.DetectBOM(FileStream);
-      HasBOM := BOMType <> JclBOM.bomAnsi;
+      FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+      try
+        // 读取文件内容（最多读取前4MB）
+        SetLength(Buffer, Min(FileStream.Size, 4 * 1024 * 1024));
+        if Length(Buffer) > 0 then
+          FileStream.ReadBuffer(Buffer[0], Length(Buffer));
+      finally
+        FileStream.Free;
+      end;
+    except
+      on E: Exception do
+      begin
+        Log(Format('读取文件失败: %s - %s', [FileName, E.Message]));
+        Result := 'ANSI';
+        HasBOM := False;
+        Exit;
+      end;
+    end;
 
-      Log(Format('BOM检测结果: %s', [GetEnumName(TypeInfo(TJclBOMType), Ord(BOMType))]));
+    // 首先检测BOM
+    BOMResult := TEncodingBOMDetector_Improved.DetectBOM(Buffer);
+    if BOMResult.BOMType <> bomNone then
+    begin
+      // 有BOM，直接返回结果
+      Result := BOMResult.Encoding;
+      HasBOM := True;
 
-      // 根据BOM确定编码
-      case BOMType of
-        bomUTF8: Result := 'UTF-8 with BOM';
-        bomUTF16LE: Result := 'UTF-16LE';
-        bomUTF16BE: Result := 'UTF-16BE';
-        bomUTF32LE: Result := 'UTF-32LE';
-        bomUTF32BE: Result := 'UTF-32BE';
+      // 记录详细日志
+      ElapsedTime := MilliSecondsBetween(StartTime, Now);
+      Log(Format('BOM检测成功: %s, 耗时: %d ms',
+        [Result, ElapsedTime]));
+    end
+    else
+    begin
+      // 没有BOM，尝试检测UTF-8
+      UTF8Result := TUTF8EncodingDetector_Improved.DetectBuffer(Buffer);
+      if UTF8Result.IsUTF8 then
+      begin
+        // 是UTF-8
+        Result := 'UTF-8';
+        HasBOM := False;
+
+        // 记录详细日志
+        ElapsedTime := MilliSecondsBetween(StartTime, Now);
+        Log(Format('UTF-8检测成功: 置信度: %.2f, 有效字节: %d, 无效字节: %d, 耗时: %d ms',
+          [UTF8Result.Confidence, UTF8Result.ValidByteCount,
+           UTF8Result.InvalidByteCount, ElapsedTime]));
+      end
+      else
+      begin
+        // 不是中文编码，尝试检测日文编码
+        JapaneseResult := TJapaneseEncodingDetector_Improved.DetectBuffer(Buffer);
+
+        if (JapaneseResult.Confidence >= 0.75) and (JapaneseResult.Encoding <> ENCODING_ANSI) and (JapaneseResult.Encoding <> ENCODING_UNKNOWN) then
+        begin
+          // 是日文编码
+          Result := JapaneseResult.Encoding;
+          HasBOM := JapaneseResult.HasBOM;
+
+          // 记录详细日志
+          ElapsedTime := MilliSecondsBetween(Now, StartTime);
+          Log(Format('日文编码检测成功: %s, 置信度: %.2f, 耗时: %d ms',
+            [Result, JapaneseResult.Confidence, ElapsedTime]));
+        end
         else
-          // 对于特定的文本文件类型，优先考虑UTF-8
-          if (FileExt = '.md') or (FileExt = '.txt') or (FileExt = '.json') or
-             (FileExt = '.xml') or (FileExt = '.html') or (FileExt = '.htm') or
-             (FileExt = '.css') or (FileExt = '.js') or (FileExt = '.ts') or
-             (FileExt = '.yaml') or (FileExt = '.yml') then
+        begin
+          // 不是日文编码，尝试检测韩文编码
+          KoreanResult := TKoreanEncodingDetector_Improved.DetectBuffer(Buffer);
+
+          if (KoreanResult.Confidence >= 0.75) and (KoreanResult.Encoding <> ENCODING_ANSI) and (KoreanResult.Encoding <> ENCODING_UNKNOWN) then
           begin
-            // 使用改进的UTF-8检测器
-            Log('文件类型适合UTF-8，使用改进的UTF-8检测器');
+            // 是韩文编码
+            Result := KoreanResult.Encoding;
+            HasBOM := KoreanResult.HasBOM;
 
-            IsUTF8 := UTF8BOMConverter_Simple.TUTF8BOMConverter.IsUTF8File(FileName, HasBOM);
-
-            Log(Format('UTF-8检测结果: %s', [BoolToStr(IsUTF8, True)]));
-
-            if IsUTF8 then
-              Result := 'UTF-8'
-            else
-              // 如果不是UTF-8，使用JCL的检测函数
-              Result := JclEncodingUtils.DetectFileEncoding(FileName);
+            // 记录详细日志
+            ElapsedTime := MilliSecondsBetween(Now, StartTime);
+            Log(Format('韩文编码检测成功: %s, 置信度: %.2f, 耗时: %d ms',
+              [Result, KoreanResult.Confidence, ElapsedTime]));
           end
           else
           begin
-            // 对于其他类型的文件，先使用JCL的检测函数
-            Log('使用JCL编码检测函数');
+            // 不是韩文编码，使用默认编码
+            Result := 'ANSI';
+            HasBOM := False;
 
-            Result := JclEncodingUtils.DetectFileEncoding(FileName);
-
-            // 如果JCL检测为ANSI，再尝试使用UTF-8检测器
-            if (Result = 'ANSI') or (Result = '') then
-            begin
-              Log('JCL检测为ANSI，尝试使用UTF-8检测器');
-
-              IsUTF8 := UTF8BOMConverter_Simple.TUTF8BOMConverter.IsUTF8File(FileName, HasBOM);
-
-              Log(Format('UTF-8检测结果: %s', [BoolToStr(IsUTF8, True)]));
-
-              if IsUTF8 then
-                Result := 'UTF-8';
-            end;
+            // 记录详细日志
+            ElapsedTime := MilliSecondsBetween(Now, StartTime);
+            Log(Format('未能确定编码，使用默认编码: %s, 耗时: %d ms',
+              [Result, ElapsedTime]));
           end;
+        end;
       end;
-
-      // 记录详细日志
-      Log(Format('检测到文件 %s 的编码为: %s (BOM: %s)',
-        [ExtractFileName(FileName), Result, BoolToStr(HasBOM, True)]));
-    finally
-      FileStream.Free;
     end;
+
+    // 记录最终结果
+    Log(Format('检测到文件 %s 的编码为: %s (BOM: %s)',
+      [ExtractFileName(FileName), Result, BoolToStr(HasBOM, True)]));
   except
     on E: Exception do
     begin
@@ -237,23 +297,16 @@ function TEncodingController.ConvertSingleFile(const FileName, TargetEncoding: s
 var
   SourceEncodingName: string;
   HasBOM: Boolean;
-  TempFile: string;
-  IsUTF8BOMTarget: Boolean;
-  UTF8Converter: TUTF8BOMConverter;
+  Options: TEncodingConversionOptions;
+  ConversionResult: TEncodingConversionResult;
+  FinalTargetEncoding: string;
 begin
   Result := False;
 
   // 检查文件是否存在
   if not FileExists(FileName) then
   begin
-    Log(Format(string('文件不存在: %s'), [FileName]));
-    Exit;
-  end;
-
-  // 检查文件是否可访问
-  if not IsFileAccessible(FileName) then
-  begin
-    Log(Format(string('文件无法访问: %s'), [FileName]));
+    Log(Format('文件不存在: %s', [FileName]));
     Exit;
   end;
 
@@ -264,373 +317,40 @@ begin
   // 检测源文件编码
   SourceEncodingName := DetectFileEncoding(FileName, HasBOM);
 
-  // 创建临时文件路径
-  TempFile := GetTempFilePath;
+  // 确定最终目标编码
+  if SameText(TargetEncoding, 'UTF-8') and WithBOM then
+    FinalTargetEncoding := ENCODING_UTF8_BOM
+  else if SameText(TargetEncoding, 'UTF-8 with BOM') then
+    FinalTargetEncoding := ENCODING_UTF8_BOM
+  else if SameText(TargetEncoding, 'UTF-8-BOM') then
+    FinalTargetEncoding := ENCODING_UTF8_BOM
+  else if SameText(TargetEncoding, 'UTF8-BOM') then
+    FinalTargetEncoding := ENCODING_UTF8_BOM
+  else if SameText(TargetEncoding, 'UTF8BOM') then
+    FinalTargetEncoding := ENCODING_UTF8_BOM
+  else
+    FinalTargetEncoding := TargetEncoding;
 
-  // 检查UTF-8 BOM目标 - 改进识别逻辑
-  IsUTF8BOMTarget := (SameText(TargetEncoding, 'UTF-8 with BOM') or
-                      SameText(TargetEncoding, 'UTF-8-BOM') or
-                      SameText(TargetEncoding, 'UTF8-BOM') or
-                      SameText(TargetEncoding, 'UTF8BOM') or
-                      (SameText(TargetEncoding, 'UTF-8') and WithBOM));
+  // 创建转换选项
+  Options := TEncodingConverter_Improved.CreateDefaultOptions;
+  Options.AddBOM := WithBOM;
+  Options.DetectSourceEncoding := False; // 我们已经检测过了
 
-  // 输出详细调试信息
-  Log(Format(string('目标是否UTF-8+BOM: %s, 目标编码: %s, WithBOM: %s'),
-    [BoolToStr(IsUTF8BOMTarget, True), TargetEncoding, BoolToStr(WithBOM, True)]));
-
-  // 详细日志：源和目标编码信息
-  var BOMText := '';
-  if IsUTF8BOMTarget then
-    BOMText := ' (带BOM)'
-  else if WithBOM then
-    BOMText := ' (带BOM)';
-
-  // 确保日志使用UTF-8编码
-  Log(Format(string('准备转换: 从 %s 到 %s%s'),
-    [SourceEncodingName, TargetEncoding, BOMText]));
+  // 记录转换信息
+  Log(Format('准备转换: 从 %s 到 %s (BOM: %s)',
+    [SourceEncodingName, FinalTargetEncoding, BoolToStr(WithBOM, True)]));
 
   try
-    // 特殊处理UTF-8相关的转换
-    if IsUTF8BOMTarget then
+    // 执行转换
+    ConversionResult := TEncodingConverter_Improved.ConvertFile(
+      FileName, FileName, SourceEncodingName, FinalTargetEncoding, Options);
+
+    // 检查结果
+    if ConversionResult.Success then
     begin
-      // 使用UTF8BOMConverter进行转换
-      Log(string('使用UTF8BOMConverter进行UTF-8 BOM转换...'));
-
-      // 如果源文件已经是UTF-8（无论有无BOM），直接添加BOM
-      if SameText(SourceEncodingName, 'UTF-8') or SameText(SourceEncodingName, 'UTF-8 with BOM') then
-      begin
-        var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.ConvertToUTF8WithBOM(FileName);
-        Result := ConvResult.Success;
-
-        if Result then
-          Log(string('成功将UTF-8文件转换为UTF-8+BOM'))
-        else
-          Log(string('将UTF-8文件转换为UTF-8+BOM失败: ') + ConvResult.ErrorMessage);
-      end
-      else
-      begin
-        // 其他编码转换为UTF-8+BOM
-        var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.ConvertToUTF8WithBOM(FileName);
-        Result := ConvResult.Success;
-
-        if Result then
-          Log(Format(string('成功将%s文件转换为UTF-8+BOM'), [SourceEncodingName]))
-        else
-          Log(Format(string('将%s文件转换为UTF-8+BOM失败: %s'), [SourceEncodingName, ConvResult.ErrorMessage]));
-      end;
-    end
-    else if SameText(TargetEncoding, 'UTF-8') and not WithBOM then
-    begin
-      // 转换为不带BOM的UTF-8
-      Log(string('使用UTF8BOMConverter进行UTF-8无BOM转换...'));
-
-      try
-        // 特别处理从UTF-8+BOM到UTF-8无BOM的转换
-        if SameText(SourceEncodingName, 'UTF-8 with BOM') then
-        begin
-          Log(string('从UTF-8+BOM转换为UTF-8无BOM，使用专用方法...'));
-
-          // 确保文件存在且可访问
-          if not FileExists(FileName) then
-          begin
-            Log(string('文件不存在，无法转换: ') + FileName);
-            Result := False;
-            Exit;
-          end;
-
-          // 检查文件是否可写
-          try
-            var FileAttr := FileGetAttr(FileName);
-            if (FileAttr and faReadOnly) <> 0 then
-            begin
-              Log(string('文件为只读，无法修改: ') + FileName);
-              Result := False;
-              Exit;
-            end;
-          except
-            on E: Exception do
-            begin
-              Log(string('检查文件属性失败: ') + E.Message);
-              Result := False;
-              Exit;
-            end;
-          end;
-
-          // 使用专用方法移除BOM
-          var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.RemoveUTF8BOM(FileName);
-          Result := ConvResult.Success;
-
-          if Result then
-          begin
-            Log(string('成功将UTF-8+BOM文件转换为UTF-8无BOM'));
-
-            // 验证转换结果
-            var NewHasBOM: Boolean;
-            var NewEncoding := DetectFileEncoding(FileName, NewHasBOM);
-
-            if NewHasBOM then
-            begin
-              Log(string('警告：转换后文件仍然包含BOM，可能转换失败'));
-              // 尝试再次转换
-              ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.RemoveUTF8BOM(FileName);
-              if ConvResult.Success then
-                Log(string('第二次尝试移除BOM成功'))
-              else
-                Log(string('第二次尝试移除BOM失败: ') + ConvResult.ErrorMessage);
-            end;
-          end
-          else
-          begin
-            Log(string('将UTF-8+BOM文件转换为UTF-8无BOM失败: ') + ConvResult.ErrorMessage);
-          end;
-        end
-        else
-        begin
-          // 其他编码转换为UTF-8无BOM
-          var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.ConvertToUTF8WithoutBOM(FileName);
-          Result := ConvResult.Success;
-
-          if Result then
-          begin
-            Log(Format(string('成功将%s文件转换为UTF-8无BOM'), [SourceEncodingName]));
-
-            // 验证转换结果
-            var NewHasBOM: Boolean;
-            var NewEncoding := DetectFileEncoding(FileName, NewHasBOM);
-
-            if NewHasBOM then
-            begin
-              Log(string('警告：转换后文件仍然包含BOM，尝试再次移除'));
-              // 尝试使用专用方法移除BOM
-              ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.RemoveUTF8BOM(FileName);
-              if ConvResult.Success then
-                Log(string('使用专用方法移除BOM成功'))
-              else
-                Log(string('使用专用方法移除BOM失败: ') + ConvResult.ErrorMessage);
-            end;
-          end
-          else
-          begin
-            Log(Format(string('将%s文件转换为UTF-8无BOM失败: %s'), [SourceEncodingName, ConvResult.ErrorMessage]));
-          end;
-        end;
-      except
-        on E: Exception do
-        begin
-          Log(string('转换过程中发生异常: ') + E.Message);
-          Result := False;
-        end;
-      end;
-    end
-    else
-    begin
-      // 其他编码转换
-      Log('处理其他编码转换...');
-
-      // 检查是否是UTF-8到UTF-8+BOM的转换
-      if SameText(SourceEncodingName, 'UTF-8') and IsUTF8BOMTarget then
-      begin
-        Log('检测到UTF-8到UTF-8+BOM的转换，使用AddUTF8BOM方法');
-        var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.AddUTF8BOM(FileName);
-        Result := ConvResult.Success;
-
-        if Result then
-          Log('成功将UTF-8文件转换为UTF-8+BOM')
-        else
-          Log('将UTF-8文件转换为UTF-8+BOM失败: ' + ConvResult.ErrorMessage);
-      end
-      // 检查是否是UTF-8+BOM到UTF-8的转换
-      else if SameText(SourceEncodingName, 'UTF-8 with BOM') and SameText(TargetEncoding, 'UTF-8') and not WithBOM then
-      begin
-        Log('检测到UTF-8+BOM到UTF-8的转换，使用RemoveUTF8BOM方法');
-        var ConvResult := UTF8BOMConverter_Simple.TUTF8BOMConverter.RemoveUTF8BOM(FileName);
-        Result := ConvResult.Success;
-
-        if Result then
-          Log('成功将UTF-8+BOM文件转换为UTF-8')
-        else
-          Log('将UTF-8+BOM文件转换为UTF-8失败: ' + ConvResult.ErrorMessage);
-      end
-      else
-      begin
-        // 其他编码转换，使用通用方法
-        Log(Format('使用通用方法进行编码转换: 从 %s 到 %s (BOM: %s)',
-          [SourceEncodingName, TargetEncoding, BoolToStr(WithBOM, True)]));
-
-        try
-          // 读取源文件内容
-          var SourceBytes: TBytes;
-          var SourceText: string;
-          var SourceEncoding: TEncoding;
-          var TargetBytes: TBytes;
-
-          // 读取源文件
-          SourceBytes := TFile.ReadAllBytes(FileName);
-
-          // 确定源编码
-          if SameText(SourceEncodingName, 'UTF-8') or SameText(SourceEncodingName, 'UTF-8 with BOM') then
-          begin
-            if HasBOM then
-            begin
-              // 跳过BOM
-              var TempBytes: TBytes;
-              SetLength(TempBytes, Length(SourceBytes) - 3);
-              if Length(TempBytes) > 0 then
-                Move(SourceBytes[3], TempBytes[0], Length(TempBytes));
-              SourceText := TEncoding.UTF8.GetString(TempBytes);
-            end
-            else
-              SourceText := TEncoding.UTF8.GetString(SourceBytes);
-          end
-          else if SameText(SourceEncodingName, 'UTF-16LE') or SameText(SourceEncodingName, 'UTF-16BE') then
-          begin
-            if SameText(SourceEncodingName, 'UTF-16LE') then
-              SourceEncoding := TEncoding.Unicode
-            else
-              SourceEncoding := TEncoding.BigEndianUnicode;
-
-            // 处理BOM
-            if HasBOM then
-            begin
-              // 跳过BOM
-              var TempBytes: TBytes;
-              SetLength(TempBytes, Length(SourceBytes) - 2);
-              if Length(TempBytes) > 0 then
-                Move(SourceBytes[2], TempBytes[0], Length(TempBytes));
-              SourceText := SourceEncoding.GetString(TempBytes);
-            end
-            else
-              SourceText := SourceEncoding.GetString(SourceBytes);
-          end
-          else
-          begin
-            // 默认使用ANSI编码
-            SourceText := TEncoding.Default.GetString(SourceBytes);
-          end;
-
-          // 转换为目标编码
-          if SameText(TargetEncoding, 'UTF-8') or SameText(TargetEncoding, 'UTF-8 with BOM') or IsUTF8BOMTarget then
-          begin
-            TargetBytes := TEncoding.UTF8.GetBytes(SourceText);
-
-            // 添加BOM
-            if WithBOM or IsUTF8BOMTarget then
-            begin
-              var BOM: TBytes;
-              SetLength(BOM, 3);
-              BOM[0] := $EF;
-              BOM[1] := $BB;
-              BOM[2] := $BF;
-
-              var FinalBytes: TBytes;
-              SetLength(FinalBytes, Length(TargetBytes) + 3);
-              Move(BOM[0], FinalBytes[0], 3);
-              if Length(TargetBytes) > 0 then
-                Move(TargetBytes[0], FinalBytes[3], Length(TargetBytes));
-              TargetBytes := FinalBytes;
-            end;
-          end
-          else if SameText(TargetEncoding, 'UTF-16LE') then
-          begin
-            TargetBytes := TEncoding.Unicode.GetBytes(SourceText);
-
-            // 添加BOM
-            if WithBOM then
-            begin
-              var BOM: TBytes;
-              SetLength(BOM, 2);
-              BOM[0] := $FF;
-              BOM[1] := $FE;
-
-              var FinalBytes: TBytes;
-              SetLength(FinalBytes, Length(TargetBytes) + 2);
-              Move(BOM[0], FinalBytes[0], 2);
-              if Length(TargetBytes) > 0 then
-                Move(TargetBytes[0], FinalBytes[2], Length(TargetBytes));
-              TargetBytes := FinalBytes;
-            end;
-          end
-          else if SameText(TargetEncoding, 'UTF-16BE') then
-          begin
-            TargetBytes := TEncoding.BigEndianUnicode.GetBytes(SourceText);
-
-            // 添加BOM
-            if WithBOM then
-            begin
-              var BOM: TBytes;
-              SetLength(BOM, 2);
-              BOM[0] := $FE;
-              BOM[1] := $FF;
-
-              var FinalBytes: TBytes;
-              SetLength(FinalBytes, Length(TargetBytes) + 2);
-              Move(BOM[0], FinalBytes[0], 2);
-              if Length(TargetBytes) > 0 then
-                Move(TargetBytes[0], FinalBytes[2], Length(TargetBytes));
-              TargetBytes := FinalBytes;
-            end;
-          end
-          else
-          begin
-            // 默认使用ANSI编码
-            TargetBytes := TEncoding.Default.GetBytes(SourceText);
-          end;
-
-          // 写入目标文件
-          try
-            // 创建备份
-            if FileExists(FileName + '.bak') then
-              DeleteFile(PChar(FileName + '.bak'));
-
-            if not RenameFile(PChar(FileName), PChar(FileName + '.bak')) then
-              Log('无法创建备份文件: ' + FileName + '.bak');
-
-            // 写入新文件
-            TFile.WriteAllBytes(FileName, TargetBytes);
-            Result := True;
-            Log(Format('成功转换文件: %s (从 %s 到 %s)',
-              [ExtractFileName(FileName), SourceEncodingName, TargetEncoding]));
-          except
-            on E: Exception do
-            begin
-              Log(Format('写入文件失败: %s - %s', [FileName, E.Message]));
-              Result := False;
-
-              // 尝试恢复备份
-              if FileExists(FileName + '.bak') then
-              begin
-                if RenameFile(PChar(FileName + '.bak'), PChar(FileName)) then
-                  Log('已恢复原始文件')
-                else
-                  Log('无法恢复原始文件');
-              end;
-            end;
-          end;
-        except
-          on E: Exception do
-          begin
-            Log(Format('编码转换过程中发生错误: %s - %s', [FileName, E.Message]));
-            Result := False;
-          end;
-        end;
-      end;
-    end;
-
-    // 如果转换成功，记录结果
-    if Result then
-    begin
-      // 重新检测文件编码，确认转换结果
-      var NewEncoding: string;
-      var NewHasBOM: Boolean;
-      NewEncoding := DetectFileEncoding(FileName, NewHasBOM);
-
-      // 记录转换结果
-      var BOMInfo := '';
-      if NewHasBOM then
-        BOMInfo := ' (带BOM)';
-
-      Log(Format(string('成功转换文件: %s (从 %s 到 %s%s)'),
-        [ExtractFileName(FileName), SourceEncodingName, NewEncoding, BOMInfo]));
+      Result := True;
+      Log(Format('成功将文件 %s 从 %s 转换为 %s',
+        [ExtractFileName(FileName), SourceEncodingName, FinalTargetEncoding]));
 
       // 调用成功回调
       if Assigned(OnSuccess) then
@@ -638,17 +358,21 @@ begin
     end
     else
     begin
-      Log(Format(string('转换文件失败: %s'), [FileName]));
+      Result := False;
+      Log(Format('转换文件 %s 失败，错误数: %d',
+        [ExtractFileName(FileName), ConversionResult.ErrorCount]));
+
+      // 记录详细错误信息
+      for var i := 0 to ConversionResult.ErrorCount - 1 do
+        Log(Format('  错误 #%d: %s (位置: %d)',
+          [i+1, ConversionResult.Errors[i].ErrorMessage, ConversionResult.Errors[i].Position]));
     end;
-  finally
-    // 删除临时文件
-    if FileExists(TempFile) then
+  except
+    on E: Exception do
     begin
-      try
-        DeleteFile(PChar(TempFile));
-      except
-        // 忽略删除临时文件的错误
-      end;
+      Result := False;
+      Log(Format('转换文件时发生异常: %s - %s',
+        [ExtractFileName(FileName), E.Message]));
     end;
   end;
 end;
@@ -670,7 +394,7 @@ begin
   ProgressInterval := Max(1, Min(TotalCount div 20, 10));
   LastProgressReport := 0;
 
-  Log(Format(string('开始批量转换 %d 个文件到 %s (BOM: %s)...'),
+  Log(Format('开始批量转换 %d 个文件到 %s (BOM: %s)...',
     [TotalCount, TargetEncoding, BoolToStr(WithBOM, True)]));
 
   for i := 0 to High(FileNames) do
@@ -685,7 +409,7 @@ begin
     if (i + 1 - LastProgressReport >= ProgressInterval) or (i = High(FileNames)) then
     begin
       LastProgressReport := i + 1;
-      Log(Format(string('进度: %d/%d (%.1f%%) - 成功: %d, 失败: %d'),
+      Log(Format('进度: %d/%d (%.1f%%) - 成功: %d, 失败: %d',
         [i + 1, TotalCount, (i + 1) / TotalCount * 100, SuccessCount, FailCount]));
     end;
   end;

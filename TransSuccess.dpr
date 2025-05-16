@@ -23,8 +23,14 @@ uses
   ControllerLanguage in 'ControllerLanguage.pas',
   UtilsEncodingTypes in 'UtilsEncodingTypes.pas',
   UtilsEncodingLogger in 'UtilsEncodingLogger.pas',
-  UtilsEncodingBOM_Simple in 'UtilsEncodingBOM_Simple.pas',
-  UTF8BOMConverter in 'UTF8BOMConverter.pas';
+
+  UtilsEncodingBOM_Improved in 'UtilsEncodingBOM_Improved.pas',
+  UtilsEncodingUTF8Detector_Improved in 'UtilsEncodingUTF8Detector_Improved.pas',
+  ChineseEncodingDetector_Improved in 'ChineseEncodingDetector_Improved.pas',
+  JapaneseEncodingDetector_Improved in 'JapaneseEncodingDetector_Improved.pas',
+  KoreanEncodingDetector_Improved in 'KoreanEncodingDetector_Improved.pas',
+  EncodingConverter_Improved in 'EncodingConverter_Improved.pas',
+  UTF8BOMConverter_Improved in 'UTF8BOMConverter_Improved.pas';
 
 {$R *.res}
 

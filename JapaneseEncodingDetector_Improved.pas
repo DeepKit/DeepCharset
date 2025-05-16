@@ -1,0 +1,694 @@
+unit JapaneseEncodingDetector_Improved;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes, UtilsEncodingConstants;
+
+type
+  /// <summary>
+  /// 日文编码检测结果记录
+  /// </summary>
+  TJapaneseEncodingResult = record
+    Encoding: string;           // 检测到的编码
+    Confidence: Double;         // 置信度 (0.0-1.0)
+    HasBOM: Boolean;            // 是否有BOM
+    ShiftJISConfidence: Double; // Shift-JIS置信度
+    EUCJPConfidence: Double;    // EUC-JP置信度
+    ISO2022JPConfidence: Double; // ISO-2022-JP置信度
+  end;
+
+  /// <summary>
+  /// 改进的日文编码检测器
+  /// </summary>
+  TJapaneseEncodingDetector_Improved = class
+  private
+    const
+      MIN_CONFIDENCE = 0.75;    // 最小置信度
+      MAX_TEXT_SAMPLE = 16 * 1024; // 最大采样大小 (16KB)
+
+    /// <summary>
+    /// 检查是否是有效的Shift-JIS序列
+    /// </summary>
+    class function IsValidShiftJISSequence(const Buffer: TBytes; Start: Integer; out ByteCount: Integer): Boolean;
+
+    /// <summary>
+    /// 检查是否是有效的EUC-JP序列
+    /// </summary>
+    class function IsValidEUCJPSequence(const Buffer: TBytes; Start: Integer; out ByteCount: Integer): Boolean;
+
+    /// <summary>
+    /// 检查是否是有效的ISO-2022-JP序列
+    /// </summary>
+    class function IsValidISO2022JPSequence(const Buffer: TBytes; Start: Integer; out ByteCount: Integer): Boolean;
+
+    /// <summary>
+    /// 分析Shift-JIS编码特征
+    /// </summary>
+    class function AnalyzeShiftJISFeatures(const Buffer: TBytes): Double;
+
+    /// <summary>
+    /// 分析EUC-JP编码特征
+    /// </summary>
+    class function AnalyzeEUCJPFeatures(const Buffer: TBytes): Double;
+
+    /// <summary>
+    /// 分析ISO-2022-JP编码特征
+    /// </summary>
+    class function AnalyzeISO2022JPFeatures(const Buffer: TBytes): Double;
+
+    /// <summary>
+    /// 分析日文编码频率特征
+    /// </summary>
+    class procedure AnalyzeJapaneseFrequency(const Buffer: TBytes; out ShiftJISScore, EUCJPScore, ISO2022JPScore: Double);
+
+  public
+    /// <summary>
+    /// 检测文件的日文编码
+    /// </summary>
+    class function DetectFile(const FileName: string): TJapaneseEncodingResult;
+
+    /// <summary>
+    /// 检测字节数组的日文编码
+    /// </summary>
+    class function DetectBuffer(const Buffer: TBytes): TJapaneseEncodingResult;
+
+    /// <summary>
+    /// 检测流的日文编码
+    /// </summary>
+    class function DetectStream(const Stream: TStream): TJapaneseEncodingResult;
+  end;
+
+implementation
+
+uses
+  UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved;
+
+{ TJapaneseEncodingDetector_Improved }
+
+class procedure TJapaneseEncodingDetector_Improved.AnalyzeJapaneseFrequency(
+  const Buffer: TBytes; out ShiftJISScore, EUCJPScore, ISO2022JPScore: Double);
+var
+  ByteFreq: array[0..255] of Integer;
+  TotalBytes, JapaneseBytes: Integer;
+  i: Integer;
+begin
+  // 初始化
+  ShiftJISScore := 0;
+  EUCJPScore := 0;
+  ISO2022JPScore := 0;
+
+  if Length(Buffer) = 0 then
+    Exit;
+
+  // 统计字节频率
+  FillChar(ByteFreq, SizeOf(ByteFreq), 0);
+  for i := 0 to Length(Buffer) - 1 do
+    Inc(ByteFreq[Buffer[i]]);
+
+  // 计算总字节数
+  TotalBytes := Length(Buffer);
+
+  // 计算日文字节数（高位字节）
+  JapaneseBytes := 0;
+  for i := $80 to $FF do
+    Inc(JapaneseBytes, ByteFreq[i]);
+
+  // 如果没有日文字节，则返回
+  if JapaneseBytes = 0 then
+    Exit;
+
+  // 计算Shift-JIS特征得分
+  var ShiftJISLeadingBytes := 0;
+  for i := $81 to $9F do
+    Inc(ShiftJISLeadingBytes, ByteFreq[i]);
+  for i := $E0 to $FC do
+    Inc(ShiftJISLeadingBytes, ByteFreq[i]);
+
+  var ShiftJISTrailingBytes := 0;
+  for i := $40 to $FC do
+    Inc(ShiftJISTrailingBytes, ByteFreq[i]);
+
+  if ShiftJISLeadingBytes > 0 then
+    ShiftJISScore := Min(1.0, ShiftJISLeadingBytes / JapaneseBytes * 2);
+
+  // 计算EUC-JP特征得分
+  var EUCJPLeadingBytes := 0;
+  for i := $A1 to $FE do
+    Inc(EUCJPLeadingBytes, ByteFreq[i]);
+
+  var EUCJPTrailingBytes := 0;
+  for i := $A1 to $FE do
+    Inc(EUCJPTrailingBytes, ByteFreq[i]);
+
+  if EUCJPLeadingBytes > 0 then
+    EUCJPScore := Min(1.0, EUCJPLeadingBytes / JapaneseBytes * 2);
+
+  // 计算ISO-2022-JP特征得分
+  var ISO2022JPEscapeSeq := 0;
+  for i := 0 to Length(Buffer) - 3 do
+  begin
+    if (Buffer[i] = $1B) and (Buffer[i+1] = $28) and (Buffer[i+2] = $42) then
+      Inc(ISO2022JPEscapeSeq);
+    if (Buffer[i] = $1B) and (Buffer[i+1] = $24) and (Buffer[i+2] = $42) then
+      Inc(ISO2022JPEscapeSeq);
+  end;
+
+  if ISO2022JPEscapeSeq > 0 then
+    ISO2022JPScore := Min(1.0, ISO2022JPEscapeSeq / 10);
+end;
+
+class function TJapaneseEncodingDetector_Improved.AnalyzeEUCJPFeatures(const Buffer: TBytes): Double;
+var
+  i, ByteCount, ValidCount, InvalidCount: Integer;
+  ConsecutiveValidCount, MaxConsecutiveValid: Integer;
+begin
+  ValidCount := 0;
+  InvalidCount := 0;
+  ConsecutiveValidCount := 0;
+  MaxConsecutiveValid := 0;
+
+  i := 0;
+  while i < Length(Buffer) do
+  begin
+    if IsValidEUCJPSequence(Buffer, i, ByteCount) then
+    begin
+      Inc(ValidCount);
+      Inc(ConsecutiveValidCount);
+      Inc(i, ByteCount);
+    end
+    else
+    begin
+      Inc(InvalidCount);
+      MaxConsecutiveValid := Max(MaxConsecutiveValid, ConsecutiveValidCount);
+      ConsecutiveValidCount := 0;
+      Inc(i);
+    end;
+  end;
+
+  MaxConsecutiveValid := Max(MaxConsecutiveValid, ConsecutiveValidCount);
+
+  // 计算EUC-JP特征得分
+  if (ValidCount + InvalidCount) = 0 then
+    Result := 0
+  else
+    Result := ValidCount / (ValidCount + InvalidCount);
+
+  // 如果有连续的长EUC-JP序列，提高得分
+  if MaxConsecutiveValid >= 5 then
+    Result := Result * 1.2;
+
+  // 限制得分在0-1范围内
+  Result := Max(0, Min(1.0, Result));
+end;
+
+class function TJapaneseEncodingDetector_Improved.AnalyzeISO2022JPFeatures(const Buffer: TBytes): Double;
+var
+  i, ByteCount, ValidCount, InvalidCount: Integer;
+  ConsecutiveValidCount, MaxConsecutiveValid: Integer;
+  EscapeSeqCount: Integer;
+begin
+  ValidCount := 0;
+  InvalidCount := 0;
+  ConsecutiveValidCount := 0;
+  MaxConsecutiveValid := 0;
+  EscapeSeqCount := 0;
+
+  i := 0;
+  while i < Length(Buffer) do
+  begin
+    if IsValidISO2022JPSequence(Buffer, i, ByteCount) then
+    begin
+      Inc(ValidCount);
+      Inc(ConsecutiveValidCount);
+      Inc(i, ByteCount);
+
+      // 检查是否是转义序列
+      if (ByteCount >= 3) and (Buffer[i-ByteCount] = $1B) then
+        Inc(EscapeSeqCount);
+    end
+    else
+    begin
+      Inc(InvalidCount);
+      MaxConsecutiveValid := Max(MaxConsecutiveValid, ConsecutiveValidCount);
+      ConsecutiveValidCount := 0;
+      Inc(i);
+    end;
+  end;
+
+  MaxConsecutiveValid := Max(MaxConsecutiveValid, ConsecutiveValidCount);
+
+  // 计算ISO-2022-JP特征得分
+  if (ValidCount + InvalidCount) = 0 then
+    Result := 0
+  else
+    Result := ValidCount / (ValidCount + InvalidCount);
+
+  // 如果有转义序列，提高得分
+  if EscapeSeqCount > 0 then
+    Result := Result * (1.0 + Min(0.5, EscapeSeqCount / 10));
+
+  // 限制得分在0-1范围内
+  Result := Max(0, Min(1.0, Result));
+end;
+
+class function TJapaneseEncodingDetector_Improved.AnalyzeShiftJISFeatures(const Buffer: TBytes): Double;
+var
+  i, ByteCount, ValidCount, InvalidCount: Integer;
+  ConsecutiveValidCount, MaxConsecutiveValid: Integer;
+begin
+  ValidCount := 0;
+  InvalidCount := 0;
+  ConsecutiveValidCount := 0;
+  MaxConsecutiveValid := 0;
+
+  i := 0;
+  while i < Length(Buffer) do
+  begin
+    if IsValidShiftJISSequence(Buffer, i, ByteCount) then
+    begin
+      Inc(ValidCount);
+      Inc(ConsecutiveValidCount);
+      Inc(i, ByteCount);
+    end
+    else
+    begin
+      Inc(InvalidCount);
+      MaxConsecutiveValid := Max(MaxConsecutiveValid, ConsecutiveValidCount);
+      ConsecutiveValidCount := 0;
+      Inc(i);
+    end;
+  end;
+
+  MaxConsecutiveValid := Max(MaxConsecutiveValid, ConsecutiveValidCount);
+
+  // 计算Shift-JIS特征得分
+  if (ValidCount + InvalidCount) = 0 then
+    Result := 0
+  else
+    Result := ValidCount / (ValidCount + InvalidCount);
+
+  // 如果有连续的长Shift-JIS序列，提高得分
+  if MaxConsecutiveValid >= 5 then
+    Result := Result * 1.2;
+
+  // 限制得分在0-1范围内
+  Result := Max(0, Min(1.0, Result));
+end;
+
+class function TJapaneseEncodingDetector_Improved.DetectBuffer(const Buffer: TBytes): TJapaneseEncodingResult;
+var
+  BOMResult: TBOMDetectionResult;
+  UTF8Result: TUTF8DetectionResult;
+  ShiftJISScore, EUCJPScore, ISO2022JPScore: Double;
+  FreqShiftJISScore, FreqEUCJPScore, FreqISO2022JPScore: Double;
+  FinalShiftJISScore, FinalEUCJPScore, FinalISO2022JPScore: Double;
+begin
+  // 初始化结果
+  Result.Encoding := ENCODING_UNKNOWN;
+  Result.Confidence := 0.0;
+  Result.HasBOM := False;
+  Result.ShiftJISConfidence := 0.0;
+  Result.EUCJPConfidence := 0.0;
+  Result.ISO2022JPConfidence := 0.0;
+
+  if Length(Buffer) = 0 then
+    Exit;
+
+  // 检测BOM
+  BOMResult := TEncodingBOMDetector_Improved.DetectBOM(Buffer);
+
+  // 如果有BOM，直接返回对应的编码
+  if BOMResult.BOMType <> bomNone then
+  begin
+    Result.Encoding := BOMResult.Encoding;
+    Result.Confidence := 1.0;
+    Result.HasBOM := True;
+    Exit;
+  end;
+
+  // 检测UTF-8
+  UTF8Result := TUTF8EncodingDetector_Improved.DetectBuffer(Buffer);
+
+  // 如果是UTF-8，直接返回
+  if UTF8Result.IsUTF8 then
+  begin
+    Result.Encoding := ENCODING_UTF8;
+    Result.Confidence := UTF8Result.Confidence;
+    Result.HasBOM := UTF8Result.HasBOM;
+    Exit;
+  end;
+
+  // 分析日文编码特征
+  ShiftJISScore := AnalyzeShiftJISFeatures(Buffer);
+  EUCJPScore := AnalyzeEUCJPFeatures(Buffer);
+  ISO2022JPScore := AnalyzeISO2022JPFeatures(Buffer);
+
+  // 分析日文编码频率特征
+  AnalyzeJapaneseFrequency(Buffer, FreqShiftJISScore, FreqEUCJPScore, FreqISO2022JPScore);
+
+  // 综合计算最终得分
+  FinalShiftJISScore := 0.65 * ShiftJISScore + 0.35 * FreqShiftJISScore;
+  FinalEUCJPScore := 0.65 * EUCJPScore + 0.35 * FreqEUCJPScore;
+  FinalISO2022JPScore := 0.65 * ISO2022JPScore + 0.35 * FreqISO2022JPScore;
+
+  // 检查是否有特征字节
+  var HasShiftJISSpecificBytes := False;
+  for var j := 0 to Length(Buffer) - 2 do
+  begin
+    if (j + 1 < Length(Buffer)) and
+       (((Buffer[j] >= $81) and (Buffer[j] <= $9F)) or
+        ((Buffer[j] >= $E0) and (Buffer[j] <= $FC))) and
+       (((Buffer[j+1] >= $40) and (Buffer[j+1] <= $7E)) or
+        ((Buffer[j+1] >= $80) and (Buffer[j+1] <= $FC))) then
+    begin
+      HasShiftJISSpecificBytes := True;
+      Break;
+    end;
+  end;
+
+  if HasShiftJISSpecificBytes then
+    FinalShiftJISScore := FinalShiftJISScore * 1.2;
+
+  var HasEUCJPSpecificBytes := False;
+  for var j := 0 to Length(Buffer) - 2 do
+  begin
+    if (j + 1 < Length(Buffer)) and
+       (Buffer[j] = $8E) and
+       ((Buffer[j+1] >= $A1) and (Buffer[j+1] <= $DF)) then
+    begin
+      HasEUCJPSpecificBytes := True;
+      Break;
+    end;
+  end;
+
+  if HasEUCJPSpecificBytes then
+    FinalEUCJPScore := FinalEUCJPScore * 1.2;
+
+  var HasISO2022JPSpecificBytes := False;
+  for var j := 0 to Length(Buffer) - 3 do
+  begin
+    if (j + 2 < Length(Buffer)) and
+       (Buffer[j] = $1B) and
+       (((Buffer[j+1] = $28) and (Buffer[j+2] = $42)) or
+        ((Buffer[j+1] = $24) and (Buffer[j+2] = $42))) then
+    begin
+      HasISO2022JPSpecificBytes := True;
+      Break;
+    end;
+  end;
+
+  if HasISO2022JPSpecificBytes then
+    FinalISO2022JPScore := FinalISO2022JPScore * 1.5;
+
+  // 保存置信度
+  Result.ShiftJISConfidence := FinalShiftJISScore;
+  Result.EUCJPConfidence := FinalEUCJPScore;
+  Result.ISO2022JPConfidence := FinalISO2022JPScore;
+
+  // 确定最可能的编码
+  var MaxScore := Max(Max(FinalShiftJISScore, FinalEUCJPScore), FinalISO2022JPScore);
+
+  if MaxScore < MIN_CONFIDENCE then
+  begin
+    // 如果所有日文编码的置信度都不够高，则返回ANSI
+    Result.Encoding := ENCODING_ANSI;
+    Result.Confidence := 0.5;
+  end
+  else if FinalShiftJISScore >= MaxScore then
+  begin
+    Result.Encoding := ENCODING_SHIFT_JIS;
+    Result.Confidence := FinalShiftJISScore;
+  end
+  else if FinalEUCJPScore >= MaxScore then
+  begin
+    Result.Encoding := ENCODING_EUC_JP;
+    Result.Confidence := FinalEUCJPScore;
+  end
+  else if FinalISO2022JPScore >= MaxScore then
+  begin
+    Result.Encoding := ENCODING_ISO_2022_JP;
+    Result.Confidence := FinalISO2022JPScore;
+  end;
+end;
+
+class function TJapaneseEncodingDetector_Improved.DetectFile(const FileName: string): TJapaneseEncodingResult;
+var
+  FileStream: TFileStream;
+  Buffer: TBytes;
+  ReadSize: Int64;
+const
+  MAX_READ_SIZE = 16 * 1024 * 1024; // 最多读取16MB
+begin
+  // 初始化默认结果
+  Result.Encoding := ENCODING_UNKNOWN;
+  Result.Confidence := 0.0;
+  Result.HasBOM := False;
+  Result.ShiftJISConfidence := 0.0;
+  Result.EUCJPConfidence := 0.0;
+  Result.ISO2022JPConfidence := 0.0;
+
+  if not FileExists(FileName) then
+    Exit;
+
+  FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+  try
+    // 对于空文件，默认返回ANSI
+    if FileStream.Size = 0 then
+    begin
+      Result.Encoding := ENCODING_ANSI;
+      Result.Confidence := 1.0;
+      Exit;
+    end;
+
+    // 读取文件内容进行分析
+    FileStream.Position := 0;
+
+    // 限制读取大小，避免处理过大的文件
+    ReadSize := Min(FileStream.Size, MAX_READ_SIZE);
+    SetLength(Buffer, ReadSize);
+    FileStream.ReadBuffer(Buffer[0], ReadSize);
+
+    // 分析缓冲区
+    Result := DetectBuffer(Buffer);
+  finally
+    FileStream.Free;
+  end;
+end;
+
+class function TJapaneseEncodingDetector_Improved.DetectStream(const Stream: TStream): TJapaneseEncodingResult;
+var
+  Buffer: TBytes;
+  Position: Int64;
+  ReadSize: Int64;
+begin
+  // 初始化默认结果
+  Result.Encoding := ENCODING_UNKNOWN;
+  Result.Confidence := 0.0;
+  Result.HasBOM := False;
+  Result.ShiftJISConfidence := 0.0;
+  Result.EUCJPConfidence := 0.0;
+  Result.ISO2022JPConfidence := 0.0;
+
+  if Stream = nil then
+    Exit;
+
+  // 保存当前流位置
+  Position := Stream.Position;
+
+  try
+    // 对于空流，默认返回ANSI
+    if Stream.Size = 0 then
+    begin
+      Result.Encoding := ENCODING_ANSI;
+      Result.Confidence := 1.0;
+      Exit;
+    end;
+
+    // 重置流位置
+    Stream.Position := 0;
+
+    // 读取流内容进行分析
+    ReadSize := Min(Stream.Size, MAX_TEXT_SAMPLE);
+    SetLength(Buffer, ReadSize);
+    Stream.ReadBuffer(Buffer[0], ReadSize);
+
+    // 分析缓冲区
+    Result := DetectBuffer(Buffer);
+  finally
+    // 恢复流位置
+    Stream.Position := Position;
+  end;
+end;
+
+class function TJapaneseEncodingDetector_Improved.IsValidEUCJPSequence(const Buffer: TBytes; Start: Integer; out ByteCount: Integer): Boolean;
+begin
+  ByteCount := 0;
+  Result := False;
+
+  // 确保起始位置有效
+  if (Start < 0) or (Start >= Length(Buffer)) then
+    Exit;
+
+  // ASCII字符 (0-127)
+  if Buffer[Start] < $80 then
+  begin
+    ByteCount := 1;
+    Result := True;
+    Exit;
+  end;
+
+  // 检查EUC-JP双字节序列
+  if (Buffer[Start] >= $A1) and (Buffer[Start] <= $FE) then
+  begin
+    // 确保有足够的字节
+    if Start + 1 >= Length(Buffer) then
+      Exit;
+
+    // 检查第二个字节是否符合EUC-JP格式
+    if (Buffer[Start+1] >= $A1) and (Buffer[Start+1] <= $FE) then
+    begin
+      ByteCount := 2;
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  // 检查EUC-JP半角片假名
+  if Buffer[Start] = $8E then
+  begin
+    // 确保有足够的字节
+    if Start + 1 >= Length(Buffer) then
+      Exit;
+
+    // 检查第二个字节是否符合EUC-JP半角片假名格式
+    if (Buffer[Start+1] >= $A1) and (Buffer[Start+1] <= $DF) then
+    begin
+      ByteCount := 2;
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  // 检查EUC-JP补充字符
+  if Buffer[Start] = $8F then
+  begin
+    // 确保有足够的字节
+    if Start + 2 >= Length(Buffer) then
+      Exit;
+
+    // 检查第二、三个字节是否符合EUC-JP补充字符格式
+    if (Buffer[Start+1] >= $A1) and (Buffer[Start+1] <= $FE) and
+       (Buffer[Start+2] >= $A1) and (Buffer[Start+2] <= $FE) then
+    begin
+      ByteCount := 3;
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+class function TJapaneseEncodingDetector_Improved.IsValidISO2022JPSequence(const Buffer: TBytes; Start: Integer; out ByteCount: Integer): Boolean;
+begin
+  ByteCount := 0;
+  Result := False;
+
+  // 确保起始位置有效
+  if (Start < 0) or (Start >= Length(Buffer)) then
+    Exit;
+
+  // ASCII字符 (0-127)
+  if Buffer[Start] < $80 then
+  begin
+    ByteCount := 1;
+    Result := True;
+    Exit;
+  end;
+
+  // 检查ISO-2022-JP转义序列
+  if Buffer[Start] = $1B then
+  begin
+    // 确保有足够的字节
+    if Start + 2 >= Length(Buffer) then
+      Exit;
+
+    // 检查是否是ASCII模式转义序列
+    if (Buffer[Start+1] = $28) and (Buffer[Start+2] = $42) then
+    begin
+      ByteCount := 3;
+      Result := True;
+      Exit;
+    end;
+
+    // 检查是否是日文模式转义序列
+    if (Buffer[Start+1] = $24) and (Buffer[Start+2] = $42) then
+    begin
+      ByteCount := 3;
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  // 在日文模式下的字符
+  // 注意：这里简化处理，实际上需要跟踪当前模式
+  if (Buffer[Start] >= $21) and (Buffer[Start] <= $7E) then
+  begin
+    // 确保有足够的字节
+    if Start + 1 >= Length(Buffer) then
+      Exit;
+
+    // 检查第二个字节是否符合ISO-2022-JP日文模式格式
+    if (Buffer[Start+1] >= $21) and (Buffer[Start+1] <= $7E) then
+    begin
+      ByteCount := 2;
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+class function TJapaneseEncodingDetector_Improved.IsValidShiftJISSequence(const Buffer: TBytes; Start: Integer; out ByteCount: Integer): Boolean;
+begin
+  ByteCount := 0;
+  Result := False;
+
+  // 确保起始位置有效
+  if (Start < 0) or (Start >= Length(Buffer)) then
+    Exit;
+
+  // ASCII字符 (0-127)
+  if Buffer[Start] < $80 then
+  begin
+    ByteCount := 1;
+    Result := True;
+    Exit;
+  end;
+
+  // 半角片假名 (0xA1-0xDF)
+  if (Buffer[Start] >= $A1) and (Buffer[Start] <= $DF) then
+  begin
+    ByteCount := 1;
+    Result := True;
+    Exit;
+  end;
+
+  // 检查Shift-JIS双字节序列
+  if ((Buffer[Start] >= $81) and (Buffer[Start] <= $9F)) or
+     ((Buffer[Start] >= $E0) and (Buffer[Start] <= $FC)) then
+  begin
+    // 确保有足够的字节
+    if Start + 1 >= Length(Buffer) then
+      Exit;
+
+    // 检查第二个字节是否符合Shift-JIS格式
+    if ((Buffer[Start+1] >= $40) and (Buffer[Start+1] <= $7E)) or
+       ((Buffer[Start+1] >= $80) and (Buffer[Start+1] <= $FC)) then
+    begin
+      ByteCount := 2;
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+end.

@@ -3,7 +3,7 @@ unit UtilsEncodingBOM_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, UtilsEncodingTypes;
+  System.SysUtils, System.Classes, Winapi.Windows, UtilsEncodingTypes, UtilsEncodingConstants;
 
 type
   /// <summary>
@@ -33,55 +33,49 @@ type
   /// </summary>
   TEncodingBOMDetector_Improved = class
   private
-    const
-      // BOM标记定义
-      UTF8_BOM: array[0..2] of Byte = ($EF, $BB, $BF);
-      UTF16LE_BOM: array[0..1] of Byte = ($FF, $FE);
-      UTF16BE_BOM: array[0..1] of Byte = ($FE, $FF);
-      UTF32LE_BOM: array[0..3] of Byte = ($FF, $FE, $00, $00);
-      UTF32BE_BOM: array[0..3] of Byte = ($00, $00, $FE, $FF);
+    // 使用UtilsEncodingConstants中定义的BOM常量
 
   public
     /// <summary>
     /// 检测字节数组中的BOM
     /// </summary>
     class function DetectBOM(const Buffer: TBytes): TBOMDetectionResult;
-    
+
     /// <summary>
     /// 检测文件中的BOM
     /// </summary>
     class function DetectBOMFromFile(const FileName: string): TBOMDetectionResult;
-    
+
     /// <summary>
     /// 检测流中的BOM
     /// </summary>
     class function DetectBOMFromStream(const Stream: TStream): TBOMDetectionResult;
-    
+
     /// <summary>
     /// 添加BOM到字节数组
     /// </summary>
     class function AddBOM(const Buffer: TBytes; BOMType: TBOMType): TBytes;
-    
+
     /// <summary>
     /// 移除字节数组中的BOM
     /// </summary>
     class function RemoveBOM(const Buffer: TBytes): TBytes;
-    
+
     /// <summary>
     /// 获取BOM对应的编码名称
     /// </summary>
     class function BOMTypeToEncodingName(BOMType: TBOMType): string;
-    
+
     /// <summary>
     /// 获取BOM对应的代码页
     /// </summary>
     class function BOMTypeToCodePage(BOMType: TBOMType): Integer;
-    
+
     /// <summary>
     /// 获取BOM的大小（字节数）
     /// </summary>
     class function GetBOMSize(BOMType: TBOMType): Integer;
-    
+
     /// <summary>
     /// 获取BOM的字节数组
     /// </summary>
@@ -100,21 +94,21 @@ begin
   // 获取BOM字节
   BOMBytes := GetBOMBytes(BOMType);
   BOMSize := Length(BOMBytes);
-  
+
   // 如果是无BOM类型，直接返回原始缓冲区
   if BOMType = bomNone then
   begin
     Result := Copy(Buffer);
     Exit;
   end;
-  
+
   // 创建新的缓冲区，包含BOM和原始数据
   SetLength(Result, BOMSize + Length(Buffer));
-  
+
   // 复制BOM
   if BOMSize > 0 then
     Move(BOMBytes[0], Result[0], BOMSize);
-    
+
   // 复制原始数据
   if Length(Buffer) > 0 then
     Move(Buffer[0], Result[BOMSize], Length(Buffer));
@@ -151,17 +145,17 @@ begin
   Result.BOMSize := 0;
   Result.Encoding := ENCODING_UNKNOWN;
   Result.CodePage := 0;
-  
+
   // 检查缓冲区是否为空
   if Length(Buffer) = 0 then
     Exit;
-    
+
   // 检查UTF-32 BE BOM (00 00 FE FF)
   if (Length(Buffer) >= 4) and
-     (Buffer[0] = UTF32BE_BOM[0]) and
-     (Buffer[1] = UTF32BE_BOM[1]) and
-     (Buffer[2] = UTF32BE_BOM[2]) and
-     (Buffer[3] = UTF32BE_BOM[3]) then
+     (Buffer[0] = UTF32_BE_BOM[0]) and
+     (Buffer[1] = UTF32_BE_BOM[1]) and
+     (Buffer[2] = UTF32_BE_BOM[2]) and
+     (Buffer[3] = UTF32_BE_BOM[3]) then
   begin
     Result.BOMType := bomUTF32BE;
     Result.BOMSize := 4;
@@ -169,13 +163,13 @@ begin
     Result.CodePage := 12001;
     Exit;
   end;
-  
+
   // 检查UTF-32 LE BOM (FF FE 00 00)
   if (Length(Buffer) >= 4) and
-     (Buffer[0] = UTF32LE_BOM[0]) and
-     (Buffer[1] = UTF32LE_BOM[1]) and
-     (Buffer[2] = UTF32LE_BOM[2]) and
-     (Buffer[3] = UTF32LE_BOM[3]) then
+     (Buffer[0] = UTF32_LE_BOM[0]) and
+     (Buffer[1] = UTF32_LE_BOM[1]) and
+     (Buffer[2] = UTF32_LE_BOM[2]) and
+     (Buffer[3] = UTF32_LE_BOM[3]) then
   begin
     Result.BOMType := bomUTF32LE;
     Result.BOMSize := 4;
@@ -183,11 +177,11 @@ begin
     Result.CodePage := 12000;
     Exit;
   end;
-  
+
   // 检查UTF-16 BE BOM (FE FF)
   if (Length(Buffer) >= 2) and
-     (Buffer[0] = UTF16BE_BOM[0]) and
-     (Buffer[1] = UTF16BE_BOM[1]) then
+     (Buffer[0] = UTF16_BE_BOM[0]) and
+     (Buffer[1] = UTF16_BE_BOM[1]) then
   begin
     Result.BOMType := bomUTF16BE;
     Result.BOMSize := 2;
@@ -195,11 +189,11 @@ begin
     Result.CodePage := 1201;
     Exit;
   end;
-  
+
   // 检查UTF-16 LE BOM (FF FE)
   if (Length(Buffer) >= 2) and
-     (Buffer[0] = UTF16LE_BOM[0]) and
-     (Buffer[1] = UTF16LE_BOM[1]) then
+     (Buffer[0] = UTF16_LE_BOM[0]) and
+     (Buffer[1] = UTF16_LE_BOM[1]) then
   begin
     Result.BOMType := bomUTF16LE;
     Result.BOMSize := 2;
@@ -207,7 +201,7 @@ begin
     Result.CodePage := 1200;
     Exit;
   end;
-  
+
   // 检查UTF-8 BOM (EF BB BF)
   if (Length(Buffer) >= 3) and
      (Buffer[0] = UTF8_BOM[0]) and
@@ -235,21 +229,21 @@ begin
   Result.BOMSize := 0;
   Result.Encoding := ENCODING_UNKNOWN;
   Result.CodePage := 0;
-  
+
   // 检查文件是否存在
   if not FileExists(FileName) then
     Exit;
-    
+
   FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
   try
     // 读取足够检测BOM的字节
     SetLength(Buffer, MAX_BOM_SIZE);
     BytesRead := FileStream.Read(Buffer[0], MAX_BOM_SIZE);
-    
+
     // 如果文件太小，调整缓冲区大小
     if BytesRead < MAX_BOM_SIZE then
       SetLength(Buffer, BytesRead);
-      
+
     // 检测BOM
     Result := DetectBOM(Buffer);
   finally
@@ -270,26 +264,26 @@ begin
   Result.BOMSize := 0;
   Result.Encoding := ENCODING_UNKNOWN;
   Result.CodePage := 0;
-  
+
   // 检查流是否有效
   if Stream = nil then
     Exit;
-    
+
   // 保存当前流位置
   Position := Stream.Position;
-  
+
   try
     // 重置流位置
     Stream.Position := 0;
-    
+
     // 读取足够检测BOM的字节
     SetLength(Buffer, MAX_BOM_SIZE);
     BytesRead := Stream.Read(Buffer[0], MAX_BOM_SIZE);
-    
+
     // 如果流太小，调整缓冲区大小
     if BytesRead < MAX_BOM_SIZE then
       SetLength(Buffer, BytesRead);
-      
+
     // 检测BOM
     Result := DetectBOM(Buffer);
   finally
@@ -311,30 +305,30 @@ begin
     bomUTF16LE:
       begin
         SetLength(Result, 2);
-        Result[0] := UTF16LE_BOM[0];
-        Result[1] := UTF16LE_BOM[1];
+        Result[0] := UTF16_LE_BOM[0];
+        Result[1] := UTF16_LE_BOM[1];
       end;
     bomUTF16BE:
       begin
         SetLength(Result, 2);
-        Result[0] := UTF16BE_BOM[0];
-        Result[1] := UTF16BE_BOM[1];
+        Result[0] := UTF16_BE_BOM[0];
+        Result[1] := UTF16_BE_BOM[1];
       end;
     bomUTF32LE:
       begin
         SetLength(Result, 4);
-        Result[0] := UTF32LE_BOM[0];
-        Result[1] := UTF32LE_BOM[1];
-        Result[2] := UTF32LE_BOM[2];
-        Result[3] := UTF32LE_BOM[3];
+        Result[0] := UTF32_LE_BOM[0];
+        Result[1] := UTF32_LE_BOM[1];
+        Result[2] := UTF32_LE_BOM[2];
+        Result[3] := UTF32_LE_BOM[3];
       end;
     bomUTF32BE:
       begin
         SetLength(Result, 4);
-        Result[0] := UTF32BE_BOM[0];
-        Result[1] := UTF32BE_BOM[1];
-        Result[2] := UTF32BE_BOM[2];
-        Result[3] := UTF32BE_BOM[3];
+        Result[0] := UTF32_BE_BOM[0];
+        Result[1] := UTF32_BE_BOM[1];
+        Result[2] := UTF32_BE_BOM[2];
+        Result[3] := UTF32_BE_BOM[3];
       end;
     else
       SetLength(Result, 0);
@@ -359,17 +353,17 @@ var
 begin
   // 检测BOM
   BOMResult := DetectBOM(Buffer);
-  
+
   // 如果没有BOM，直接返回原始缓冲区
   if BOMResult.BOMType = bomNone then
   begin
     Result := Copy(Buffer);
     Exit;
   end;
-  
+
   // 创建新的缓冲区，不包含BOM
   SetLength(Result, Length(Buffer) - BOMResult.BOMSize);
-  
+
   // 复制BOM之后的数据
   if Length(Result) > 0 then
     Move(Buffer[BOMResult.BOMSize], Result[0], Length(Result));

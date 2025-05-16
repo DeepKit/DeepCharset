@@ -578,15 +578,12 @@ begin
 
   // 检查文件是否已经是UTF-8带BOM
   try
-    // 直接检查BOM
-    if HasUTF8BOM(FileName) then
+    IsUTF8WithoutBOM := IsUTF8File(FileName, HasBOM);
+    if IsUTF8WithoutBOM and HasBOM then
     begin
       OutputDebugString(PChar('文件已经是UTF-8带BOM，无需转换'));
       Exit(TConversionResult.Create(True));
     end;
-
-    // 检查是否是UTF-8无BOM
-    IsUTF8WithoutBOM := IsUTF8File(FileName, HasBOM);
   except
     on E: Exception do
       Exit(TConversionResult.Create(False, string('检测文件编码失败: ' + E.Message)));
@@ -778,18 +775,11 @@ begin
 
   // 检查文件是否已经是UTF-8无BOM
   try
-    // 首先检查是否有BOM
-    HasBOM := HasUTF8BOM(FileName);
-
-    // 如果没有BOM，再检查是否是UTF-8
-    if not HasBOM then
+    IsUTF8WithoutBOM := IsUTF8File(FileName, HasBOM);
+    if IsUTF8WithoutBOM and not HasBOM then
     begin
-      IsUTF8WithoutBOM := IsUTF8File(FileName, HasBOM);
-      if IsUTF8WithoutBOM then
-      begin
-        OutputDebugString(PChar('文件已经是UTF-8无BOM，无需转换'));
-        Exit(TConversionResult.Create(True));
-      end;
+      OutputDebugString(PChar('文件已经是UTF-8无BOM，无需转换'));
+      Exit(TConversionResult.Create(True));
     end;
   except
     on E: Exception do

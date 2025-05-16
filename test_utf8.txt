@@ -1,3 +1,0 @@
-这是一个 UTF-8 编码的文件，没有 BOM。
-It contains both Chinese and English characters.
-测试 UTF-8 检测功能是否正常工作。
