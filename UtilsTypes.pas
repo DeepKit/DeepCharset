@@ -207,11 +207,35 @@ function IsUTF8BOMEncodingName(const EncodingName: string): Boolean;
 // 使用 ModelLanguage 单元中的 TAppLanguage 枚举
 
 
+// 初始化全局变量
+procedure InitializeGlobalVariables;
+
 // 初始化和清理全局编码列表
 procedure InitializeEncodingList;
 procedure FinalizeEncodingList;
 
 implementation
+
+// 初始化全局变量
+procedure InitializeGlobalVariables;
+begin
+  // 设置应用程序根目录
+  RootDir := ExtractFilePath(ParamStr(0));
+
+  // 设置INI文件目录
+  IniDir := RootDir + 'ini';
+
+  // 确保INI目录存在
+  if not DirectoryExists(IniDir) then
+  begin
+    try
+      ForceDirectories(IniDir);
+    except
+      // 如果无法创建目录，使用应用程序目录
+      IniDir := RootDir;
+    end;
+  end;
+end;
 
 
 

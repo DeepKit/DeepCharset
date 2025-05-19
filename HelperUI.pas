@@ -148,22 +148,24 @@ begin
     // 如果包含非ASCII字符，进行编码转换
     if ContainsNonAscii then
     begin
-      // 尝试将文本转换为UTF-8，以处理可能的非UTF-8字符
+      // 使用更安全的方式处理非ASCII字符
       try
-        // 先尝试使用默认编码转换为字节数组
-        var DefaultBytes := TEncoding.Default.GetBytes(Text);
-
-        // 然后尝试将字节数组转换为UTF-8字符串
-        var Utf8Text := TEncoding.UTF8.GetString(DefaultBytes);
-
-        // 最后再转换回字节数组，确保是有效的UTF-8
-        var Utf8Bytes := TEncoding.UTF8.GetBytes(Utf8Text);
-        var ValidText := TEncoding.UTF8.GetString(Utf8Bytes);
-
-        LogText := TimeStamp + ValidText;
+        // 直接使用UTF-8编码处理文本，避免中间转换步骤
+        // 这样可以避免在多字节编码和Unicode之间转换时可能出现的问题
+        LogText := TimeStamp + Text;
       except
-        // 如果转换失败，使用原始文本
-        LogText := TimeStamp + '(可能包含乱码) ' + Text;
+        on E: EEncodingError do
+        begin
+          // 特别处理编码错误
+          OutputDebugString(PChar('编码错误: ' + E.Message));
+          LogText := TimeStamp + '(编码错误) ' + StringReplace(Text, #0, '', [rfReplaceAll]);
+        end;
+        on E: Exception do
+        begin
+          // 处理其他异常
+          OutputDebugString(PChar('日志处理异常: ' + E.Message));
+          LogText := TimeStamp + '(处理异常) ' + StringReplace(Text, #0, '', [rfReplaceAll]);
+        end;
       end;
     end
     else
@@ -230,8 +232,40 @@ begin
       // 设置TMemo的编码为UTF-8
       LogMemoRef.Font.Charset := DEFAULT_CHARSET;
 
-      // 添加所有日志
-      LogMemoRef.Lines.AddStrings(LogBuffer);
+      // 安全地添加所有日志
+      try
+        // 逐行添加，避免整批添加可能导致的编码问题
+        for var i := 0 to LogBuffer.Count - 1 do
+        begin
+          try
+            LogMemoRef.Lines.Add(LogBuffer[i]);
+          except
+            on E: EEncodingError do
+            begin
+              // 特别处理编码错误
+              OutputDebugString(PChar('添加日志行时编码错误: ' + E.Message));
+              LogMemoRef.Lines.Add('(编码错误的日志行)');
+            end;
+            on E: Exception do
+            begin
+              // 处理其他异常
+              OutputDebugString(PChar('添加日志行时异常: ' + E.Message));
+              LogMemoRef.Lines.Add('(添加日志行时出错)');
+            end;
+          end;
+        end;
+      except
+        on E: Exception do
+        begin
+          OutputDebugString(PChar('批量添加日志时发生异常: ' + E.Message));
+          // 尝试添加一条错误信息
+          try
+            LogMemoRef.Lines.Add('(日志处理出错，部分日志可能丢失)');
+          except
+            // 忽略
+          end;
+        end;
+      end;
     finally
       LogMemoRef.Lines.EndUpdate;
     end;

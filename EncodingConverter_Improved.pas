@@ -3,7 +3,7 @@ unit EncodingConverter_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, System.IOUtils, UtilsEncodingTypes, UtilsEncodingConstants,
+  System.SysUtils, System.Classes, Winapi.Windows, System.IOUtils, UtilsEncodingTypes,
   UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
   ChineseEncodingDetector_Improved, UTF8BOMConverter_Improved;
 
@@ -12,10 +12,10 @@ type
   /// 编码转换错误类型
   /// </summary>
   TEncodingConversionErrorType = (
-    ecetNone,              // 无错误
+    ecetNone,              // 无错�?
     ecetInvalidSequence,   // 无效序列
-    ecetUnmappableChar,    // 无法映射的字符
-    ecetIncompleteSequence, // 不完整序列
+    ecetUnmappableChar,    // 无法映射的字�?
+    ecetIncompleteSequence, // 不完整序�?
     ecetIOError,           // IO错误
     ecetUnknownError       // 未知错误
   );
@@ -25,9 +25,9 @@ type
   /// </summary>
   TEncodingErrorHandlingStrategy = (
     eehsThrow,             // 抛出异常
-    eehsReplace,           // 替换为替代字符
+    eehsReplace,           // 替换为替代字�?
     eehsSkip,              // 跳过错误
-    eehsReport             // 报告错误但继续
+    eehsReport             // 报告错误但继�?
   );
 
   /// <summary>
@@ -36,7 +36,7 @@ type
   TEncodingConversionError = record
     ErrorType: TEncodingConversionErrorType;  // 错误类型
     Position: Int64;                         // 错误位置
-    ByteValue: Byte;                         // 错误字节值
+    ByteValue: Byte;                         // 错误字节�?
     ErrorMessage: string;                    // 错误消息
   end;
 
@@ -45,7 +45,7 @@ type
   /// </summary>
   TEncodingConversionResult = record
     Success: Boolean;                        // 转换是否成功
-    SourceEncoding: string;                  // 源编码
+    SourceEncoding: string;                  // 源编�?
     TargetEncoding: string;                  // 目标编码
     BytesProcessed: Int64;                   // 处理的字节数
     ErrorCount: Integer;                     // 错误数量
@@ -61,7 +61,7 @@ type
     ErrorHandling: TEncodingErrorHandlingStrategy; // 错误处理策略
     ReplacementChar: WideChar;               // 替换字符
     DetectSourceEncoding: Boolean;           // 是否自动检测源编码
-    MaxErrorCount: Integer;                  // 最大错误数量
+    MaxErrorCount: Integer;                  // 最大错误数�?
   end;
 
   /// <summary>
@@ -75,7 +75,7 @@ type
     class function GetCodePage(const EncodingName: string): Integer;
 
     /// <summary>
-    /// 检测文件编码
+    /// 检测文件编�?
     /// </summary>
     class function DetectFileEncoding(const FileName: string): string;
 
@@ -90,7 +90,7 @@ type
     class function HandleConversionError(var ConvResult: TEncodingConversionResult; ErrorType: TEncodingConversionErrorType; Position: Int64; ByteValue: Byte; const ErrorMessage: string; Strategy: TEncodingErrorHandlingStrategy): Boolean;
 
     /// <summary>
-    /// 检查文件是否可以写入
+    /// 检查文件是否可以写�?
     /// </summary>
     class function IsFileAccessible(const FileName: string; out UseTemp: Boolean): Boolean;
 
@@ -111,7 +111,7 @@ type
     class function ConvertBuffer(const Buffer: TBytes; const SourceEncoding, TargetEncoding: string; const Options: TEncodingConversionOptions): TEncodingConversionResult;
 
     /// <summary>
-    /// 转换流编码
+    /// 转换流编�?
     /// </summary>
     class function ConvertStream(const SourceStream, TargetStream: TStream; const SourceEncoding, TargetEncoding: string; const Options: TEncodingConversionOptions): TEncodingConversionResult;
 
@@ -128,7 +128,7 @@ type
 
 implementation
 
-// 从指定代码页的字符串转换为Unicode字符串
+// 从指定代码页的字符串转换为Unicode字符�?
 function StringToUnicodeString(const Source: PAnsiChar; CodePage: Integer; SourceLength: Integer): UnicodeString;
 var
   DestLength: Integer;
@@ -139,7 +139,7 @@ begin
     Exit;
   end;
 
-  // 获取所需的Unicode字符数
+  // 获取所需的Unicode字符�?
   DestLength := MultiByteToWideChar(CodePage, 0, Source, SourceLength, nil, 0);
 
   if DestLength <= 0 then
@@ -148,7 +148,7 @@ begin
     Exit;
   end;
 
-  // 设置结果字符串长度
+  // 设置结果字符串长�?
   SetLength(Result, DestLength);
 
   // 执行转换
@@ -159,12 +159,18 @@ end;
 function UnicodeStringToString(const Source: UnicodeString; CodePage: Integer): AnsiString;
 var
   DestLength: Integer;
+  UsedDefaultChar: BOOL;
+  DefaultChar: AnsiChar;
 begin
   if Source = '' then
   begin
     Result := '';
     Exit;
   end;
+
+  // 设置默认替换字符
+  DefaultChar := '?';
+  UsedDefaultChar := False;
 
   // 获取所需的目标字符数
   DestLength := WideCharToMultiByte(CodePage, 0, PWideChar(Source), Length(Source), nil, 0, nil, nil);
@@ -178,8 +184,12 @@ begin
   // 设置结果字符串长度
   SetLength(Result, DestLength);
 
-  // 执行转换
-  WideCharToMultiByte(CodePage, 0, PWideChar(Source), Length(Source), PAnsiChar(Result), DestLength, nil, nil);
+  // 执行转换，使用默认字符替换无法映射的字符
+  WideCharToMultiByte(CodePage, 0, PWideChar(Source), Length(Source),
+                      PAnsiChar(Result), DestLength, @DefaultChar, @UsedDefaultChar);
+
+  // 如果使用了默认字符，可以记录日志或其他处理
+  // 但不抛出异常，确保转换过程完成
 end;
 
 { TEncodingConverter_Improved }
@@ -189,7 +199,7 @@ begin
   // 增加错误计数
   Inc(ConvResult.ErrorCount);
 
-  // 添加错误信息到错误列表
+  // 添加错误信息到错误列�?
   SetLength(ConvResult.Errors, ConvResult.ErrorCount);
   ConvResult.Errors[ConvResult.ErrorCount - 1].ErrorType := ErrorType;
   ConvResult.Errors[ConvResult.ErrorCount - 1].Position := Position;
@@ -211,7 +221,7 @@ begin
   // 批量转换文件
   for i := 0 to High(FileNames) do
   begin
-    // 构建目标文件名
+    // 构建目标文件�?
     TargetFileName := IncludeTrailingPathDelimiter(TargetDir) + ExtractFileName(FileNames[i]);
 
     // 转换文件
@@ -231,7 +241,7 @@ var
   SourceBuffer: TBytes;
   MemoryStream: TMemoryStream;
 begin
-  // 初始化结果
+  // 初始化结�?
   Result.Success := False;
   Result.SourceEncoding := SourceEncoding;
   Result.TargetEncoding := TargetEncoding;
@@ -255,7 +265,7 @@ begin
       // 检测BOM
       BOMResult := TEncodingBOMDetector_Improved.DetectBOM(Buffer);
 
-      if BOMResult.BOMType <> bomNone then
+      if BOMResult.BOMType <> 0 then
       begin
         ActualSourceEncoding := BOMResult.Encoding;
         Result.HasBOM := True;
@@ -269,7 +279,7 @@ begin
           ActualSourceEncoding := ENCODING_UTF8
         else
         begin
-          // 检测中文编码
+          // 检测中文编�?
           ChineseResult := TChineseEncodingDetector_Improved.DetectBuffer(Buffer);
           ActualSourceEncoding := ChineseResult.Encoding;
         end;
@@ -284,7 +294,7 @@ begin
     SourceCodePage := GetCodePage(ActualSourceEncoding);
     TargetCodePage := GetCodePage(TargetEncoding);
 
-    // 如果源编码和目标编码相同，并且不需要添加/移除BOM，则直接复制
+    // 如果源编码和目标编码相同，并且不需要添�?移除BOM，则直接复制
     if (SourceCodePage = TargetCodePage) and
        (((CompareText(ActualSourceEncoding, ENCODING_UTF8) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8) = 0) and not Options.AddBOM) or
         ((CompareText(ActualSourceEncoding, ENCODING_UTF8_BOM) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0))) then
@@ -294,7 +304,7 @@ begin
       Exit;
     end;
 
-    // 特殊处理UTF-8与UTF-8+BOM的互转
+    // 特殊处理UTF-8与UTF-8+BOM的互�?
     if ((CompareText(ActualSourceEncoding, ENCODING_UTF8) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0)) or
        ((CompareText(ActualSourceEncoding, ENCODING_UTF8_BOM) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8) = 0)) then
     begin
@@ -308,7 +318,7 @@ begin
         if not HasBOM then
         begin
           // 添加BOM
-          var BufferWithBOM := TEncodingBOMDetector_Improved.AddBOM(Buffer, bomUTF8);
+          var BufferWithBOM := TEncodingBOMDetector_Improved.AddBOM(Buffer, 1);
 
           // 创建内存流并写入结果
           var MemStream := TMemoryStream.Create;
@@ -345,12 +355,12 @@ begin
       end;
     end;
 
-    // 准备源缓冲区，跳过BOM（如果有）
-    if BOMResult.BOMType <> bomNone then
+    // 准备源缓冲区，跳过BOM（如果有�?
+    if BOMResult.BOMType <> 0 then
     begin
-      SetLength(SourceBuffer, Length(Buffer) - BOMResult.BOMSize);
+      SetLength(SourceBuffer, Length(Buffer) - BOMResult.BOMLength);
       if Length(SourceBuffer) > 0 then
-        Move(Buffer[BOMResult.BOMSize], SourceBuffer[0], Length(SourceBuffer));
+        Move(Buffer[BOMResult.BOMLength], SourceBuffer[0], Length(SourceBuffer));
     end
     else
       SourceBuffer := Buffer;
@@ -364,36 +374,37 @@ begin
       except
         on E: Exception do
         begin
-          if not HandleConversionError(Result, ecetInvalidSequence, 0, 0, E.Message, Options.ErrorHandling) then
-            Exit;
+          // 记录错误但继续处理
+          HandleConversionError(Result, ecetInvalidSequence, 0, 0, E.Message, Options.ErrorHandling);
 
-          // 使用替换字符策略
-          WideStr := StringToUnicodeString(PAnsiChar(@SourceBuffer[0]), SourceCodePage, Length(SourceBuffer));
+          // 使用空字符串作为回退方案
+          WideStr := '';
         end;
       end;
 
-      // 从Unicode转换为目标编码
-      try
+      // 如果Unicode转换成功，则继续转换为目标编码
+      if WideStr <> '' then
+      begin
+        // 从Unicode转换为目标编码
         var TargetStr := UnicodeStringToString(WideStr, TargetCodePage);
 
         // 创建目标缓冲区
-        SetLength(ResultBuffer, Length(TargetStr));
         if Length(TargetStr) > 0 then
-          Move(TargetStr[1], ResultBuffer[0], Length(TargetStr));
-      except
-        on E: Exception do
         begin
-          if not HandleConversionError(Result, ecetUnmappableChar, 0, 0, E.Message, Options.ErrorHandling) then
-            Exit;
-
-          // 使用替换字符策略
-          var TargetStr := UnicodeStringToString(WideStr, TargetCodePage);
-
-          // 创建目标缓冲区
           SetLength(ResultBuffer, Length(TargetStr));
-          if Length(TargetStr) > 0 then
-            Move(TargetStr[1], ResultBuffer[0], Length(TargetStr));
+          Move(TargetStr[1], ResultBuffer[0], Length(TargetStr));
+        end
+        else
+        begin
+          // 如果转换结果为空，记录错误
+          HandleConversionError(Result, ecetUnmappableChar, 0, 0, '无法映射字符到目标编码', Options.ErrorHandling);
+          SetLength(ResultBuffer, 0);
         end;
+      end
+      else
+      begin
+        // 如果Unicode转换失败，设置空结果
+        SetLength(ResultBuffer, 0);
       end;
     end
     else
@@ -402,22 +413,22 @@ begin
     // 添加BOM（如果需要）
     if Options.AddBOM then
     begin
-      var BOMType: TBOMType;
+      var BOMType: Integer;
 
       if CompareText(TargetEncoding, ENCODING_UTF8) = 0 then
-        BOMType := bomUTF8
+        BOMType := 1
       else if CompareText(TargetEncoding, ENCODING_UTF16_LE) = 0 then
-        BOMType := bomUTF16LE
+        BOMType := 2
       else if CompareText(TargetEncoding, ENCODING_UTF16_BE) = 0 then
-        BOMType := bomUTF16BE
+        BOMType := 3
       else if CompareText(TargetEncoding, ENCODING_UTF32_LE) = 0 then
-        BOMType := bomUTF32LE
+        BOMType := 4
       else if CompareText(TargetEncoding, ENCODING_UTF32_BE) = 0 then
-        BOMType := bomUTF32BE
+        BOMType := 5
       else
-        BOMType := bomNone;
+        BOMType := 0;
 
-      if BOMType <> bomNone then
+      if BOMType <> 0 then
         ResultBuffer := TEncodingBOMDetector_Improved.AddBOM(ResultBuffer, BOMType);
     end;
 
@@ -453,7 +464,7 @@ var
   ErrCode: DWORD;
   FileAttrs: Integer;
 begin
-  // 初始化结果
+  // 初始化结�?
   Result.Success := False;
   Result.SourceEncoding := SourceEncoding;
   Result.TargetEncoding := TargetEncoding;
@@ -461,7 +472,7 @@ begin
   Result.ErrorCount := 0;
   SetLength(Result.Errors, 0);
   Result.HasBOM := False;
-  MaxRetry := 5; // 增加最大重试次数
+  MaxRetry := 5; // 增加最大重试次�?
 
   // 检查源文件是否存在
   if not FileExists(SourceFileName) then
@@ -482,7 +493,7 @@ begin
 
     Result.SourceEncoding := ActualSourceEncoding;
 
-    // 读取源文件内容
+    // 读取源文件内�?
     try
       SourceStream := TFileStream.Create(SourceFileName, fmOpenRead or fmShareDenyNone);
       try
@@ -496,25 +507,25 @@ begin
     except
       on E: Exception do
       begin
-        AddError(Result, ecetIOError, 0, 0, '无法读取源文件: ' + E.Message);
+        AddError(Result, ecetIOError, 0, 0, '无法读取源文�? ' + E.Message);
         Exit;
       end;
     end;
 
-    // 转换缓冲区
+    // 转换缓冲�?
     Result := ConvertBuffer(Buffer, ActualSourceEncoding, TargetEncoding, Options);
 
-    // 准备转换后的缓冲区
+    // 准备转换后的缓冲�?
     if Result.BytesProcessed > 0 then
     begin
-      // 获取转换后的缓冲区
+      // 获取转换后的缓冲�?
       if Length(Buffer) > 0 then
       begin
         // 根据源编码和目标编码进行转换
         if (CompareText(ActualSourceEncoding, ENCODING_UTF8) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0) then
         begin
           // 从UTF-8转换为UTF-8+BOM
-          OutputBuffer := TEncodingBOMDetector_Improved.AddBOM(Buffer, bomUTF8);
+          OutputBuffer := TEncodingBOMDetector_Improved.AddBOM(Buffer, 1);
         end
         else if (CompareText(ActualSourceEncoding, ENCODING_UTF8_BOM) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8) = 0) then
         begin
@@ -529,7 +540,7 @@ begin
       end;
     end;
 
-    // 保存文件属性
+    // 保存文件属�?
     FileAttrs := 0;
     try
       FileAttrs := System.SysUtils.FileGetAttr(SourceFileName);
@@ -539,7 +550,7 @@ begin
 
     // 写入临时文件
     try
-      // 使用完全独立的方法写入文件
+      // 使用完全独立的方法写入文�?
       TFile.WriteAllBytes(TempFileName, OutputBuffer);
     except
       on E: Exception do
@@ -549,7 +560,7 @@ begin
       end;
     end;
 
-    // 尝试多次替换原文件
+    // 尝试多次替换原文�?
     RetryCount := 0;
     Success := False;
 
@@ -557,7 +568,7 @@ begin
       Inc(RetryCount);
 
       try
-        // 如果目标文件存在且与源文件不同，先尝试删除
+        // 如果目标文件存在且与源文件不同，先尝试删�?
         if (SourceFileName <> TargetFileName) and FileExists(TargetFileName) then
         begin
           if not DeleteFile(PChar(TargetFileName)) then
@@ -581,13 +592,13 @@ begin
           end;
         end;
 
-        // 如果源文件和目标文件相同，需要先删除源文件
+        // 如果源文件和目标文件相同，需要先删除源文�?
         if SourceFileName = TargetFileName then
         begin
-          // 尝试删除源文件
+          // 尝试删除源文�?
           if FileExists(SourceFileName) then
           begin
-            // 先尝试修改文件属性为普通文件
+            // 先尝试修改文件属性为普通文�?
             try
               if (FileAttrs and faReadOnly) <> 0 then
                 System.SysUtils.FileSetAttr(SourceFileName, FileAttrs and (not faReadOnly));
@@ -610,7 +621,7 @@ begin
               end;
 
               // 达到最大重试次数或其他错误
-              AddError(Result, ecetIOError, 0, 0, Format('无法删除源文件，错误码: %d', [ErrCode]));
+              AddError(Result, ecetIOError, 0, 0, Format('无法删除源文件，错误�? %d', [ErrCode]));
               Result.Success := False;
               Exit;
             end;
@@ -639,7 +650,7 @@ begin
           end;
 
           // 达到最大重试次数或其他错误
-          AddError(Result, ecetIOError, 0, 0, Format('无法重命名临时文件，错误码: %d', [ErrCode]));
+          AddError(Result, ecetIOError, 0, 0, Format('无法重命名临时文件，错误�? %d', [ErrCode]));
           Result.Success := False;
           Exit;
         end;
@@ -654,7 +665,7 @@ begin
           end
           else
           begin
-            AddError(Result, ecetIOError, 0, 0, '替换文件时发生异常: ' + E.Message);
+            AddError(Result, ecetIOError, 0, 0, '替换文件时发生异�? ' + E.Message);
             Result.Success := False;
             Exit;
           end;
@@ -670,7 +681,7 @@ begin
       Exit;
     end;
 
-    // 尝试恢复文件属性
+    // 尝试恢复文件属�?
     try
       if (FileAttrs <> 0) and (FileAttrs <> faInvalid) then
         System.SysUtils.FileSetAttr(TargetFileName, FileAttrs);
@@ -685,13 +696,13 @@ begin
     end;
   end;
 
-  // 确保临时文件被删除
+  // 确保临时文件被删�?
   if FileExists(TempFileName) then
   begin
     try
       DeleteFile(PChar(TempFileName));
     except
-      // 忽略删除临时文件的错误
+      // 忽略删除临时文件的错�?
     end;
   end;
 end;
@@ -703,7 +714,7 @@ var
   ActualSourceEncoding: string;
   BOMResult: TBOMDetectionResult;
 begin
-  // 初始化结果
+  // 初始化结�?
   Result.Success := False;
   Result.SourceEncoding := SourceEncoding;
   Result.TargetEncoding := TargetEncoding;
@@ -719,27 +730,27 @@ begin
     Exit;
   end;
 
-  // 保存当前流位置
+  // 保存当前流位�?
   Position := SourceStream.Position;
 
   try
-    // 检测源流编码
+    // 检测源流编�?
     if (SourceEncoding = '') or Options.DetectSourceEncoding then
     begin
-      // 重置流位置
+      // 重置流位�?
       SourceStream.Position := 0;
 
       // 检测BOM
       BOMResult := TEncodingBOMDetector_Improved.DetectBOMFromStream(SourceStream);
 
-      if BOMResult.BOMType <> bomNone then
+      if BOMResult.BOMType <> 0 then
       begin
         ActualSourceEncoding := BOMResult.Encoding;
         Result.HasBOM := True;
       end
       else
       begin
-        // 读取流内容进行分析
+        // 读取流内容进行分�?
         SourceStream.Position := 0;
         SetLength(Buffer, SourceStream.Size);
         if SourceStream.Size > 0 then
@@ -752,7 +763,7 @@ begin
           ActualSourceEncoding := ENCODING_UTF8
         else
         begin
-          // 检测中文编码
+          // 检测中文编�?
           var ChineseResult := TChineseEncodingDetector_Improved.DetectBuffer(Buffer);
           ActualSourceEncoding := ChineseResult.Encoding;
         end;
@@ -769,13 +780,13 @@ begin
     if SourceStream.Size > 0 then
       SourceStream.ReadBuffer(Buffer[0], SourceStream.Size);
 
-    // 转换缓冲区
+    // 转换缓冲�?
     Result := ConvertBuffer(Buffer, ActualSourceEncoding, TargetEncoding, Options);
 
-    // 写入目标流
+    // 写入目标�?
     if Result.Success and (Result.BytesProcessed > 0) then
     begin
-      // 写入目标流
+      // 写入目标�?
       TargetStream.Position := 0;
       TargetStream.Size := 0;
 
@@ -783,7 +794,7 @@ begin
       if (CompareText(ActualSourceEncoding, ENCODING_UTF8) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0) then
       begin
         // 从UTF-8转换为UTF-8+BOM
-        var BufferWithBOM := TEncodingBOMDetector_Improved.AddBOM(Buffer, bomUTF8);
+        var BufferWithBOM := TEncodingBOMDetector_Improved.AddBOM(Buffer, 1);
         if Length(BufferWithBOM) > 0 then
           TargetStream.WriteBuffer(BufferWithBOM[0], Length(BufferWithBOM));
       end
@@ -803,7 +814,7 @@ begin
       end;
     end;
   finally
-    // 恢复流位置
+    // 恢复流位�?
     SourceStream.Position := Position;
   end;
 end;
@@ -826,7 +837,7 @@ begin
   // 检测BOM
   BOMResult := TEncodingBOMDetector_Improved.DetectBOMFromFile(FileName);
 
-  if BOMResult.BOMType <> bomNone then
+  if BOMResult.BOMType <> 0 then
     Result := BOMResult.Encoding
   else
   begin
@@ -837,7 +848,7 @@ begin
       Result := ENCODING_UTF8
     else
     begin
-      // 检测中文编码
+      // 检测中文编�?
       ChineseResult := TChineseEncodingDetector_Improved.DetectFile(FileName);
       Result := ChineseResult.Encoding;
     end;
@@ -909,7 +920,7 @@ begin
   Result := False;
   UseTemp := False;
 
-  // 检查文件是否存在
+  // 检查文件是否存�?
   if not FileExists(FileName) then
     Exit;
 
@@ -918,7 +929,7 @@ begin
   FileHandle := CreateFile(
     PChar(FileName),
     FileMode,
-    0, // 不共享
+    0, // 不共�?
     nil,
     OPEN_EXISTING,
     FILE_ATTRIBUTE_NORMAL,
@@ -951,7 +962,7 @@ begin
 
       if FileHandle <> INVALID_HANDLE_VALUE then
       begin
-        // 文件可以以只读模式打开，需要使用临时文件
+        // 文件可以以只读模式打开，需要使用临时文�?
         CloseHandle(FileHandle);
         Result := True;
         UseTemp := True;
@@ -979,7 +990,7 @@ var
 begin
   Result := False;
 
-  // 检查文件是否存在
+  // 检查文件是否存�?
   if not (FileExists(SourceFileName) and FileExists(TargetFileName)) then
     Exit;
 
@@ -997,21 +1008,21 @@ begin
         SourceBOMResult := TEncodingBOMDetector_Improved.DetectBOMFromStream(SourceStream);
         TargetBOMResult := TEncodingBOMDetector_Improved.DetectBOMFromStream(TargetStream);
 
-        // 读取文件内容（跳过BOM）
-        SourceStream.Position := SourceBOMResult.BOMSize;
-        SetLength(SourceBuffer, SourceStream.Size - SourceBOMResult.BOMSize);
+        // 读取文件内容（跳过BOM�?
+        SourceStream.Position := SourceBOMResult.BOMLength;
+        SetLength(SourceBuffer, SourceStream.Size - SourceBOMResult.BOMLength);
         if Length(SourceBuffer) > 0 then
           SourceStream.ReadBuffer(SourceBuffer[0], Length(SourceBuffer));
 
-        TargetStream.Position := TargetBOMResult.BOMSize;
-        SetLength(TargetBuffer, TargetStream.Size - TargetBOMResult.BOMSize);
+        TargetStream.Position := TargetBOMResult.BOMLength;
+        SetLength(TargetBuffer, TargetStream.Size - TargetBOMResult.BOMLength);
         if Length(TargetBuffer) > 0 then
           TargetStream.ReadBuffer(TargetBuffer[0], Length(TargetBuffer));
 
         // 如果源编码和目标编码相同，则直接比较内容
         if CompareText(SourceEncoding, TargetEncoding) = 0 then
         begin
-          // 比较内容（忽略BOM）
+          // 比较内容（忽略BOM�?
           Result := (Length(SourceBuffer) = Length(TargetBuffer));
 
           if Result and (Length(SourceBuffer) > 0) then
@@ -1020,7 +1031,7 @@ begin
         else
         begin
           // 如果编码不同，则需要转换后比较
-          // 这里简化处理，只检查文件大小是否合理
+          // 这里简化处理，只检查文件大小是否合�?
           Result := (Length(TargetBuffer) > 0) and
                    (Length(SourceBuffer) > 0) and
                    (Abs(Length(TargetBuffer) - Length(SourceBuffer)) < Length(SourceBuffer) * 0.5);

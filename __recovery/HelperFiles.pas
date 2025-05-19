@@ -132,10 +132,15 @@ begin
 
     // 检测源文件编码
     SourceEncoding := DetectFileEncoding(SourceFile, HasBOM);
-    if SourceEncoding = 'Unknown' then
+    if (SourceEncoding = 'Unknown') or (SourceEncoding = 'Binary') then
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('无法检测文件编码: ' + SourceFile);
+      begin
+        if SourceEncoding = 'Binary' then
+          FLogCallback('跳过二进制文件: ' + SourceFile)
+        else
+          FLogCallback('无法检测文件编码: ' + SourceFile);
+      end;
       Exit;
     end;
 
@@ -213,6 +218,54 @@ begin
     // 获取文件扩展名，用于辅助判断
     FileExt := LowerCase(ExtractFileExt(FileName));
 
+    // 跳过已知的二进制文件类型
+    if (FileExt = '.exe') or (FileExt = '.dll') or (FileExt = '.obj') or
+       (FileExt = '.bin') or (FileExt = '.o') or (FileExt = '.a') or
+       (FileExt = '.so') or (FileExt = '.lib') or (FileExt = '.pdb') or
+       (FileExt = '.com') or (FileExt = '.sys') or (FileExt = '.ocx') or
+       // 图像文件
+       (FileExt = '.ico') or (FileExt = '.bmp') or (FileExt = '.jpg') or
+       (FileExt = '.jpeg') or (FileExt = '.png') or (FileExt = '.gif') or
+       (FileExt = '.tif') or (FileExt = '.tiff') or (FileExt = '.webp') or
+       (FileExt = '.svg') or (FileExt = '.psd') or (FileExt = '.ai') or
+       // 压缩文件
+       (FileExt = '.zip') or (FileExt = '.rar') or (FileExt = '.7z') or (FileExt = '.tar') or
+       (FileExt = '.gz') or (FileExt = '.bz2') or (FileExt = '.xz') or (FileExt = '.cab') or
+       // 文档文件
+       (FileExt = '.pdf') or (FileExt = '.doc') or (FileExt = '.docx') or
+       (FileExt = '.xls') or (FileExt = '.xlsx') or (FileExt = '.ppt') or
+       (FileExt = '.pptx') or (FileExt = '.odt') or (FileExt = '.ods') or
+       // 数据库文件
+       (FileExt = '.db') or (FileExt = '.sqlite') or (FileExt = '.mdb') or
+       (FileExt = '.accdb') or (FileExt = '.frm') or (FileExt = '.dbf') or
+       // 音视频文件
+       (FileExt = '.mp3') or (FileExt = '.mp4') or (FileExt = '.avi') or
+       (FileExt = '.mov') or (FileExt = '.wmv') or (FileExt = '.flv') or
+       (FileExt = '.wav') or (FileExt = '.ogg') or (FileExt = '.flac') or
+       // Delphi特有的二进制文件
+       (FileExt = '.dcu') or (FileExt = '.bpl') or (FileExt = '.dcp') or
+       (FileExt = '.dcpil') or (FileExt = '.dcuil') or (FileExt = '.drc') or
+       (FileExt = '.res') or (FileExt = '.rsm') or (FileExt = '.map') or
+       (FileExt = '.tds') or (FileExt = '.jdbg') or (FileExt = '.dsk') or
+       (FileExt = '.~*') or (FileExt = '.local') or (FileExt = '.identcache') or
+       (FileExt = '.stat') or (FileExt = '.otares') or (FileExt = '.deployproj') or
+       // 其他常见二进制文件
+       (FileExt = '.class') or (FileExt = '.jar') or (FileExt = '.war') or
+       (FileExt = '.pyc') or (FileExt = '.pyo') or (FileExt = '.o') or
+       (FileExt = '.swf') or (FileExt = '.fla') or (FileExt = '.ttf') or
+       (FileExt = '.woff') or (FileExt = '.woff2') or (FileExt = '.eot') then
+    begin
+      Result := 'Binary';
+      HasBOM := False;
+
+      // 记录日志
+      ElapsedTime := MilliSecondsBetween(StartTime, Now);
+      if Assigned(FLogCallback) then
+        FLogCallback(Format('检测到文件 %s 的编码为: %s (二进制文件) (耗时: %d ms)',
+          [ExtractFileName(FileName), Result, ElapsedTime]));
+      Exit;
+    end;
+
     // 打开文件
     FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
     try
@@ -281,7 +334,7 @@ begin
          (FileExt = '.xml') or (FileExt = '.json') or (FileExt = '.css') or
          (FileExt = '.md') or (FileExt = '.txt') or (FileExt = '.ini') then
       begin
-        // 对于Delphi源代码文件，几乎可以确定是UTF-8
+        // 对于常见的源代码文件，几乎可以确定是UTF-8
         if (FileExt = '.pas') or (FileExt = '.dpr') or (FileExt = '.dfm') then
         begin
           Result := 'UTF-8';
@@ -291,6 +344,71 @@ begin
           ElapsedTime := MilliSecondsBetween(StartTime, Now);
           if Assigned(FLogCallback) then
             FLogCallback(Format('检测到文件 %s 的编码为: %s (Delphi源码文件) (耗时: %d ms)',
+              [ExtractFileName(FileName), Result, ElapsedTime]));
+          Exit;
+        end
+        // 其他常见编程语言源代码文件
+        else if (FileExt = '.cs') or (FileExt = '.java') or (FileExt = '.js') or
+                (FileExt = '.ts') or (FileExt = '.py') or (FileExt = '.rb') or
+                (FileExt = '.php') or (FileExt = '.go') or (FileExt = '.swift') or
+                (FileExt = '.kt') or (FileExt = '.scala') or (FileExt = '.rs') or
+                (FileExt = '.c') or (FileExt = '.cpp') or (FileExt = '.h') or
+                (FileExt = '.hpp') or (FileExt = '.m') or (FileExt = '.mm') then
+        begin
+          Result := 'UTF-8';
+          HasBOM := False;
+
+          // 记录日志
+          ElapsedTime := MilliSecondsBetween(StartTime, Now);
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('检测到文件 %s 的编码为: %s (编程语言源码文件) (耗时: %d ms)',
+              [ExtractFileName(FileName), Result, ElapsedTime]));
+          Exit;
+        end
+        // Web相关文件
+        else if (FileExt = '.html') or (FileExt = '.htm') or (FileExt = '.css') or
+                (FileExt = '.xml') or (FileExt = '.json') or (FileExt = '.svg') or
+                (FileExt = '.jsx') or (FileExt = '.tsx') or (FileExt = '.vue') or
+                (FileExt = '.less') or (FileExt = '.scss') or (FileExt = '.sass') or
+                (FileExt = '.yaml') or (FileExt = '.yml') then
+        begin
+          Result := 'UTF-8';
+          HasBOM := False;
+
+          // 记录日志
+          ElapsedTime := MilliSecondsBetween(StartTime, Now);
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('检测到文件 %s 的编码为: %s (Web相关文件) (耗时: %d ms)',
+              [ExtractFileName(FileName), Result, ElapsedTime]));
+          Exit;
+        end
+        // 配置文件
+        else if (FileExt = '.ini') or (FileExt = '.conf') or (FileExt = '.config') or
+                (FileExt = '.properties') or (FileExt = '.toml') or (FileExt = '.env') or
+                (FileExt = '.cfg') or (FileExt = '.rc') or (FileExt = '.reg') then
+        begin
+          Result := 'UTF-8';
+          HasBOM := False;
+
+          // 记录日志
+          ElapsedTime := MilliSecondsBetween(StartTime, Now);
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('检测到文件 %s 的编码为: %s (配置文件) (耗时: %d ms)',
+              [ExtractFileName(FileName), Result, ElapsedTime]));
+          Exit;
+        end
+        // 纯文本文件
+        else if (FileExt = '.txt') or (FileExt = '.log') or (FileExt = '.csv') or
+                (FileExt = '.tsv') or (FileExt = '.md') or (FileExt = '.rst') or
+                (FileExt = '.adoc') or (FileExt = '.asc') or (FileExt = '.text') then
+        begin
+          Result := 'UTF-8';
+          HasBOM := False;
+
+          // 记录日志
+          ElapsedTime := MilliSecondsBetween(StartTime, Now);
+          if Assigned(FLogCallback) then
+            FLogCallback(Format('检测到文件 %s 的编码为: %s (纯文本文件) (耗时: %d ms)',
               [ExtractFileName(FileName), Result, ElapsedTime]));
           Exit;
         end;
@@ -347,6 +465,42 @@ begin
       // 检测是否为Big5
       IsBig5 := JclEncodingUtils.IsBig5String(Buffer, BytesRead);
 
+      // 检测是否为日文编码（Shift-JIS）
+      var IsShiftJIS := False;
+      if BytesRead > 20 then
+      begin
+        // 简单检测：如果文件中包含日文特有的字符范围，可能是Shift-JIS
+        for i := 0 to BytesRead - 2 do
+        begin
+          if (i + 1 < BytesRead) and
+             (((Buffer[i] >= $81) and (Buffer[i] <= $9F)) or
+              ((Buffer[i] >= $E0) and (Buffer[i] <= $FC))) and
+             (((Buffer[i+1] >= $40) and (Buffer[i+1] <= $7E)) or
+              ((Buffer[i+1] >= $80) and (Buffer[i+1] <= $FC))) then
+          begin
+            IsShiftJIS := True;
+            Break;
+          end;
+        end;
+      end;
+
+      // 检测是否为韩文编码（EUC-KR）
+      var IsEUCKR := False;
+      if BytesRead > 20 then
+      begin
+        // 简单检测：如果文件中包含韩文特有的字符范围，可能是EUC-KR
+        for i := 0 to BytesRead - 2 do
+        begin
+          if (i + 1 < BytesRead) and
+             (Buffer[i] >= $B0) and (Buffer[i] <= $C8) and
+             (Buffer[i+1] >= $A1) and (Buffer[i+1] <= $FE) then
+          begin
+            IsEUCKR := True;
+            Break;
+          end;
+        end;
+      end;
+
       // 如果只有UTF-8有效，则返回UTF-8
       if IsUTF8 and not IsGBK and not IsBig5 then
       begin
@@ -389,9 +543,117 @@ begin
         Exit;
       end;
 
+      // 如果检测到Shift-JIS编码
+      if IsShiftJIS and not IsUTF8 then
+      begin
+        Result := 'Shift-JIS';
+        HasBOM := False;
+
+        // 记录日志
+        ElapsedTime := MilliSecondsBetween(StartTime, Now);
+        if Assigned(FLogCallback) then
+          FLogCallback(Format('检测到文件 %s 的编码为: %s (日文编码) (耗时: %d ms)',
+            [ExtractFileName(FileName), Result, ElapsedTime]));
+        Exit;
+      end;
+
+      // 如果检测到EUC-KR编码
+      if IsEUCKR and not IsUTF8 then
+      begin
+        Result := 'EUC-KR';
+        HasBOM := False;
+
+        // 记录日志
+        ElapsedTime := MilliSecondsBetween(StartTime, Now);
+        if Assigned(FLogCallback) then
+          FLogCallback(Format('检测到文件 %s 的编码为: %s (韩文编码) (耗时: %d ms)',
+            [ExtractFileName(FileName), Result, ElapsedTime]));
+        Exit;
+      end;
+
       // 如果UTF-8和GBK都有效，需要进一步判断
       if IsUTF8 and IsGBK then
       begin
+        // 检查文件名中的语言特征
+        var FileName_NoPath := ExtractFileName(FileName);
+        var HasNonASCII := False;
+        var SystemLangID := GetSystemDefaultLangID;
+
+        // 检查文件名是否包含非ASCII字符
+        for i := 1 to Length(FileName_NoPath) do
+        begin
+          if Ord(FileName_NoPath[i]) > 127 then
+          begin
+            HasNonASCII := True;
+            Break;
+          end;
+        end;
+
+        // 如果文件名包含非ASCII字符，根据系统语言环境判断
+        if HasNonASCII then
+        begin
+          // 中文系统
+          if (SystemLangID = $0804) or // 简体中文
+             (SystemLangID = $0404) or // 繁体中文
+             (SystemLangID = $0c04) then // 香港中文
+          begin
+            // 如果文件名中包含中文特征（如"汉字"、"中文"等）
+            if (Pos('汉字', FileName_NoPath) > 0) or
+               (Pos('中文', FileName_NoPath) > 0) or
+               (Pos('简体', FileName_NoPath) > 0) or
+               (Pos('繁体', FileName_NoPath) > 0) or
+               (Pos('中国', FileName_NoPath) > 0) then
+            begin
+              Result := 'GBK';
+              HasBOM := False;
+
+              // 记录日志
+              ElapsedTime := MilliSecondsBetween(StartTime, Now);
+              if Assigned(FLogCallback) then
+                FLogCallback(Format('检测到文件 %s 的编码为: %s (中文文件名) (耗时: %d ms)',
+                  [ExtractFileName(FileName), Result, ElapsedTime]));
+              Exit;
+            end;
+          end
+          // 日文系统
+          else if (SystemLangID = $0411) then // 日文
+          begin
+            // 如果文件名中包含日文特征（如"日本語"等）
+            if (Pos('日本', FileName_NoPath) > 0) or
+               (Pos('にほん', FileName_NoPath) > 0) or
+               (Pos('ニホン', FileName_NoPath) > 0) then
+            begin
+              Result := 'Shift-JIS';
+              HasBOM := False;
+
+              // 记录日志
+              ElapsedTime := MilliSecondsBetween(StartTime, Now);
+              if Assigned(FLogCallback) then
+                FLogCallback(Format('检测到文件 %s 的编码为: %s (日文文件名) (耗时: %d ms)',
+                  [ExtractFileName(FileName), Result, ElapsedTime]));
+              Exit;
+            end;
+          end
+          // 韩文系统
+          else if (SystemLangID = $0412) then // 韩文
+          begin
+            // 如果文件名中包含韩文特征（如"한국어"等）
+            if (Pos('한국', FileName_NoPath) > 0) or
+               (Pos('조선', FileName_NoPath) > 0) then
+            begin
+              Result := 'EUC-KR';
+              HasBOM := False;
+
+              // 记录日志
+              ElapsedTime := MilliSecondsBetween(StartTime, Now);
+              if Assigned(FLogCallback) then
+                FLogCallback(Format('检测到文件 %s 的编码为: %s (韩文文件名) (耗时: %d ms)',
+                  [ExtractFileName(FileName), Result, ElapsedTime]));
+              Exit;
+            end;
+          end;
+        end;
+
         // 检查中文字符
         ChineseCharCount := 0;
         for i := 0 to BytesRead - 3 do
@@ -442,10 +704,10 @@ begin
         end;
 
         // 根据系统语言环境决定
-        var LangID := GetSystemDefaultLangID;
-        if (LangID = $0804) or // 简体中文
-           (LangID = $0404) or // 繁体中文
-           (LangID = $0c04) then // 香港中文
+        var SystemLangID2 := GetSystemDefaultLangID;
+        if (SystemLangID2 = $0804) or // 简体中文
+           (SystemLangID2 = $0404) or // 繁体中文
+           (SystemLangID2 = $0c04) then // 香港中文
         begin
           Result := 'GBK';
           HasBOM := False;
@@ -518,41 +780,112 @@ var
   Extensions: TStringList;
   i: Integer;
   Ext: string;
+  SafePath: string;
 begin
+  // 初始化返回值为空数组
+  SetLength(Result, 0);
+
+  // 安全检查：确保参数有效
+  if FolderPath = '' then
+  begin
+    if Assigned(FLogCallback) then
+      FLogCallback('错误: 提供的目录路径为空');
+    Exit;
+  end;
+
+  // 规范化路径
+  try
+    SafePath := ExcludeTrailingPathDelimiter(FolderPath);
+    SafePath := IncludeTrailingPathDelimiter(SafePath);
+  except
+    on E: Exception do
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('路径格式化错误: ' + E.Message);
+      Exit;
+    end;
+  end;
+
+  // 创建扩展名列表
   Extensions := TStringList.Create;
   try
     Extensions.Sorted := True;
     Extensions.Duplicates := TDuplicates.dupIgnore;
 
     // 安全检查：确保目录存在
-    if not DirectoryExists(FolderPath) then
+    if not DirectoryExists(SafePath) then
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('目录不存在: ' + FolderPath);
-      SetLength(Result, 0);
+        FLogCallback('目录不存在: ' + SafePath);
       Exit;
     end;
 
     try
       // 仅搜索当前目录，不再使用soAllDirectories
-      Files := TDirectory.GetFiles(FolderPath, '*.*', TSearchOption.soTopDirectoryOnly);
+      try
+        Files := TDirectory.GetFiles(SafePath, '*.*', TSearchOption.soTopDirectoryOnly);
+      except
+        on E: Exception do
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback('获取文件列表出错: ' + E.Message);
+          Exit;
+        end;
+      end;
 
       if Assigned(FLogCallback) then
         FLogCallback('找到 ' + IntToStr(Length(Files)) + ' 个文件，正在提取扩展名');
 
-      for i := 0 to High(Files) do
+      // 安全检查：确保文件列表有效
+      if Length(Files) = 0 then
       begin
-        Ext := ExtractFileExt(Files[i]);
-        if Ext <> '' then
-          Extensions.Add(Ext);
+        if Assigned(FLogCallback) then
+          FLogCallback('目录中没有文件');
+        Exit;
       end;
 
-      SetLength(Result, Extensions.Count);
-      for i := 0 to Extensions.Count - 1 do
-        Result[i] := Extensions[i];
+      // 提取扩展名
+      for i := 0 to High(Files) do
+      begin
+        try
+          Ext := ExtractFileExt(Files[i]);
+          if Ext <> '' then
+            Extensions.Add(Ext);
+        except
+          on E: Exception do
+          begin
+            if Assigned(FLogCallback) then
+              FLogCallback('处理文件扩展名出错: ' + Files[i] + ' - ' + E.Message);
+            // 继续处理下一个文件
+            Continue;
+          end;
+        end;
+      end;
 
-      if Assigned(FLogCallback) then
-        FLogCallback('成功获取 ' + IntToStr(Extensions.Count) + ' 个不同的文件扩展名');
+      // 安全检查：确保找到了扩展名
+      if Extensions.Count = 0 then
+      begin
+        if Assigned(FLogCallback) then
+          FLogCallback('未找到任何文件扩展名');
+        Exit;
+      end;
+
+      // 转换为数组
+      try
+        SetLength(Result, Extensions.Count);
+        for i := 0 to Extensions.Count - 1 do
+          Result[i] := Extensions[i];
+
+        if Assigned(FLogCallback) then
+          FLogCallback('成功获取 ' + IntToStr(Extensions.Count) + ' 个不同的文件扩展名');
+      except
+        on E: Exception do
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback('转换扩展名列表为数组时出错: ' + E.Message);
+          SetLength(Result, 0);
+        end;
+      end;
     except
       on E: Exception do
       begin
@@ -562,7 +895,9 @@ begin
       end;
     end;
   finally
-    Extensions.Free;
+    // 确保释放资源
+    if Assigned(Extensions) then
+      Extensions.Free;
   end;
 end;
 
@@ -671,14 +1006,37 @@ begin
      (Ext = '.bin') or (Ext = '.o') or (Ext = '.a') or
      (Ext = '.so') or (Ext = '.lib') or (Ext = '.pdb') or
      (Ext = '.com') or (Ext = '.sys') or (Ext = '.ocx') or
+     // 图像文件
      (Ext = '.ico') or (Ext = '.bmp') or (Ext = '.jpg') or
      (Ext = '.jpeg') or (Ext = '.png') or (Ext = '.gif') or
-     (Ext = '.tif') or (Ext = '.tiff') or (Ext = '.zip') or
-     (Ext = '.rar') or (Ext = '.7z') or (Ext = '.tar') or
-     (Ext = '.gz') or (Ext = '.pdf') or (Ext = '.doc') or
-     (Ext = '.docx') or (Ext = '.xls') or (Ext = '.xlsx') or
-     (Ext = '.ppt') or (Ext = '.pptx') or (Ext = '.db') or
-     (Ext = '.sqlite') or (Ext = '.mdb') or (Ext = '.accdb') then
+     (Ext = '.tif') or (Ext = '.tiff') or (Ext = '.webp') or
+     (Ext = '.svg') or (Ext = '.psd') or (Ext = '.ai') or
+     // 压缩文件
+     (Ext = '.zip') or (Ext = '.rar') or (Ext = '.7z') or (Ext = '.tar') or
+     (Ext = '.gz') or (Ext = '.bz2') or (Ext = '.xz') or (Ext = '.cab') or
+     // 文档文件
+     (Ext = '.pdf') or (Ext = '.doc') or (Ext = '.docx') or
+     (Ext = '.xls') or (Ext = '.xlsx') or (Ext = '.ppt') or
+     (Ext = '.pptx') or (Ext = '.odt') or (Ext = '.ods') or
+     // 数据库文件
+     (Ext = '.db') or (Ext = '.sqlite') or (Ext = '.mdb') or
+     (Ext = '.accdb') or (Ext = '.frm') or (Ext = '.dbf') or
+     // 音视频文件
+     (Ext = '.mp3') or (Ext = '.mp4') or (Ext = '.avi') or
+     (Ext = '.mov') or (Ext = '.wmv') or (Ext = '.flv') or
+     (Ext = '.wav') or (Ext = '.ogg') or (Ext = '.flac') or
+     // Delphi特有的二进制文件
+     (Ext = '.dcu') or (Ext = '.bpl') or (Ext = '.dcp') or
+     (Ext = '.dcpil') or (Ext = '.dcuil') or (Ext = '.drc') or
+     (Ext = '.res') or (Ext = '.rsm') or (Ext = '.map') or
+     (Ext = '.tds') or (Ext = '.jdbg') or (Ext = '.dsk') or
+     (Ext = '.~*') or (Ext = '.local') or (Ext = '.identcache') or
+     (Ext = '.stat') or (Ext = '.otares') or (Ext = '.deployproj') or
+     // 其他常见二进制文件
+     (Ext = '.class') or (Ext = '.jar') or (Ext = '.war') or
+     (Ext = '.pyc') or (Ext = '.pyo') or (Ext = '.o') or
+     (Ext = '.swf') or (Ext = '.fla') or (Ext = '.ttf') or
+     (Ext = '.woff') or (Ext = '.woff2') or (Ext = '.eot') then
     Exit;
 
   try

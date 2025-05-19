@@ -3,7 +3,7 @@ unit UtilsEncodingUTF8Detector_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes, UtilsEncodingConstants;
+  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes;
 
 type
   /// <summary>

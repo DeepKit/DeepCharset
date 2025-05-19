@@ -149,6 +149,14 @@
         </DCCReference>
         <DCCReference Include="ControllerLanguage.pas"/>
         <DCCReference Include="UtilsEncodingTypes.pas"/>
+        <DCCReference Include="UtilsEncodingLogger.pas"/>
+        <DCCReference Include="UtilsEncodingBOM_Improved.pas"/>
+        <DCCReference Include="UtilsEncodingUTF8Detector_Improved.pas"/>
+        <DCCReference Include="ChineseEncodingDetector_Improved.pas"/>
+        <DCCReference Include="JapaneseEncodingDetector_Improved.pas"/>
+        <DCCReference Include="KoreanEncodingDetector_Improved.pas"/>
+        <DCCReference Include="EncodingConverter_Improved.pas"/>
+        <DCCReference Include="UTF8BOMConverter_Improved.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

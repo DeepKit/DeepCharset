@@ -3,7 +3,7 @@ unit ChineseEncodingDetector_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes, UtilsEncodingConstants;
+  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes;
 
 type
   /// <summary>
@@ -391,7 +391,7 @@ begin
   BOMResult := TEncodingBOMDetector_Improved.DetectBOM(Buffer);
 
   // 如果有BOM，直接返回对应的编码
-  if BOMResult.BOMType <> bomNone then
+  if BOMResult.BOMType <> 0 then
   begin
     Result.Encoding := BOMResult.Encoding;
     Result.Confidence := 1.0;

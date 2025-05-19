@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Math, System.TypInfo, System.DateUtils,
   ModelEncoding, Winapi.Windows, JclBOM, JclEncodingUtils, HelperFiles, UtilsEncodingTypes,
-  UtilsEncodingConstants, UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
+  UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
   ChineseEncodingDetector_Improved, JapaneseEncodingDetector_Improved, KoreanEncodingDetector_Improved,
   UTF8BOMConverter_Improved, EncodingConverter_Improved;
 
@@ -183,7 +183,7 @@ begin
 
     // 首先检测BOM
     BOMResult := TEncodingBOMDetector_Improved.DetectBOM(Buffer);
-    if BOMResult.BOMType <> bomNone then
+    if BOMResult.BOMType <> 0 then
     begin
       // 有BOM，直接返回结果
       Result := BOMResult.Encoding;

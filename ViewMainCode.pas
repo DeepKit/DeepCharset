@@ -478,77 +478,333 @@ procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
 end;
 
 procedure TForm1.Log(const Msg: string);
+var
+  SafeMsg: string;
 begin
-  // 检查MemLog是否已创建
-  if not Assigned(MemLog) then
-  begin
-    // 如果MemLog尚未创建，只输出到调试窗口
-    OutputDebugString(PChar('日志: ' + Msg));
-    Exit;
-  end;
+  try
+    // 安全处理消息，移除可能导致问题的字符
+    SafeMsg := StringReplace(Msg, #0, '', [rfReplaceAll]);
 
-  if FBufferingLogs then
-  begin
-    // 缓冲模式：将日志添加到缓冲区
-    FLogBuffer.Add(Msg);
-  end
-  else
-  begin
-    // 正常模式：直接添加到MemLog
-    if Assigned(FUIHelper) then
-      FUIHelper.AppendLog(MemLog, Msg)
+    // 检查MemLog是否已创建
+    if not Assigned(MemLog) then
+    begin
+      // 如果MemLog尚未创建，只输出到调试窗口
+      try
+        OutputDebugString(PChar('日志: ' + SafeMsg));
+      except
+        on E: Exception do
+        begin
+          // 如果输出到调试窗口失败，尝试使用更安全的方式
+          try
+            OutputDebugString(PChar('日志: (编码错误)'));
+          except
+            // 忽略所有错误
+          end;
+        end;
+      end;
+      Exit;
+    end;
+
+    // 检查FLogBuffer是否已初始化
+    if FBufferingLogs then
+    begin
+      // 缓冲模式：将日志添加到缓冲区
+      try
+        if Assigned(FLogBuffer) then
+          FLogBuffer.Add(SafeMsg)
+        else
+          OutputDebugString(PChar('警告: 日志缓冲区未初始化，无法记录日志: ' + SafeMsg));
+      except
+        on E: EEncodingError do
+        begin
+          // 特别处理编码错误
+          try
+            if Assigned(FLogBuffer) then
+              FLogBuffer.Add('(编码错误的日志)');
+            OutputDebugString(PChar('编码错误: 无法添加日志到缓冲区'));
+          except
+            // 忽略所有错误
+          end;
+        end;
+        on E: Exception do
+        begin
+          // 处理其他异常
+          try
+            OutputDebugString(PChar('错误: 添加日志到缓冲区时出错: ' + E.Message));
+          except
+            // 忽略所有错误
+          end;
+        end;
+      end;
+    end
     else
-      // 如果FUIHelper尚未创建，直接添加到MemLog
-      MemLog.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + Msg);
+    begin
+      // 正常模式：直接添加到MemLog
+      try
+        if Assigned(FUIHelper) then
+          FUIHelper.AppendLog(MemLog, SafeMsg)
+        else
+        begin
+          // 如果FUIHelper尚未创建，直接添加到MemLog
+          try
+            MemLog.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + SafeMsg);
+          except
+            on E: EEncodingError do
+            begin
+              // 特别处理编码错误
+              try
+                MemLog.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + '(编码错误的日志)');
+                OutputDebugString(PChar('编码错误: 无法添加日志到MemLog'));
+              except
+                // 忽略所有错误
+              end;
+            end;
+            on E: Exception do
+            begin
+              // 处理其他异常
+              try
+                OutputDebugString(PChar('错误: 添加日志到MemLog时出错: ' + E.Message));
+              except
+                // 忽略所有错误
+              end;
+            end;
+          end;
+        end;
+      except
+        on E: Exception do
+        begin
+          // 处理所有异常
+          try
+            OutputDebugString(PChar('错误: 记录日志时出错: ' + E.Message));
+          except
+            // 忽略所有错误
+          end;
+        end;
+      end;
+    end;
+  except
+    on E: Exception do
+    begin
+      // 捕获所有可能的异常，确保日志记录不会导致程序崩溃
+      try
+        OutputDebugString(PChar('严重错误: 日志记录过程中出现未处理的异常: ' + E.Message));
+      except
+        // 忽略所有错误
+      end;
+    end;
   end;
 end;
 
 // 开始日志缓冲
 procedure TForm1.StartLogBuffering;
 begin
-  FBufferingLogs := True;
-  FLogBuffer.Clear;
+  try
+    // 设置缓冲标志
+    FBufferingLogs := True;
+
+    // 安全检查：确保FLogBuffer已初始化
+    if not Assigned(FLogBuffer) then
+    begin
+      try
+        OutputDebugString(PChar('警告: 日志缓冲区未初始化，无法开始缓冲'));
+        // 创建新的缓冲区
+        FLogBuffer := TStringList.Create;
+      except
+        on E: Exception do
+        begin
+          try
+            OutputDebugString(PChar('创建日志缓冲区时出错: ' + E.Message));
+          except
+            // 忽略所有错误
+          end;
+          // 禁用缓冲模式
+          FBufferingLogs := False;
+        end;
+      end;
+    end
+    else
+    begin
+      // 清空缓冲区
+      try
+        FLogBuffer.Clear;
+      except
+        on E: Exception do
+        begin
+          try
+            OutputDebugString(PChar('清空日志缓冲区时出错: ' + E.Message));
+          except
+            // 忽略所有错误
+          end;
+        end;
+      end;
+    end;
+  except
+    on E: Exception do
+    begin
+      try
+        OutputDebugString(PChar('开始日志缓冲时出错: ' + E.Message));
+      except
+        // 忽略所有错误
+      end;
+      // 确保缓冲模式被禁用
+      FBufferingLogs := False;
+    end;
+  end;
 end;
 
 // 结束日志缓冲并一次性更新MemLog
 procedure TForm1.EndLogBuffering;
 var
   i: Integer;
+  StartIndex: Integer;
+  LogCount: Integer;
 begin
-  FBufferingLogs := False;
+  try
+    // 首先设置标志，避免在处理过程中添加新日志
+    FBufferingLogs := False;
 
-  // 一次性添加所有缓冲的日志
-  if FLogBuffer.Count > 0 then
-  begin
-    // 批量更新UI
-    MemLog.Lines.BeginUpdate;
-    try
-      // 如果日志太多，只显示最后100条
-      if FLogBuffer.Count > 100 then
-      begin
-        MemLog.Lines.Add('共有 ' + IntToStr(FLogBuffer.Count) + ' 条日志，只显示最后100条...');
-        for i := FLogBuffer.Count - 100 to FLogBuffer.Count - 1 do
-          MemLog.Lines.Add(FLogBuffer[i]);
-      end
-      else
-      begin
-        for i := 0 to FLogBuffer.Count - 1 do
-          MemLog.Lines.Add(FLogBuffer[i]);
+    // 安全检查：确保FLogBuffer已初始化
+    if not Assigned(FLogBuffer) then
+    begin
+      try
+        OutputDebugString(PChar('警告: 日志缓冲区未初始化，无法刷新日志'));
+      except
+        // 忽略所有错误
       end;
-    finally
-      MemLog.Lines.EndUpdate;
+      Exit;
     end;
 
-    // 滚动到底部
-    try
-      MemLog.SelStart := Length(MemLog.Text);
-      MemLog.SelLength := 0;
-      MemLog.Perform(EM_SCROLLCARET, 0, 0);
-    except
-      // 忽略滚动错误
+    // 安全检查：确保MemLog已初始化
+    if not Assigned(MemLog) then
+    begin
+      try
+        OutputDebugString(PChar('警告: MemLog未初始化，无法刷新日志'));
+      except
+        // 忽略所有错误
+      end;
+      Exit;
     end;
 
-    FLogBuffer.Clear;
+    // 一次性添加所有缓冲的日志
+    LogCount := FLogBuffer.Count;
+    if LogCount > 0 then
+    begin
+      try
+        // 批量更新UI
+        MemLog.Lines.BeginUpdate;
+        try
+          // 如果日志太多，只显示最后100条
+          if LogCount > 100 then
+          begin
+            StartIndex := LogCount - 100;
+            try
+              MemLog.Lines.Add('共有 ' + IntToStr(LogCount) + ' 条日志，只显示最后100条...');
+            except
+              on E: Exception do
+              begin
+                try
+                  OutputDebugString(PChar('添加日志摘要信息时出错: ' + E.Message));
+                except
+                  // 忽略所有错误
+                end;
+              end;
+            end;
+          end
+          else
+            StartIndex := 0;
+
+          // 逐条添加日志，单独处理每条日志的异常
+          for i := StartIndex to LogCount - 1 do
+          begin
+            try
+              if (i >= 0) and (i < FLogBuffer.Count) then
+                MemLog.Lines.Add(FLogBuffer[i]);
+            except
+              on E: EEncodingError do
+              begin
+                try
+                  MemLog.Lines.Add('(编码错误的日志行)');
+                  OutputDebugString(PChar('编码错误: 无法添加日志行 ' + IntToStr(i)));
+                except
+                  // 忽略所有错误
+                end;
+              end;
+              on E: Exception do
+              begin
+                try
+                  OutputDebugString(PChar('添加日志行时出错: ' + E.Message));
+                except
+                  // 忽略所有错误
+                end;
+                // 继续处理下一条日志
+                Continue;
+              end;
+            end;
+          end;
+        finally
+          try
+            MemLog.Lines.EndUpdate;
+          except
+            on E: Exception do
+            begin
+              try
+                OutputDebugString(PChar('结束批量更新时出错: ' + E.Message));
+              except
+                // 忽略所有错误
+              end;
+            end;
+          end;
+        end;
+
+        // 滚动到底部
+        try
+          MemLog.SelStart := Length(MemLog.Text);
+          MemLog.SelLength := 0;
+          MemLog.Perform(EM_SCROLLCARET, 0, 0);
+        except
+          on E: Exception do
+          begin
+            try
+              OutputDebugString(PChar('滚动到底部时出错: ' + E.Message));
+            except
+              // 忽略所有错误
+            end;
+          end;
+        end;
+
+        // 清空缓冲区
+        try
+          FLogBuffer.Clear;
+        except
+          on E: Exception do
+          begin
+            try
+              OutputDebugString(PChar('清空日志缓冲区时出错: ' + E.Message));
+            except
+              // 忽略所有错误
+            end;
+          end;
+        end;
+      except
+        on E: Exception do
+        begin
+          try
+            OutputDebugString(PChar('刷新日志缓冲区时出错: ' + E.Message));
+          except
+            // 忽略所有错误
+          end;
+        end;
+      end;
+    end;
+  except
+    on E: Exception do
+    begin
+      try
+        OutputDebugString(PChar('严重错误: 结束日志缓冲过程中出现未处理的异常: ' + E.Message));
+      except
+        // 忽略所有错误
+      end;
+    end;
   end;
 end;
 
@@ -959,23 +1215,155 @@ procedure TForm1.UpdateFileExtensions(const FolderPath: string);
 var
   Extensions: TArray<string>;
   i: Integer;
+  SafePath: string;
 begin
+  // 安全检查：确保UI组件已初始化
+  if not Assigned(CheckListBox1) then
+  begin
+    Log('错误: CheckListBox1未初始化');
+    Exit;
+  end;
+
+  // 安全检查：确保FFileExtensions已初始化
+  if not Assigned(FFileExtensions) then
+  begin
+    Log('错误: FFileExtensions未初始化');
+    Exit;
+  end;
+
+  // 安全检查：确保FFileHelper已初始化
+  if not Assigned(FFileHelper) then
+  begin
+    Log('错误: FFileHelper未初始化');
+    Exit;
+  end;
+
   // 清空CheckListBox
-  CheckListBox1.Clear;
-  FFileExtensions.Clear;
+  try
+    CheckListBox1.Clear;
+    FFileExtensions.Clear;
+  except
+    on E: Exception do
+    begin
+      Log('清空列表时出错: ' + E.Message);
+      // 继续执行，尝试重新填充列表
+    end;
+  end;
 
-  // 获取文件夹中的所有扩展名
-  Extensions := FFileHelper.GetFileExtensions(FolderPath);
+  // 安全检查：确保目录路径有效
+  if FolderPath = '' then
+  begin
+    Log('错误: 提供的目录路径为空');
+    Exit;
+  end;
 
-  // 添加到CheckListBox和FFileExtensions
-  for i := 0 to High(Extensions) do
+  // 规范化路径，避免编码问题
+  try
+    SafePath := ExcludeTrailingPathDelimiter(FolderPath);
+    SafePath := IncludeTrailingPathDelimiter(SafePath);
+  except
+    on E: Exception do
+    begin
+      Log('路径格式化错误: ' + E.Message);
+      SafePath := FolderPath; // 使用原始路径
+    end;
+  end;
+
+  // 安全检查：确保目录存在
+  if not DirectoryExists(SafePath) then
+  begin
+    Log('目录不存在: ' + SafePath);
+    Exit;
+  end;
+
+  try
+    // 获取文件夹中的所有扩展名
+    try
+      Log('正在获取目录中的文件扩展名: ' + SafePath);
+      Extensions := FFileHelper.GetFileExtensions(SafePath);
+    except
+      on E: Exception do
+      begin
+        Log('获取文件扩展名时出错: ' + E.Message);
+        SetLength(Extensions, 0); // 确保Extensions是一个空数组
+      end;
+    end;
+
+    // 安全检查：确保返回的数组有效
+    if Length(Extensions) = 0 then
+    begin
+      Log('未找到任何文件扩展名');
+      Exit;
+    end;
+
+    // 添加到CheckListBox和FFileExtensions
+    for i := 0 to High(Extensions) do
+    begin
+      try
+        // 安全检查：确保扩展名有效
+        if Extensions[i] = '' then
+          Continue;
+
+        // 添加到UI和内部列表
+        CheckListBox1.Items.Add(Extensions[i]);
+        FFileExtensions.Add(Extensions[i]);
+
+        // 默认选中除了.exe和.dll以外的所有扩展名
+        if (Extensions[i] <> '.exe') and (Extensions[i] <> '.dll') then
+          CheckListBox1.Checked[i] := True;
+      except
+        on E: Exception do
         begin
-    CheckListBox1.Items.Add(Extensions[i]);
-    FFileExtensions.Add(Extensions[i]);
+          Log('添加扩展名时出错: ' + Extensions[i] + ' - ' + E.Message);
+          // 继续处理下一个扩展名
+          Continue;
+        end;
+      end;
+    end;
 
-    // 默认选中除了.exe和.dll以外的所有扩展名
-    if (Extensions[i] <> '.exe') and (Extensions[i] <> '.dll') then
-      CheckListBox1.Checked[i] := True;
+    // 记录成功信息
+    if CheckListBox1.Items.Count > 0 then
+      Log('成功加载 ' + IntToStr(CheckListBox1.Items.Count) + ' 个文件扩展名')
+    else
+      Log('未能加载任何文件扩展名');
+  except
+    on E: EEncodingError do
+    begin
+      Log('编码错误: ' + E.Message);
+      // 特别处理编码错误
+      try
+        // 尝试使用默认编码
+        Log('尝试使用默认编码处理路径');
+        Extensions := FFileHelper.GetFileExtensions('C:\');
+
+        // 如果成功获取了扩展名，添加到列表
+        if Length(Extensions) > 0 then
+        begin
+          for i := 0 to High(Extensions) do
+          begin
+            try
+              CheckListBox1.Items.Add(Extensions[i]);
+              FFileExtensions.Add(Extensions[i]);
+
+              // 默认选中除了.exe和.dll以外的所有扩展名
+              if (Extensions[i] <> '.exe') and (Extensions[i] <> '.dll') then
+                CheckListBox1.Checked[i] := True;
+            except
+              Continue;
+            end;
+          end;
+          Log('使用默认目录成功加载 ' + IntToStr(CheckListBox1.Items.Count) + ' 个文件扩展名');
+        end;
+      except
+        on E2: Exception do
+          Log('使用默认编码处理路径也失败: ' + E2.Message);
+      end;
+    end;
+    on E: Exception do
+    begin
+      Log('更新文件扩展名列表时出错: ' + E.Message);
+      // 通用异常处理
+    end;
   end;
 end;
 
@@ -1750,12 +2138,45 @@ begin
 
   // 延迟更新文件列表，避免在初始化阶段产生过多I/O
   try
-    // 首先只更新文件扩展名列表，不加载文件
-    UpdateFileExtensions(FSelectedFolder);
+    // 安全检查：确保FSelectedFolder有效
+    if (FSelectedFolder = '') or (not DirectoryExists(FSelectedFolder)) then
+    begin
+      Log('选择的目录无效，使用C盘作为默认目录');
+      FSelectedFolder := 'C:\';
+    end;
+
+    // 安全检查：确保FFileHelper已初始化
+    if not Assigned(FFileHelper) then
+    begin
+      Log('文件助手未初始化，跳过文件扩展名更新');
+    end
+    else
+    begin
+      try
+        // 首先只更新文件扩展名列表，不加载文件
+        Log('正在更新文件扩展名列表，目录: ' + FSelectedFolder);
+        UpdateFileExtensions(FSelectedFolder);
+        Log('文件扩展名列表更新完成');
+      except
+        on E: Exception do
+        begin
+          Log('更新文件扩展名列表时出错: ' + E.Message);
+          // 继续执行，不要中断初始化过程
+        end;
+      end;
+    end;
 
     // 在表格中显示提示消息
-    StringGrid1.Cells[2, 1] := '点击【刷新】按钮加载文件...';
-    AdjustGridColumnWidths;
+    try
+      StringGrid1.Cells[2, 1] := '点击【刷新】按钮加载文件...';
+      AdjustGridColumnWidths;
+    except
+      on E: Exception do
+      begin
+        Log('设置表格提示消息时出错: ' + E.Message);
+        // 继续执行，不要中断初始化过程
+      end;
+    end;
 
     // 设置一个定时器，在程序启动后X秒再加载文件
     // (这里直接忽略，让用户手动点击刷新按钮)
@@ -1766,8 +2187,13 @@ begin
     on E: Exception do
     begin
       Log('初始化文件列表出错: ' + E.Message);
-      StringGrid1.Cells[2, 1] := '加载错误，请尝试点击刷新按钮';
-      AdjustGridColumnWidths;
+      try
+        StringGrid1.Cells[2, 1] := '加载错误，请尝试点击刷新按钮';
+        AdjustGridColumnWidths;
+      except
+        // 忽略任何UI更新错误
+        Log('设置错误提示消息时出错');
+      end;
     end;
   end;
 

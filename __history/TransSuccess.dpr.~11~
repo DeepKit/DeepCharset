@@ -6,8 +6,6 @@
 uses
   Vcl.Forms,
   System.SysUtils,
-  System.Classes,
-  Winapi.Windows,
   JclBOM,
   JclStrings,
   JclStringConversions,
@@ -37,24 +35,12 @@ uses
 {$R *.res}
 
 begin
-  // 初始化全局变量
-  InitializeGlobalVariables;
-
-  // 初始化应用程序
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.Title := '码到成功 - 文件编码转换工具';
+  Application.Title := 'TransSuccess - 文件编码转换工具';
 
-  try
-    // 创建主窗体
-    Application.CreateForm(TForm1, Form1);
-    // 不需要预先创建SynEditForm，在需要时再创建
-    // Application.CreateForm(TSynEditForm, SynEditForm);
-    Application.Run;
-  except
-    on E: Exception do
-    begin
-      MessageBox(0, PChar('程序启动时发生异常: ' + E.Message), '错误', MB_OK or MB_ICONERROR);
-    end;
-  end;
+  Application.CreateForm(TForm1, Form1);
+  // 不需要预先创建SynEditForm，在需要时再创建
+  // Application.CreateForm(TSynEditForm, SynEditForm);
+  Application.Run;
 end.

@@ -780,41 +780,112 @@ var
   Extensions: TStringList;
   i: Integer;
   Ext: string;
+  SafePath: string;
 begin
+  // 初始化返回值为空数组
+  SetLength(Result, 0);
+
+  // 安全检查：确保参数有效
+  if FolderPath = '' then
+  begin
+    if Assigned(FLogCallback) then
+      FLogCallback('错误: 提供的目录路径为空');
+    Exit;
+  end;
+
+  // 规范化路径
+  try
+    SafePath := ExcludeTrailingPathDelimiter(FolderPath);
+    SafePath := IncludeTrailingPathDelimiter(SafePath);
+  except
+    on E: Exception do
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('路径格式化错误: ' + E.Message);
+      Exit;
+    end;
+  end;
+
+  // 创建扩展名列表
   Extensions := TStringList.Create;
   try
     Extensions.Sorted := True;
     Extensions.Duplicates := TDuplicates.dupIgnore;
 
     // 安全检查：确保目录存在
-    if not DirectoryExists(FolderPath) then
+    if not DirectoryExists(SafePath) then
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('目录不存在: ' + FolderPath);
-      SetLength(Result, 0);
+        FLogCallback('目录不存在: ' + SafePath);
       Exit;
     end;
 
     try
       // 仅搜索当前目录，不再使用soAllDirectories
-      Files := TDirectory.GetFiles(FolderPath, '*.*', TSearchOption.soTopDirectoryOnly);
+      try
+        Files := TDirectory.GetFiles(SafePath, '*.*', TSearchOption.soTopDirectoryOnly);
+      except
+        on E: Exception do
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback('获取文件列表出错: ' + E.Message);
+          Exit;
+        end;
+      end;
 
       if Assigned(FLogCallback) then
         FLogCallback('找到 ' + IntToStr(Length(Files)) + ' 个文件，正在提取扩展名');
 
-      for i := 0 to High(Files) do
+      // 安全检查：确保文件列表有效
+      if Length(Files) = 0 then
       begin
-        Ext := ExtractFileExt(Files[i]);
-        if Ext <> '' then
-          Extensions.Add(Ext);
+        if Assigned(FLogCallback) then
+          FLogCallback('目录中没有文件');
+        Exit;
       end;
 
-      SetLength(Result, Extensions.Count);
-      for i := 0 to Extensions.Count - 1 do
-        Result[i] := Extensions[i];
+      // 提取扩展名
+      for i := 0 to High(Files) do
+      begin
+        try
+          Ext := ExtractFileExt(Files[i]);
+          if Ext <> '' then
+            Extensions.Add(Ext);
+        except
+          on E: Exception do
+          begin
+            if Assigned(FLogCallback) then
+              FLogCallback('处理文件扩展名出错: ' + Files[i] + ' - ' + E.Message);
+            // 继续处理下一个文件
+            Continue;
+          end;
+        end;
+      end;
 
-      if Assigned(FLogCallback) then
-        FLogCallback('成功获取 ' + IntToStr(Extensions.Count) + ' 个不同的文件扩展名');
+      // 安全检查：确保找到了扩展名
+      if Extensions.Count = 0 then
+      begin
+        if Assigned(FLogCallback) then
+          FLogCallback('未找到任何文件扩展名');
+        Exit;
+      end;
+
+      // 转换为数组
+      try
+        SetLength(Result, Extensions.Count);
+        for i := 0 to Extensions.Count - 1 do
+          Result[i] := Extensions[i];
+
+        if Assigned(FLogCallback) then
+          FLogCallback('成功获取 ' + IntToStr(Extensions.Count) + ' 个不同的文件扩展名');
+      except
+        on E: Exception do
+        begin
+          if Assigned(FLogCallback) then
+            FLogCallback('转换扩展名列表为数组时出错: ' + E.Message);
+          SetLength(Result, 0);
+        end;
+      end;
     except
       on E: Exception do
       begin
@@ -824,7 +895,9 @@ begin
       end;
     end;
   finally
-    Extensions.Free;
+    // 确保释放资源
+    if Assigned(Extensions) then
+      Extensions.Free;
   end;
 end;
 
