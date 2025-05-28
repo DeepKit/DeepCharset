@@ -3,7 +3,7 @@ unit EncodingConverter_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, System.IOUtils, UtilsEncodingTypes,
+  System.SysUtils, System.Classes, System.Math, Winapi.Windows, System.IOUtils, UtilsEncodingTypes,
   UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
   ChineseEncodingDetector_Improved, UTF8BOMConverter_Improved;
 
@@ -497,10 +497,11 @@ begin
     try
       SourceStream := TFileStream.Create(SourceFileName, fmOpenRead or fmShareDenyNone);
       try
-        // 读取文件内容
-        SetLength(Buffer, SourceStream.Size);
-        if SourceStream.Size > 0 then
-          SourceStream.ReadBuffer(Buffer[0], SourceStream.Size);
+        // 读取文件内容（限制最大读取大小以避免内存问题）
+        var MaxReadSize := Min(SourceStream.Size, 50 * 1024 * 1024); // 最大50MB
+        SetLength(Buffer, MaxReadSize);
+        if MaxReadSize > 0 then
+          SourceStream.ReadBuffer(Buffer[0], MaxReadSize);
       finally
         SourceStream.Free;
       end;

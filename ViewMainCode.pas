@@ -10,7 +10,7 @@ uses
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
   ControllerEncoding, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
   System.UIConsts, System.IniFiles, ModelLanguage, ControllerLanguage,
-  System.TypInfo, Vcl.Clipbrd;
+  System.TypInfo, Vcl.Clipbrd, UtilsAsyncFileProcessor;
 
 
 Type
@@ -59,6 +59,9 @@ Type
     TabSheet1: TTabSheet;
     MemLog: TMemo;
     btnRefresh: TButton;
+    ProgressBar1: TProgressBar;
+    lblProgress: TLabel;
+    btnCancel: TButton;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
@@ -93,6 +96,7 @@ Type
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure chkIncludeSubdirsClick(Sender: TObject);
+    procedure btnCancelClick(Sender: TObject);
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
@@ -112,6 +116,10 @@ Type
 
     // 国际化相关
     FCurrentLanguage: string;
+
+    // 异步处理相关
+    FAsyncProcessor: TAsyncFileProcessor;
+    FProgressController: TProgressController;
 
     // 获取翻译后的消息
     function GetLocalizedMessage(const MsgId: string): string;
@@ -138,6 +146,17 @@ Type
     procedure SwitchToLanguageCode(const LangCode: string);
 
     procedure UpdateSingleFileInGrid(const FilePath: string);
+
+    // 异步处理相关方法
+    procedure InitializeAsyncComponents;
+    procedure FinalizeAsyncComponents;
+    procedure UpdateFileGridAsync(const FolderPath: string);
+    procedure ConvertFilesAsync(const Files: TArray<string>; const TargetEncoding: string; WithBOM: Boolean);
+    procedure OnFileScanProgress(const Progress: TFileScanProgress);
+    procedure OnFileScanResult(const Result: TFileScanResult);
+    procedure OnConversionProgress(const Progress: TBatchConversionResult);
+    procedure ShowProgress;
+    procedure HideProgress;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -203,10 +222,16 @@ begin
 
   // 创建语言选择器
   CreateLanguageSelector;
+
+  // 初始化异步组件
+  InitializeAsyncComponents;
 end;
 
 destructor TForm1.Destroy;
 begin
+  // 释放异步组件
+  FinalizeAsyncComponents;
+
   // 释放MVC架构组件
   FEncodingController.Free;
   FFileHelper.Free;
@@ -307,35 +332,14 @@ begin
   SuccessCount := 0;
 
   try
-    // Execute conversion
-    for var j := 0 to High(SelectedFiles) do
-    begin
-      if FEncodingController.ConvertSingleFile(SelectedFiles[j], TargetInfo.ShortName, WithBOM) then
-      begin
-        UpdateSingleFileInGrid(SelectedFiles[j]);
-        Inc(SuccessCount);
-      end;
-    end;
-
-    // Record conversion result
-    Log(System.SysUtils.Format('批量转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]));
-    if SuccessCount < Length(SelectedFiles) then
-      Log(System.SysUtils.Format('注意: %d 个文件未能成功转换 (可能是非文本文件或无法访问)',
-          [Length(SelectedFiles) - SuccessCount]));
-
-    // Refresh the grid
-    UpdateFileGrid(FolderPath);
+    // 使用异步方式执行转换
+    ConvertFilesAsync(SelectedFiles, TargetInfo.ShortName, WithBOM);
+    Log(System.SysUtils.Format('开始异步批量转换 %d 个文件到 %s', [Length(SelectedFiles), TargetInfo.Name]));
   finally
     Screen.Cursor := crDefault;
 
     // End log buffering and update log at once
     EndLogBuffering;
-
-    // Show result
-    if SuccessCount > 0 then
-      ShowMessage(System.SysUtils.Format('转换完成: 成功 %d/%d 个文件', [SuccessCount, Length(SelectedFiles)]))
-    else if Length(SelectedFiles) > 0 then
-      ShowMessage('转换失败: 没有文件被成功转换，请检查日志了解详情');
   end;
 end;
 
@@ -343,8 +347,9 @@ procedure TForm1.btnRefreshClick(Sender: TObject);
 begin
   if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
   begin
-    UpdateFileGrid(DirectoryListBox1.Directory);
-    Log('已刷新目录: ' + DirectoryListBox1.Directory);
+    // 使用异步方式刷新文件列表
+    UpdateFileGridAsync(DirectoryListBox1.Directory);
+    Log('开始异步刷新目录: ' + DirectoryListBox1.Directory);
   end;
 end;
 
@@ -364,7 +369,7 @@ end;
 procedure TForm1.CheckListBox1ClickCheck(Sender: TObject);
 begin
   // 当CheckListBox1的项目被选中或取消选中时更新文件列表
-  UpdateFileGrid(FSelectedFolder);
+  UpdateFileGridAsync(FSelectedFolder);
 end;
 
 procedure TForm1.cmbLanguageChange(Sender: TObject);
@@ -415,7 +420,7 @@ procedure TForm1.DirectoryListBox1Change(Sender: TObject);
   // 更新文件列表和文件扩展名列表
   Log('选择的目录: ' + FSelectedFolder);
   UpdateFileExtensions(FSelectedFolder);
-  UpdateFileGrid(FSelectedFolder);
+  UpdateFileGridAsync(FSelectedFolder);
 end;
 
 procedure TForm1.DirectoryListBox1MouseDown(Sender: TObject; Button: TMouseButton;
@@ -440,7 +445,7 @@ begin
     Log('驱动器: ' + DriveComboBox1.Drive + ', 选择的目录: ' + FSelectedFolder);
     // 更新文件列表
     UpdateFileExtensions(FSelectedFolder);
-    UpdateFileGrid(FSelectedFolder);
+    UpdateFileGridAsync(FSelectedFolder);
   finally
     Screen.Cursor := crDefault;
   end;
@@ -480,10 +485,20 @@ end;
 procedure TForm1.Log(const Msg: string);
 var
   SafeMsg: string;
+  TimeStamp: string;
 begin
   try
+    // 添加时间戳
+    TimeStamp := FormatDateTime('hh:nn:ss.zzz', Now);
+
     // 安全处理消息，移除可能导致问题的字符
     SafeMsg := StringReplace(Msg, #0, '', [rfReplaceAll]);
+    SafeMsg := StringReplace(SafeMsg, #13#10, ' ', [rfReplaceAll]);
+    SafeMsg := StringReplace(SafeMsg, #13, ' ', [rfReplaceAll]);
+    SafeMsg := StringReplace(SafeMsg, #10, ' ', [rfReplaceAll]);
+
+    // 格式化日志消息
+    SafeMsg := Format('[%s] %s', [TimeStamp, SafeMsg]);
 
     // 检查MemLog是否已创建
     if not Assigned(MemLog) then
@@ -2554,16 +2569,230 @@ begin
     Log('已禁用子目录搜索 - 只搜索当前文件夹');
 
   // 更新文件列表以反映子目录包含状态
-  Screen.Cursor := crHourGlass;
-  try
-    UpdateFileGrid(FSelectedFolder);
-  finally
-    Screen.Cursor := crDefault;
-  end;
+  UpdateFileGridAsync(FSelectedFolder);
 
   // 在日志中显示文件数量信息
   Log('文件列表已更新，当前共显示 ' + IntToStr(StringGrid1.RowCount - 1) + ' 个文件');
 end;
 
+procedure TForm1.btnCancelClick(Sender: TObject);
+begin
+  if Assigned(FAsyncProcessor) then
+  begin
+    Log('用户请求取消当前操作');
+    FAsyncProcessor.Cancel;
+    HideProgress;
+  end;
+end;
+
+procedure TForm1.InitializeAsyncComponents;
+begin
+  // 创建异步处理器
+  FAsyncProcessor := TAsyncFileProcessor.Create(
+    TProc<string>(
+      procedure(const LogMsg: string)
+      begin
+        Log(LogMsg);
+      end
+    )
+  );
+
+  // 创建进度控制器
+  FProgressController := TProgressController.Create(ProgressBar1, lblProgress, btnCancel);
+  FProgressController.OnCancel := btnCancelClick;
+
+  Log('异步组件初始化完成');
+end;
+
+procedure TForm1.FinalizeAsyncComponents;
+begin
+  try
+    // 取消正在运行的任务
+    if Assigned(FAsyncProcessor) then
+    begin
+      FAsyncProcessor.Cancel;
+      FAsyncProcessor.WaitForCompletion(3000); // 等待最多3秒
+    end;
+
+    // 释放组件
+    FreeAndNil(FAsyncProcessor);
+    FreeAndNil(FProgressController);
+
+    Log('异步组件已释放');
+  except
+    on E: Exception do
+      Log('释放异步组件时出错: ' + E.Message);
+  end;
+end;
+
+procedure TForm1.ShowProgress;
+begin
+  if Assigned(FProgressController) then
+    FProgressController.Show;
+end;
+
+procedure TForm1.HideProgress;
+begin
+  if Assigned(FProgressController) then
+    FProgressController.Hide;
+end;
+
+procedure TForm1.OnFileScanProgress(const Progress: TFileScanProgress);
+begin
+  // 在主线程中更新进度
+  if Assigned(FProgressController) then
+    FProgressController.UpdateProgress(Progress);
+
+  // 更新状态栏或其他UI元素
+  if Progress.TotalFiles > 0 then
+  begin
+    var ProgressPercent := (Progress.ProcessedFiles * 100) div Progress.TotalFiles;
+    Caption := Format('文件转换工具 - 扫描进度: %d%% (%d/%d)',
+      [ProgressPercent, Progress.ProcessedFiles, Progress.TotalFiles]);
+
+    // 检查是否完成
+    if Progress.ProcessedFiles >= Progress.TotalFiles then
+    begin
+      // 直接在主线程中处理完成事件
+      HideProgress;
+      Caption := '文件转换工具';
+
+      var Results := FAsyncProcessor.GetResults;
+      Log(Format('异步扫描完成: 共找到 %d 个文件', [Length(Results)]));
+
+      // 如果没有文件，显示提示
+      if Length(Results) = 0 then
+        StringGrid1.Cells[2, 1] := '(无文件)';
+
+      // 调整列宽
+      AdjustGridColumnWidths;
+    end;
+  end;
+end;
+
+procedure TForm1.OnFileScanResult(const Result: TFileScanResult);
+begin
+  // 在主线程中添加文件到表格
+  var RowIndex := StringGrid1.RowCount;
+  StringGrid1.RowCount := RowIndex + 1;
+
+  StringGrid1.Cells[0, RowIndex] := ''; // 选择列
+  StringGrid1.Cells[1, RowIndex] := Result.Encoding; // 编码列
+  StringGrid1.Cells[2, RowIndex] := Result.FileName; // 文件名列
+
+  // 每添加50个文件刷新一次界面
+  if (RowIndex mod 50 = 0) then
+    Application.ProcessMessages;
+end;
+
+procedure TForm1.OnConversionProgress(const Progress: TBatchConversionResult);
+begin
+  // 在主线程中更新转换进度
+  if Assigned(FProgressController) then
+    FProgressController.UpdateConversionProgress(Progress);
+
+  // 更新窗体标题
+  if Progress.TotalFiles > 0 then
+  begin
+    var ProcessedFiles := Progress.SuccessCount + Progress.FailCount + Progress.SkippedCount;
+    var ProgressPercent := (ProcessedFiles * 100) div Progress.TotalFiles;
+    Caption := Format('文件转换工具 - 转换进度: %d%% (成功:%d 失败:%d)',
+      [ProgressPercent, Progress.SuccessCount, Progress.FailCount]);
+
+    // 检查是否完成
+    if ProcessedFiles >= Progress.TotalFiles then
+    begin
+      // 直接在主线程中处理完成事件
+      HideProgress;
+      Caption := '文件转换工具';
+
+      // 刷新文件列表以显示更新后的编码
+      UpdateFileGrid(FSelectedFolder);
+
+      Log('异步批量转换完成');
+      ShowMessage(Format('批量转换完成: 成功 %d, 失败 %d', [Progress.SuccessCount, Progress.FailCount]));
+    end;
+  end;
+end;
+
+procedure TForm1.UpdateFileGridAsync(const FolderPath: string);
+var
+  FileExtensions: TArray<string>;
+  i: Integer;
+  HasSelectedExtensions: Boolean;
+begin
+  // 检查目录是否存在
+  if not DirectoryExists(FolderPath) then
+  begin
+    StringGrid1.Cells[2, 1] := '(目录不存在)';
+    AdjustGridColumnWidths;
+    Exit;
+  end;
+
+  // 获取选中的文件扩展名
+  SetLength(FileExtensions, 0);
+  HasSelectedExtensions := False;
+
+  for i := 0 to CheckListBox1.Items.Count - 1 do
+  begin
+    if CheckListBox1.Checked[i] then
+    begin
+      HasSelectedExtensions := True;
+      SetLength(FileExtensions, Length(FileExtensions) + 1);
+      FileExtensions[High(FileExtensions)] := CheckListBox1.Items[i];
+    end;
+  end;
+
+  // 如果没有选中任何文件类型，显示提示并退出
+  if not HasSelectedExtensions then
+  begin
+    Log('未选择任何文件类型，不显示文件');
+    StringGrid1.Cells[2, 1] := '(请选择至少一种文件类型)';
+    AdjustGridColumnWidths;
+    Exit;
+  end;
+
+  // 清空表格
+  FUIHelper.ClearGrid(StringGrid1);
+
+  // 显示进度
+  ShowProgress;
+
+  // 记录开始扫描
+  Log('开始异步扫描文件: ' + FolderPath + ', 包含子目录: ' + BoolToStr(FIncludeSubdirs, True));
+
+  // 启动异步扫描
+  FAsyncProcessor.ScanFolderAsync(
+    FolderPath,
+    FileExtensions,
+    FIncludeSubdirs,
+    OnFileScanProgress,
+    OnFileScanResult
+  );
+end;
+
+procedure TForm1.ConvertFilesAsync(const Files: TArray<string>; const TargetEncoding: string; WithBOM: Boolean);
+begin
+  if Length(Files) = 0 then
+  begin
+    ShowMessage('没有选择要转换的文件');
+    Exit;
+  end;
+
+  // 显示进度
+  ShowProgress;
+
+  // 记录开始转换
+  Log(Format('开始异步批量转换 %d 个文件到 %s (BOM: %s)',
+    [Length(Files), TargetEncoding, BoolToStr(WithBOM, True)]));
+
+  // 启动异步转换
+  FAsyncProcessor.ConvertFilesAsync(
+    Files,
+    TargetEncoding,
+    WithBOM,
+    OnConversionProgress
+  );
+end;
 
 end.

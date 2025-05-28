@@ -112,6 +112,35 @@ object Form1: TForm1
         TabOrder = 1
         OnClick = btnRefreshClick
       end
+      object ProgressBar1: TProgressBar
+        Left = 8
+        Top = 8
+        Width = 125
+        Height = 17
+        Anchors = [akLeft, akTop, akRight]
+        TabOrder = 2
+        Visible = False
+      end
+      object lblProgress: TLabel
+        Left = 8
+        Top = 31
+        Width = 125
+        Height = 15
+        Anchors = [akLeft, akTop, akRight]
+        Caption = #20934#22791#23601#25104
+        Visible = False
+      end
+      object btnCancel: TButton
+        Left = 140
+        Top = 80
+        Width = 113
+        Height = 25
+        Anchors = [akTop, akRight]
+        Caption = #21462#28040#25805#20316
+        TabOrder = 3
+        Visible = False
+        OnClick = btnCancelClick
+      end
     end
     object PageControl1: TPageControl
       Left = 4

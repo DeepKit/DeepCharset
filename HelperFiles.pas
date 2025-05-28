@@ -67,14 +67,14 @@ uses
 const
   CSIDL_PERSONAL = $0005; // My Documents
 
-  // 添加最大文本文件大小常量 (5MB)
-  MAX_TEXT_FILE_SIZE = 5 * 1024 * 1024;
+  // 添加最大文本文件大小常量 (10MB) - 增加以支持更大文件
+  MAX_TEXT_FILE_SIZE = 10 * 1024 * 1024;
   // 添加二进制检测阈值 (超过5%的字节是二进制则判定为二进制文件)
   BINARY_THRESHOLD = 0.05;
   // 最小有效文本文件大小 (10字节)
   MIN_TEXT_FILE_SIZE = 10;
-  // 每次读取的缓冲区大小
-  BUFFER_SIZE = 4096;
+  // 每次读取的缓冲区大小 - 增加到64KB以提高性能
+  BUFFER_SIZE = 64 * 1024;
 
 { TFileHelper }
 
@@ -298,7 +298,7 @@ begin
       // 无BOM，尝试检测内容
       FileStream.Position := 0;
       var FileSize: Int64 := FileStream.Size;
-      var MaxSize: Int64 := 32768; // 增加到32KB以提高准确性
+      var MaxSize: Int64 := 65536; // 增加到64KB以提高准确性
       var ReadSize: Integer;
       if FileSize < MaxSize then
         ReadSize := Integer(FileSize)
