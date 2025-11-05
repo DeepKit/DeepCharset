@@ -3,7 +3,7 @@ unit UtilsEncodingBOM_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, UtilsEncodingTypes, JclBOM;
+  System.SysUtils, System.Classes, Winapi.Windows, UtilsEncodingTypes;
 
 type
 

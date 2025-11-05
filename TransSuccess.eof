@@ -1,0 +1,138 @@
+[Exception Log]
+EurekaLog Version=7120
+Activate=1
+DeleteMapAfterCompile=1
+Encrypt Password=""
+EurekaLog Last Modified=2025-11-03 11:46:38
+Encrypt Algorithm=RSA
+Output Path=
+Encrypt Mode=0
+
+[Exception Dialog]
+ShowInMainThread=0
+ShowInDetails=1
+ShowInEditors=1
+ShowInSendErrorReport=1
+ShowInCallStack=1
+ShowInModules=1
+ShowInProcesses=1
+ShowInAssembly=1
+ShowInCPU=1
+ShowInMemory=1
+
+[Dialogs]
+CustomButtonCaption=
+DialogType=rtidStandardDialog
+CustomHeader=
+
+[Sending Options]
+SendMethod=smNone
+SendScreenshot=True
+AttachScreenshot=True
+SendBugReport=True
+AttachBugReport=True
+SendLogFile=True
+AttachLogFile=True
+SendAdditionalFiles=False
+
+[Log]
+LogType=ltNone
+LogFormatType=lftText
+LogFileName=%EXEName%.log
+LogCopyName=
+LogRebuild=0
+LogMaxSize=1000
+LogMaxCount=10
+LogSensitiveData=0
+
+[Exception Information]
+EMail=
+WebURL=
+SendErrorReportTo=
+WebSendMode=wsmPost
+WebSendParams=
+WebSendFileField=File
+WebUserIDField=UserID
+
+[Call Stack Options]
+CallStackCount=20
+IgnoredUnits=
+SourceLines=3
+RawMode=0
+ShowRelativeAddr=0
+ShowRelativeLine=0
+
+[Save Options]
+SaveLogFile=0
+SaveScreenshot=0
+SaveCallStack=1
+SaveModules=0
+SaveProcesses=0
+SaveAssembly=0
+SaveCPU=0
+SaveMemory=0
+
+[HTML Layout]
+StylesFolder=
+TemplateFolder=
+CommonStyleSheet=
+
+[Leaks Options]
+CheckMemoryLeaks=1
+IgnoreSmallLeaks=0
+ShowLeaksInfoOnShutdown=1
+
+[RTL Patches]
+ExceptionAddrOnStack=1
+SaveAllThreads=1
+CallStackRawMode=0
+
+[Low Level Information]
+ShowRuntimeInformation=1
+ShowGeneralInfo=1
+ShowSystemInfo=1
+ShowCPUInfo=1
+
+[Automatic Options]
+AutoSave=0
+AutoSend=0
+AutoShowDialog=1
+AutoCloseDialog=0
+AutoSaveDialog=1
+AutoSendDialog=1
+AutoShowFilteredMessages=0
+
+[Message Filter]
+FilterType=ftNone
+FilterText=
+
+[Dialog Customization]
+CustomDialogTitle=
+CustomDialogHeader=
+CustomDialogText=
+CustomDialogFooter=
+
+[Exception Filter]
+FilteredExceptions=
+
+[Call Stack Filter]
+FilteredClasses=
+
+[Performance Options]
+CollectCallStackOnException=1
+OptimizeCallStack=1
+UseFastCallStackWalk=1
+
+[Module Options]
+ShowModuleVersion=1
+ShowModuleCompanyName=1
+ShowModuleDescription=1
+ShowModuleFileVersion=1
+
+[Behavior]
+ActivateDelayed=0
+ActivateOnException=1
+ActivateHidden=0
+HookEnabled=1
+SafeCallStackWalk=1
+CallStackDepth=10

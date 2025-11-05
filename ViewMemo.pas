@@ -24,7 +24,7 @@ type
   private
     { Private declarations }
     FEditor: TMemo;
-    
+
     procedure CreateMemoEditor;
     procedure SetUTF8TextToMemo(const Text: string);
   public
@@ -48,6 +48,9 @@ end;
 procedure TMemoForm.FormCreate(Sender: TObject);
 begin
   try
+    // 设置窗体尺寸（宽度增加1倍，高度增加0.5倍）
+    Width := 1400;  // 原来约700，增加1倍
+    Height := 750;  // 原来约500，增加0.5倍
     CreateMemoEditor;
     Position := poScreenCenter;
   except
@@ -70,18 +73,18 @@ begin
     FEditor.ScrollBars := ssBoth;
     FEditor.WordWrap := False;
     FEditor.ReadOnly := True; // 设置为只读
-    
+
     // 设置Memo的编码相关属性
     FEditor.WantReturns := True;
     FEditor.WantTabs := True;
-    
+
     // 设置Memo支持Unicode字符集
     SendMessage(FEditor.Handle, EM_SETMARGINS, EC_LEFTMARGIN or EC_RIGHTMARGIN, MakeLong(3, 3));
     SendMessage(FEditor.Handle, WM_SETFONT, FEditor.Font.Handle, 1);
-    
+
     // 尝试设置Unicode支持
     SetWindowLong(FEditor.Handle, GWL_EXSTYLE, GetWindowLong(FEditor.Handle, GWL_EXSTYLE) or WS_EX_RTLREADING);
-    
+
     Panel1.Align := alBottom;
   except
     on E: Exception do
@@ -107,14 +110,14 @@ begin
       BufferSize := FileStream.Size;
       SetLength(Buffer, BufferSize);
       FileStream.ReadBuffer(Buffer[0], BufferSize);
-      
+
       // 如果没有指定编码，尝试自动检测
       if Encoding = nil then
       begin
         // 尝试检测BOM
         EncodingToUse := nil;
         TEncoding.GetBufferEncoding(Buffer, EncodingToUse);
-        
+
         // 如果未检测到BOM，默认使用UTF-8
         if EncodingToUse = nil then
           EncodingToUse := TEncoding.UTF8
@@ -123,11 +126,11 @@ begin
       end
       else
         EncodingToUse := Encoding;
-      
+
       // 检查BOM并跳过
       Preamble := EncodingToUse.GetPreamble;
       PreambleLength := Length(Preamble);
-      
+
       if (PreambleLength > 0) and (BufferSize >= PreambleLength) then
       begin
         // 检查文件是否带有BOM
@@ -141,14 +144,15 @@ begin
       end
       else
         Content := EncodingToUse.GetString(Buffer);
-      
+
       // 将编码设置为memo的字符集
       SetUTF8TextToMemo(Content);
-      
+
       // 设置字体以便更好地显示Unicode字符
-      FEditor.Font.Name := 'Courier New';
+      FEditor.Font.Name := 'Consolas';
       FEditor.Font.Size := 10;
-      
+      FEditor.Font.Charset := DEFAULT_CHARSET;
+
       // 更新标题
       Caption := ExtractFileName(FileName);
     finally
@@ -171,7 +175,7 @@ begin
     BOMStr := '带BOM'
   else
     BOMStr := '无BOM';
-    
+
   // 更新文件信息标签
   lblFileInfo.Caption := Format('文件: %s | 编码: %s (%s)',
     [ExtractFileName(FileName), EncodingName, BOMStr]);
@@ -189,10 +193,10 @@ begin
       EncodingToUse := TEncoding.UTF8
     else
       EncodingToUse := Encoding;
-    
+
     // 获取文本内容的字节表示
     Buffer := EncodingToUse.GetBytes(FEditor.Text);
-    
+
     // 创建文件流
     FileStream := TFileStream.Create(FileName, fmCreate);
     try
@@ -207,13 +211,13 @@ begin
         // 其他编码使用自己的BOM
         FileStream.Write(EncodingToUse.GetPreamble[0], Length(EncodingToUse.GetPreamble));
       end;
-      
+
       // 然后写入文件内容
       FileStream.Write(Buffer[0], Length(Buffer));
     finally
       FileStream.Free;
     end;
-    
+
     // 更新标题
     Caption := ExtractFileName(FileName);
   except
@@ -228,7 +232,7 @@ begin
   try
     // 直接设置文本，因为 Text 参数已经是 Unicode 字符串
     FEditor.Text := Text;
-    
+
     // 设置字体以更好地显示 Unicode 字符
     FEditor.Font.Name := 'Consolas';
     FEditor.Font.Size := 10;
@@ -242,4 +246,4 @@ begin
   end;
 end;
 
-end. 
+end.

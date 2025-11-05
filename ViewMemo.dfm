@@ -2,8 +2,8 @@ object MemoForm: TMemoForm
   Left = 0
   Top = 0
   Caption = '文件查看器'
-  ClientHeight = 461
-  ClientWidth = 684
+  ClientHeight = 750
+  ClientWidth = 1400
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,8 +16,8 @@ object MemoForm: TMemoForm
   TextHeight = 15
   object Panel1: TPanel
     Left = 0
-    Top = 420
-    Width = 684
+    Top = 709
+    Width = 1400
     Height = 41
     Align = alBottom
     TabOrder = 0
@@ -40,4 +40,4 @@ object MemoForm: TMemoForm
       OnClick = btnCloseClick
     end
   end
-end 
+end

@@ -1,4 +1,4 @@
-﻿unit HelperUI;
+unit HelperUI;
 
 interface
 
@@ -461,73 +461,84 @@ end;
 procedure TUIHelper.SetupEncodingList(TreeView: TTreeView; EncodingModel: TEncodingModel);
 var
   i: Integer;
-  RootNode: TTreeNode;      // New Root Node
-  GroupNode: TTreeNode;     // Node for each category
-  EncodingNode: TTreeNode;  // Node for each encoding option
+  RootNode: TTreeNode;
+  GroupNode: TTreeNode;
+  EncodingNode: TTreeNode;
   EncodingInfo: ModelEncoding.TEncodingInfo;
-  DisplayText: string;      // 完整显示文本，包含名称和描述
-  RootText: string;         // 根节点文本，支持多语言
-  Description: string;      // 编码描述
+  DisplayText: string;
+  RootText: string;
+  ShortDesc: string;
+  IsCommonEncoding: Boolean;
 begin
   TreeView.Items.BeginUpdate;
   try
     TreeView.Items.Clear;
+    
+    // 设置 TreeView 外观
+    TreeView.Font.Size := 10;
+    TreeView.Font.Name := 'Segoe UI';
+    TreeView.Indent := 24;
 
-    // 获取根节点的本地化文本
-    RootText := GetTranslatedText('TreeViewRootNode', '目标编码');
+    // 获取根节点文本（不使用表情或特殊符号，避免乱码）
+    RootText := GetTranslatedText('TreeViewRootNode', '选择目标编码');
+    RootNode := TreeView.Items.AddObject(nil, RootText, nil);
+    GroupNode := nil;
 
-    // Create the main root node with localized text
-    RootNode := TreeView.Items.AddObject(nil, RootText, nil); // Top level node
-    GroupNode := nil; // Initialize GroupNode
-
-    // Iterate through the categorized list from the model
     for i := 0 to EncodingModel.EncodingCount - 1 do
     begin
       EncodingInfo := EncodingModel.Encodings[i];
 
       if EncodingInfo.IsGroup then
       begin
-        // 获取分组标题的本地化文本
+        // 分组标题：加粗显示（不使用表情或特殊符号）
         DisplayText := GetTranslatedText('EncodingGroup_' + EncodingInfo.ShortName, EncodingInfo.Name);
-
         if DisplayText = '' then
           DisplayText := EncodingInfo.Name;
-
-        GroupNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i)); // Store index, mark as group
+        
+        GroupNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
       end
-      else if Assigned(GroupNode) then // Ensure we have a category to add to
+      else if Assigned(GroupNode) then
       begin
-        // 获取编码名称
+        // 判断是否为常用编码
+        IsCommonEncoding := (EncodingInfo.ShortName = 'UTF8') or 
+                           (EncodingInfo.ShortName = 'UTF8BOM') or
+                           (EncodingInfo.ShortName = 'GBK') or 
+                           (EncodingInfo.ShortName = 'Big5') or
+                           (EncodingInfo.ShortName = 'GB2312');
+        
+        // 获取编码名称（主要信息，不使用表情或特殊符号）
         DisplayText := EncodingInfo.Name;
-
+        
         // 获取编码描述
-        Description := GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
-
-        // 如果有描述，添加到显示文本中
-        if Description <> '' then
-          DisplayText := DisplayText + ' - ' + Description;
-
-        // 添加带描述的编码节点
-        EncodingNode := TreeView.Items.AddChildObject(GroupNode, DisplayText, Pointer(i)); // Store index in Data
+        ShortDesc := GetTranslatedText('EncodingDesc_' + EncodingInfo.ShortName, EncodingInfo.Description);
+        
+        // 如果有描述，使用括号包裹，与编码名称区分
+        if ShortDesc <> '' then
+          DisplayText := DisplayText + '  (' + ShortDesc + ')';
+        
+        // 常用编码靠前，但不添加特殊符号；普通编码添加适度空格用于对齐
+        if not IsCommonEncoding then
+          DisplayText := '  ' + DisplayText;  // 轻微缩进
+        
+        EncodingNode := TreeView.Items.AddChildObject(GroupNode, DisplayText, Pointer(i));
       end
       else
       begin
-         // Fallback: add directly under the root (shouldn't happen ideally)
-         DisplayText := EncodingInfo.Name;
-         EncodingNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
+        DisplayText := EncodingInfo.Name;
+        EncodingNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
       end;
     end;
 
-    // Expand the main root node by default and the first two group nodes (通常是Unicode和亚洲编码组)
+    // 展开根节点和常用编码组
     if Assigned(RootNode) then
     begin
       RootNode.Expand(True);
-
-      // 展开第一个分组（Unicode编码组）
+      
+      // 展开 Unicode 组
       if (RootNode.Count > 0) and (RootNode.Item[0] <> nil) then
         RootNode.Item[0].Expand(True);
-
-      // 展开第二个分组（亚洲编码组）
+      
+      // 展开亚洲编码组
       if (RootNode.Count > 1) and (RootNode.Item[1] <> nil) then
         RootNode.Item[1].Expand(True);
     end;
@@ -561,7 +572,7 @@ begin
       if HasChecked then
         Grid.Cells[0, i] := ''
       else
-        Grid.Cells[0, i] := '√';
+        Grid.Cells[0, i] := string('√');
     end;
   end;
 end;

@@ -2,8 +2,8 @@ object SynEditForm: TSynEditForm
   Left = 0
   Top = 0
   Caption = #25991#20214#26597#30475#22120
-  ClientHeight = 500
-  ClientWidth = 700
+  ClientHeight = 750
+  ClientWidth = 1149
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -12,14 +12,115 @@ object SynEditForm: TSynEditForm
   Font.Style = []
   KeyPreview = True
   Position = poScreenCenter
-  OnCreate = FormCreate
   OnKeyDown = FormKeyDown
+  OnResize = FormResize
   TextHeight = 15
-  object Memo1: TMemo
+  object PanelTop: TPanel
     Left = 0
     Top = 0
-    Width = 700
-    Height = 460
+    Width = 1149
+    Height = 33
+    Align = alTop
+    BevelOuter = bvNone
+    ParentBackground = False
+    TabOrder = 0
+    DesignSize = (
+      1149
+      33)
+    object LabelFileName: TLabel
+      Left = 10
+      Top = 10
+      Width = 48
+      Height = 15
+      Caption = #25991#20214#21517': '
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object LabelEncoding: TLabel
+      Left = 1010
+      Top = 9
+      Width = 32
+      Height = 15
+      Anchors = [akTop, akRight]
+      Caption = #32534#30721': '
+    end
+    object LabelFileSize: TLabel
+      Left = 800
+      Top = 9
+      Width = 58
+      Height = 15
+      Anchors = [akTop, akRight]
+      Caption = #25991#20214#22823#23567': '
+    end
+  end
+  object PanelButtons: TPanel
+    Left = 0
+    Top = 690
+    Width = 1149
+    Height = 40
+    Align = alBottom
+    BevelOuter = bvNone
+    ParentBackground = False
+    TabOrder = 2
+    DesignSize = (
+      1149
+      40)
+    object btnClose: TButton
+      Left = 1059
+      Top = 5
+      Width = 80
+      Height = 30
+      Anchors = [akTop, akRight]
+      Caption = #20851#38381
+      TabOrder = 0
+      OnClick = btnCloseClick
+    end
+    object btnCopy: TButton
+      Left = 969
+      Top = 5
+      Width = 80
+      Height = 30
+      Anchors = [akTop, akRight]
+      Caption = #22797#21046
+      TabOrder = 1
+      OnClick = btnCopyClick
+    end
+    object btnWordWrap: TButton
+      Left = 869
+      Top = 5
+      Width = 90
+      Height = 30
+      Anchors = [akTop, akRight]
+      Caption = #33258#21160#25442#34892
+      TabOrder = 2
+      OnClick = btnWordWrapClick
+    end
+  end
+  object StatusBar: TStatusBar
+    Left = 0
+    Top = 730
+    Width = 1149
+    Height = 20
+    Panels = <
+      item
+        Width = 200
+      end
+      item
+        Width = 200
+      end
+      item
+        Width = 200
+      end>
+  end
+  object RichEdit1: TRichEdit
+    Left = 0
+    Top = 33
+    Width = 1149
+    Height = 657
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -27,41 +128,32 @@ object SynEditForm: TSynEditForm
     Font.Name = 'Consolas'
     Font.Style = []
     ParentFont = False
+    PopupMenu = PopupMenu
     ReadOnly = True
     ScrollBars = ssBoth
-    TabOrder = 0
-  end
-  object Panel1: TPanel
-    Left = 0
-    Top = 460
-    Width = 700
-    Height = 40
-    Align = alBottom
-    BevelOuter = bvNone
     TabOrder = 1
-    object lblFileName: TLabel
-      Left = 8
-      Top = 12
-      Width = 257
-      Height = 15
-      AutoSize = False
-      Caption = '#25991#20214:'
+    WordWrap = False
+    OnChange = RichEdit1Change
+    OnClick = RichEdit1Click
+    OnKeyUp = RichEdit1KeyUp
+  end
+  object PopupMenu: TPopupMenu
+    Left = 100
+    Top = 100
+    object MenuItemCopy: TMenuItem
+      Caption = #22797#21046
+      OnClick = MenuItemCopyClick
     end
-    object lblEncoding: TLabel
-      Left = 264
-      Top = 12
-      Width = 257
-      Height = 15
-      AutoSize = False
-      Caption = '#32534#30721:'
+    object MenuItemSelectAll: TMenuItem
+      Caption = #20840#36873
+      OnClick = MenuItemSelectAllClick
     end
-    object lblBOM: TLabel
-      Left = 520
-      Top = 12
-      Width = 177
-      Height = 15
-      AutoSize = False
-      Caption = 'BOM:'
+    object N1: TMenuItem
+      Caption = '-'
+    end
+    object MenuItemWordWrap: TMenuItem
+      Caption = #33258#21160#25442#34892
+      OnClick = MenuItemWordWrapClick
     end
   end
 end

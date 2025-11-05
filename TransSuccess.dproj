@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{952D9A49-4AE0-4A9B-993A-F16D5A3C8700}</ProjectGuid>
         <ProjectVersion>20.2</ProjectVersion>
@@ -109,12 +109,10 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
-        <DCC_UnitSearchPath>D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\Highlighters;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\common;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\include;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\vcl;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\JEDICodeLibraryJCL\source\windows;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\Highlighters;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <Icon_MainIcon>TransSuccess_Icon1.ico</Icon_MainIcon>
-        <UWP_DelphiLogo44>icons8_code_16.png</UWP_DelphiLogo44>
-        <UWP_DelphiLogo150>icons8_code_32.png</UWP_DelphiLogo150>
+        <DCC_Define>madExcept;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -127,6 +125,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
+        <DCC_UnitSearchPath>D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\;D:\Personal\Documents\Embarcadero\Studio\23.0\CatalogRepository\SynEdit-12\Source\Highlighters;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -157,6 +156,9 @@
         <DCCReference Include="KoreanEncodingDetector_Improved.pas"/>
         <DCCReference Include="EncodingConverter_Improved.pas"/>
         <DCCReference Include="UTF8BOMConverter_Improved.pas"/>
+        <DCCReference Include="ViewExceptionReport.pas">
+            <Form>ExceptionReportForm</Form>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -212,6 +214,13 @@
                     <Platform Name="Win64">
                         <RemoteDir>Assets\</RemoteDir>
                         <RemoteName>Logo150x150.png</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="icons8_transaction_list_256.png" Configuration="Debug" Class="UWP_DelphiLogo44">
+                    <Platform Name="Win64">
+                        <RemoteDir>Assets\</RemoteDir>
+                        <RemoteName>Logo44x44.png</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

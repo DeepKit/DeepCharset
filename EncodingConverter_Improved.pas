@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, System.Math, Winapi.Windows, System.IOUtils, UtilsEncodingTypes,
   UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
-  ChineseEncodingDetector_Improved, UTF8BOMConverter_Improved;
+  ChineseEncodingDetector_Improved, UTF8BOMConverter_Improved, UtilsEncodingHelper;
 
 type
   /// <summary>
@@ -45,12 +45,13 @@ type
   /// </summary>
   TEncodingConversionResult = record
     Success: Boolean;                        // 转换是否成功
-    SourceEncoding: string;                  // 源编�?
+    SourceEncoding: string;                  // 源编码
     TargetEncoding: string;                  // 目标编码
     BytesProcessed: Int64;                   // 处理的字节数
     ErrorCount: Integer;                     // 错误数量
     Errors: array of TEncodingConversionError; // 错误列表
     HasBOM: Boolean;                         // 是否有BOM
+    OutputData: TBytes;                      // 转换后的输出数据
   end;
 
   /// <summary>
@@ -319,18 +320,17 @@ begin
         begin
           // 添加BOM
           var BufferWithBOM := TEncodingBOMDetector_Improved.AddBOM(Buffer, 1);
-
-          // 创建内存流并写入结果
-          var MemStream := TMemoryStream.Create;
-          try
-            if Length(BufferWithBOM) > 0 then
-              MemStream.WriteBuffer(BufferWithBOM[0], Length(BufferWithBOM));
-
-            Result.Success := True;
-            Result.BytesProcessed := Length(BufferWithBOM);
-          finally
-            MemStream.Free;
-          end;
+          Result.Success := True;
+          Result.BytesProcessed := Length(BufferWithBOM);
+          Result.OutputData := BufferWithBOM;
+          Exit;
+        end
+        else
+        begin
+          // 已经有BOM，直接返回
+          Result.Success := True;
+          Result.BytesProcessed := Length(Buffer);
+          Result.OutputData := Buffer;
           Exit;
         end;
       end
@@ -339,18 +339,9 @@ begin
       begin
         // 移除BOM
         var BufferWithoutBOM := TEncodingBOMDetector_Improved.RemoveBOM(Buffer);
-
-        // 创建内存流并写入结果
-        var MemStream := TMemoryStream.Create;
-        try
-          if Length(BufferWithoutBOM) > 0 then
-            MemStream.WriteBuffer(BufferWithoutBOM[0], Length(BufferWithoutBOM));
-
-          Result.Success := True;
-          Result.BytesProcessed := Length(BufferWithoutBOM);
-        finally
-          MemStream.Free;
-        end;
+        Result.Success := True;
+        Result.BytesProcessed := Length(BufferWithoutBOM);
+        Result.OutputData := BufferWithoutBOM;
         Exit;
       end;
     end;
@@ -368,43 +359,51 @@ begin
     // 转换编码
     if Length(SourceBuffer) > 0 then
     begin
-      // 从源编码转换为Unicode
-      try
-        WideStr := StringToUnicodeString(PAnsiChar(@SourceBuffer[0]), SourceCodePage, Length(SourceBuffer));
-      except
-        on E: Exception do
-        begin
-          // 记录错误但继续处理
-          HandleConversionError(Result, ecetInvalidSequence, 0, 0, E.Message, Options.ErrorHandling);
-
-          // 使用空字符串作为回退方案
-          WideStr := '';
-        end;
-      end;
-
-      // 如果Unicode转换成功，则继续转换为目标编码
-      if WideStr <> '' then
+      // 尝试使用快速路径进行转换（无第三方依赖）
+      var UseFast := TEncodingHelper.TryConvertFast(
+        SourceBuffer, SourceCodePage, TargetCodePage, ResultBuffer);
+      
+      if not UseFast then
       begin
-        // 从Unicode转换为目标编码
-        var TargetStr := UnicodeStringToString(WideStr, TargetCodePage);
+        // 快速路径失败，使用标准转换方法
+        // 从源编码转换为Unicode
+        try
+          WideStr := StringToUnicodeString(PAnsiChar(@SourceBuffer[0]), SourceCodePage, Length(SourceBuffer));
+        except
+          on E: Exception do
+          begin
+            // 记录错误但继续处理
+            HandleConversionError(Result, ecetInvalidSequence, 0, 0, E.Message, Options.ErrorHandling);
 
-        // 创建目标缓冲区
-        if Length(TargetStr) > 0 then
+            // 使用空字符串作为回退方案
+            WideStr := '';
+          end;
+        end;
+
+        // 如果Unicode转换成功，则继续转换为目标编码
+        if WideStr <> '' then
         begin
-          SetLength(ResultBuffer, Length(TargetStr));
-          Move(TargetStr[1], ResultBuffer[0], Length(TargetStr));
+          // 从Unicode转换为目标编码
+          var TargetStr := UnicodeStringToString(WideStr, TargetCodePage);
+
+          // 创建目标缓冲区
+          if Length(TargetStr) > 0 then
+          begin
+            SetLength(ResultBuffer, Length(TargetStr));
+            Move(TargetStr[1], ResultBuffer[0], Length(TargetStr));
+          end
+          else
+          begin
+            // 如果转换结果为空，记录错误
+            HandleConversionError(Result, ecetUnmappableChar, 0, 0, '无法映射字符到目标编码', Options.ErrorHandling);
+            SetLength(ResultBuffer, 0);
+          end;
         end
         else
         begin
-          // 如果转换结果为空，记录错误
-          HandleConversionError(Result, ecetUnmappableChar, 0, 0, '无法映射字符到目标编码', Options.ErrorHandling);
+          // 如果Unicode转换失败，设置空结果
           SetLength(ResultBuffer, 0);
         end;
-      end
-      else
-      begin
-        // 如果Unicode转换失败，设置空结果
-        SetLength(ResultBuffer, 0);
       end;
     end
     else
@@ -432,17 +431,10 @@ begin
         ResultBuffer := TEncodingBOMDetector_Improved.AddBOM(ResultBuffer, BOMType);
     end;
 
-    // 创建内存流并写入结果
-    MemoryStream := TMemoryStream.Create;
-    try
-      if Length(ResultBuffer) > 0 then
-        MemoryStream.WriteBuffer(ResultBuffer[0], Length(ResultBuffer));
-
-      Result.Success := True;
-      Result.BytesProcessed := Length(ResultBuffer);
-    finally
-      MemoryStream.Free;
-    end;
+    // 设置转换结果
+    Result.Success := True;
+    Result.BytesProcessed := Length(ResultBuffer);
+    Result.OutputData := ResultBuffer;
   except
     on E: Exception do
     begin
@@ -513,33 +505,15 @@ begin
       end;
     end;
 
-    // 转换缓冲�?
+    // 转换缓冲区
     Result := ConvertBuffer(Buffer, ActualSourceEncoding, TargetEncoding, Options);
 
-    // 准备转换后的缓冲�?
-    if Result.BytesProcessed > 0 then
-    begin
-      // 获取转换后的缓冲�?
-      if Length(Buffer) > 0 then
-      begin
-        // 根据源编码和目标编码进行转换
-        if (CompareText(ActualSourceEncoding, ENCODING_UTF8) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0) then
-        begin
-          // 从UTF-8转换为UTF-8+BOM
-          OutputBuffer := TEncodingBOMDetector_Improved.AddBOM(Buffer, 1);
-        end
-        else if (CompareText(ActualSourceEncoding, ENCODING_UTF8_BOM) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8) = 0) then
-        begin
-          // 从UTF-8+BOM转换为UTF-8
-          OutputBuffer := TEncodingBOMDetector_Improved.RemoveBOM(Buffer);
-        end
-        else
-        begin
-          // 其他编码转换
-          OutputBuffer := Buffer;
-        end;
-      end;
-    end;
+    // 检查转换是否成功
+    if not Result.Success then
+      Exit;
+
+    // 直接使用 ConvertBuffer 返回的转换结果
+    OutputBuffer := Result.OutputData;
 
     // 保存文件属�?
     FileAttrs := 0;
@@ -781,38 +755,15 @@ begin
     if SourceStream.Size > 0 then
       SourceStream.ReadBuffer(Buffer[0], SourceStream.Size);
 
-    // 转换缓冲�?
+    // 转换缓冲区
     Result := ConvertBuffer(Buffer, ActualSourceEncoding, TargetEncoding, Options);
 
-    // 写入目标�?
-    if Result.Success and (Result.BytesProcessed > 0) then
+    // 写入目标流
+    if Result.Success and (Length(Result.OutputData) > 0) then
     begin
-      // 写入目标�?
       TargetStream.Position := 0;
       TargetStream.Size := 0;
-
-      // 根据源编码和目标编码进行转换
-      if (CompareText(ActualSourceEncoding, ENCODING_UTF8) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0) then
-      begin
-        // 从UTF-8转换为UTF-8+BOM
-        var BufferWithBOM := TEncodingBOMDetector_Improved.AddBOM(Buffer, 1);
-        if Length(BufferWithBOM) > 0 then
-          TargetStream.WriteBuffer(BufferWithBOM[0], Length(BufferWithBOM));
-      end
-      else if (CompareText(ActualSourceEncoding, ENCODING_UTF8_BOM) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8) = 0) then
-      begin
-        // 从UTF-8+BOM转换为UTF-8
-        var BufferWithoutBOM := TEncodingBOMDetector_Improved.RemoveBOM(Buffer);
-        if Length(BufferWithoutBOM) > 0 then
-          TargetStream.WriteBuffer(BufferWithoutBOM[0], Length(BufferWithoutBOM));
-      end
-      else
-      begin
-        // 其他编码转换
-        var ConvertedBuffer := Buffer;
-        if Length(ConvertedBuffer) > 0 then
-          TargetStream.WriteBuffer(ConvertedBuffer[0], Length(ConvertedBuffer));
-      end;
+      TargetStream.WriteBuffer(Result.OutputData[0], Length(Result.OutputData));
     end;
   finally
     // 恢复流位�?

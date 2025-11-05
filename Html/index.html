@@ -3,197 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TransSuccess - 文件编码转换工具</title>
-    <style>
-        body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            color: #333;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 20px 0;
-            text-align: center;
-        }
-        h1 {
-            margin: 0;
-            font-size: 2.5em;
-        }
-        .subtitle {
-            font-size: 1.2em;
-            margin-top: 10px;
-            color: #ecf0f1;
-        }
-        nav {
-            background-color: #34495e;
-            padding: 10px 0;
-        }
-        nav ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
-        nav ul li {
-            display: inline-block;
-            margin: 0 15px;
-        }
-        nav ul li a {
-            color: white;
-            text-decoration: none;
-            font-size: 1.1em;
-            transition: color 0.3s;
-        }
-        nav ul li a:hover {
-            color: #3498db;
-        }
-        .hero {
-            background-color: white;
-            padding: 50px 20px;
-            text-align: center;
-            margin-bottom: 30px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .hero h2 {
-            font-size: 2em;
-            margin-bottom: 20px;
-            color: #2c3e50;
-        }
-        .hero p {
-            font-size: 1.2em;
-            max-width: 800px;
-            margin: 0 auto 30px;
-            color: #555;
-        }
-        .btn {
-            display: inline-block;
-            background-color: #3498db;
-            color: white;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        .btn:hover {
-            background-color: #2980b9;
-        }
-        .features {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            margin-bottom: 40px;
-        }
-        .feature {
-            flex-basis: calc(33.333% - 20px);
-            background-color: white;
-            padding: 30px;
-            margin-bottom: 30px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .feature h3 {
-            font-size: 1.5em;
-            margin-top: 0;
-            color: #2c3e50;
-        }
-        .feature p {
-            color: #555;
-        }
-        .feature-icon {
-            font-size: 3em;
-            margin-bottom: 20px;
-            color: #3498db;
-        }
-        footer {
-            background-color: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 20px 0;
-            margin-top: 40px;
-        }
-        @media (max-width: 768px) {
-            .feature {
-                flex-basis: 100%;
-            }
-        }
-    </style>
+    <title data-i18n="title">TransSuccess - 文件编码转换工具</title>
+    <meta name="description" content="TransSuccess是一款专业的文件编码转换工具，支持UTF-8、GBK、GB18030等多种编码格式的高精度检测和无损转换">
+    <meta name="keywords" content="文件编码转换,UTF-8,GBK,GB18030,BOM,编码检测,批量转换">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header>
+        <div class="language-selector">
+            <select id="languageSelector">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
         <div class="container">
-            <h1>TransSuccess</h1>
-            <div class="subtitle">高效、可靠的文件编码转换工具</div>
+            <div class="header-content">
+                <img src="images/logo.ico" alt="码到成功 Logo" class="logo">
+                <div class="header-text">
+                    <h1><span data-i18n="brand_name">码到成功</span> <span data-i18n="product_name">TransSuccess</span></h1>
+                    <div class="subtitle" data-i18n="subtitle">码到成功 - 让编码转换变得简单高效</div>
+                </div>
+            </div>
         </div>
     </header>
 
     <nav>
         <div class="container">
             <ul>
-                <li><a href="index.html">首页</a></li>
-                <li><a href="features.html">功能介绍</a></li>
-                <li><a href="help.html">使用帮助</a></li>
-                <li><a href="about.html">关于我们</a></li>
+                <li><a href="index.html" data-i18n="nav_home">首页</a></li>
+                <li><a href="features.html" data-i18n="nav_features">功能介绍</a></li>
+                <li><a href="help.html" data-i18n="nav_help">使用帮助</a></li>
+                <li><a href="about.html" data-i18n="nav_about">关于我们</a></li>
             </ul>
         </div>
     </nav>
 
     <div class="container">
         <section class="hero">
-            <h2>高精度文件编码检测与转换</h2>
-            <p>TransSuccess 是一款专业的文件编码转换工具，采用全新改进的多层级编码检测和高级转换引擎，实现99%以上的检测准确率和100%的转换成功率。支持UTF-8、UTF-16、UTF-32、GBK、GB18030、BIG5、GB2312、Shift-JIS等多种编码格式之间的无损转换，彻底解决了UTF-8与UTF-8+BOM互相转换的问题。通过静态类设计模式和流式处理技术，提供高效稳定的编码处理体验。</p>
-            <a href="features.html" class="btn">了解更多</a>
+            <h2 data-i18n="hero_title">高精度文件编码检测与转换</h2>
+            <p data-i18n="hero_description">TransSuccess 是一款专业的文件编码转换工具，采用全新改进的多层级编码检测和高级转换引擎，实现99%以上的检测准确率和100%的转换成功率。支持UTF-8、UTF-16、UTF-32、GBK、GB18030、BIG5、GB2312、Shift-JIS等多种编码格式之间的无损转换，彻底解决了UTF-8与UTF-8+BOM互相转换的问题。</p>
+            <a href="features.html" class="btn" data-i18n="learn_more">了解更多</a>
         </section>
 
         <section class="features">
             <div class="feature">
                 <div class="feature-icon">📁</div>
-                <h3>批量转换</h3>
-                <p>支持批量选择文件进行转换，提高工作效率。可以按文件类型筛选，轻松处理大量文件。</p>
+                <h3 data-i18n="feature_batch_title">批量转换</h3>
+                <p data-i18n="feature_batch_desc">支持批量选择文件进行转换，提高工作效率。可以按文件类型筛选，轻松处理大量文件。</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">🔍</div>
-                <h3>高精度检测</h3>
-                <p>采用多层级编码检测算法，通过字节模式分析和统计特征识别，准确率达99%以上。彻底解决UTF-8被误判为ANSI的问题，支持混合内容智能检测和BOM完整性验证。</p>
+                <h3 data-i18n="feature_detection_title">高精度检测</h3>
+                <p data-i18n="feature_detection_desc">采用多层级编码检测算法，通过字节模式分析和统计特征识别，准确率达99%以上。彻底解决UTF-8被误判为ANSI的问题，支持混合内容智能检测和BOM完整性验证。</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">⚙️</div>
-                <h3>高级转换引擎</h3>
-                <p>基于TEncodingConverter_Improved引擎，采用流式处理和缓冲区优化技术，实现100%转换成功率。支持精确BOM控制、多种错误处理策略和参数化配置，确保字节级精确转换。</p>
+                <h3 data-i18n="feature_engine_title">高级转换引擎</h3>
+                <p data-i18n="feature_engine_desc">基于TEncodingConverter_Improved引擎，采用流式处理和缓冲区优化技术，实现100%转换成功率。支持精确BOM控制、多种错误处理策略和参数化配置，确保字节级精确转换。</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">📊</div>
-                <h3>精确错误处理</h3>
-                <p>实现TEncodingConversionErrorHandlingStrategy错误处理策略，支持抛出、替换、跳过和报告四种模式。提供字节级错误定位和详细错误信息，包含错误类型、位置和原因分析，确保数据完整性。</p>
+                <h3 data-i18n="feature_error_title">精确错误处理</h3>
+                <p data-i18n="feature_error_desc">实现TEncodingConversionErrorHandlingStrategy错误处理策略，支持抛出、替换、跳过和报告四种模式。提供字节级错误定位和详细错误信息，包含错误类型、位置和原因分析，确保数据完整性。</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">🛠️</div>
-                <h3>优化技术架构</h3>
-                <p>采用静态类设计模式和面向对象编程，通过CompareText字符串比较和MilliSecondsBetween精确计时，优化内存使用和性能表现。支持大文件处理，保持稳定的转换速度和内存占用。</p>
+                <h3 data-i18n="feature_architecture_title">优化技术架构</h3>
+                <p data-i18n="feature_architecture_desc">采用静态类设计模式和面向对象编程，通过CompareText字符串比较和MilliSecondsBetween精确计时，优化内存使用和性能表现。支持大文件处理，保持稳定的转换速度和内存占用。</p>
             </div>
             <div class="feature">
                 <div class="feature-icon">💻</div>
-                <h3>多语言国际化</h3>
-                <p>支持16种语言的完整国际化，所有70+编码在所有语言中都有专业翻译。通过多层级验证系统，支持对400+种编码组合的全面验证，确保在各种语言环境下的稳定表现。</p>
+                <h3 data-i18n="feature_i18n_title">多语言国际化</h3>
+                <p data-i18n="feature_i18n_desc">支持16种语言的完整国际化，所有70+编码在所有语言中都有专业翻译。通过多层级验证系统，支持对400+种编码组合的全面验证，确保在各种语言环境下的稳定表现。</p>
             </div>
+        </section>
+
+        <!-- 新增技术亮点部分 -->
+        <section class="content-section">
+            <h3>🚀 最新技术突破</h3>
+            <div class="grid-2">
+                <div class="grid-item">
+                    <h4>BOM处理完全修复</h4>
+                    <p>彻底解决了UTF-8与UTF-8+BOM互相转换的问题，通过字节级精确控制和编码名称模糊匹配，确保100%转换成功率。支持UTF-8、UTF-16LE/BE、UTF-32LE/BE的BOM添加与移除。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>编码检测算法重写</h4>
+                    <p>采用全新的多层级编码检测算法，解决了UTF-8文件被错误检测为ANSI的问题。通过字节模式分析、统计特征识别和上下文验证，检测准确率提升至99%以上。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>静态类设计模式</h4>
+                    <p>采用TEncodingBOMDetector_Improved、TUTF8EncodingDetector_Improved等静态类设计，提高代码复用性和维护性，减少内存占用，优化性能表现。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>流式处理技术</h4>
+                    <p>通过TBytes和流式处理技术，支持处理大型文件而不会导致内存溢出。采用缓冲区优化和毫秒级计时，保持稳定的转换速度和内存占用。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 程序界面展示 -->
+        <section class="content-section">
+            <h3>🖥️ 程序界面展示</h3>
+            <div class="screenshot-gallery">
+                <div class="screenshot-item">
+                    <img src="images/01.程序主界面.png" alt="码到成功主界面" class="screenshot">
+                    <h4>程序主界面</h4>
+                    <p>简洁直观的主界面设计，所有功能一目了然</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="images/02.16国语言支持.png" alt="16国语言支持" class="screenshot">
+                    <h4>16国语言支持</h4>
+                    <p>支持16种语言界面，满足全球用户需求</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="images/07.目录编码选择区(可处理近100种编码).png" alt="编码选择区域" class="screenshot">
+                    <h4>近100种编码支持</h4>
+                    <p>支持近100种编码格式的检测和转换</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="images/09.文件内容显示窗体.png" alt="文件内容预览" class="screenshot">
+                    <h4>文件内容预览</h4>
+                    <p>转换前后可预览文件内容，确保转换效果</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 支持的编码格式预览 -->
+        <section class="content-section">
+            <h3>📋 支持的主要编码格式</h3>
+            <div class="grid-2">
+                <div class="grid-item">
+                    <h4>Unicode 系列</h4>
+                    <p>UTF-8, UTF-8 BOM, UTF-16LE, UTF-16BE, UTF-32LE, UTF-32BE, UTF-7</p>
+                </div>
+                <div class="grid-item">
+                    <h4>中文编码</h4>
+                    <p>GBK, GB2312, GB18030, BIG5, HZ-GB-2312</p>
+                </div>
+                <div class="grid-item">
+                    <h4>日韩编码</h4>
+                    <p>Shift-JIS, EUC-JP, ISO-2022-JP, EUC-KR, UHC</p>
+                </div>
+                <div class="grid-item">
+                    <h4>欧洲编码</h4>
+                    <p>ISO-8859-1/2/5/15, Windows-1250/1251/1252, KOI8-R/U</p>
+                </div>
+            </div>
+            <p style="text-align: center; margin-top: 20px;">
+                <a href="features.html" class="btn">查看完整编码列表</a>
+            </p>
         </section>
     </div>
 
     <footer>
         <div class="container">
-            <p>&copy; 2024 TransSuccess. 保留所有权利。</p>
+            <p data-i18n="copyright">&copy; 2024 TransSuccess. 保留所有权利。</p>
         </div>
     </footer>
+
+    <script src="scripts.js"></script>
 </body>
 </html>

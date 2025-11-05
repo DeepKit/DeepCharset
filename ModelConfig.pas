@@ -1,4 +1,4 @@
-﻿unit ModelConfig;
+unit ModelConfig;
 
 interface
 
@@ -55,6 +55,7 @@ type
     property IncludeSubdirs: Boolean read FIncludeSubdirs write FIncludeSubdirs;
     property LastLanguage: string read FLastLanguage write FLastLanguage;
     property SavedConfigs: TArray<TConversionConfig> read FSavedConfigs;
+    property IniFile: TIniFile read FIniFile;
   end;
 
 implementation
@@ -62,38 +63,174 @@ implementation
 { TAppConfig }
 
 procedure TAppConfig.LoadSavedConfigs;
+var
+  ConfigNames: TArray<string>;
+  ConfigName: string;
+  Config: TConversionConfig;
 begin
-  // TODO: 实现加载保存的配置
+  // 清空现有配置
+  SetLength(FSavedConfigs, 0);
+  
+  // 获取所有配置名称
+  ConfigNames := GetConfigNames;
+  
+  // 加载每个配置
+  for ConfigName in ConfigNames do
+  begin
+    if LoadConfig(ConfigName, Config) then
+    begin
+      SetLength(FSavedConfigs, Length(FSavedConfigs) + 1);
+      FSavedConfigs[High(FSavedConfigs)] := Config;
+    end;
+  end;
 end;
 
 procedure TAppConfig.SaveConfigsToIni;
+var
+  Config: TConversionConfig;
 begin
-  // TODO: 实现保存配置到INI
+  // 保存所有配置
+  for Config in FSavedConfigs do
+    SaveConfig(Config);
 end;
 
 procedure TAppConfig.SaveConfig(const Config: TConversionConfig);
+var
+  Section: string;
+  i: Integer;
+  ExtStr: string;
 begin
-  // TODO: 实现保存单个配置
+  if Config.Name = '' then
+    Exit;
+    
+  Section := 'Config_' + Config.Name;
+  
+  // 保存配置项
+  FIniFile.WriteString(Section, 'Name', Config.Name);
+  FIniFile.WriteString(Section, 'TargetEncoding', Config.TargetEncoding);
+  FIniFile.WriteBool(Section, 'AddBOM', Config.AddBOM);
+  FIniFile.WriteBool(Section, 'IncludeSubdirs', Config.IncludeSubdirs);
+  FIniFile.WriteString(Section, 'LastDirectory', Config.LastDirectory);
+  
+  // 保存文件扩展名列表
+  ExtStr := '';
+  for i := 0 to High(Config.FileExtensions) do
+  begin
+    if i > 0 then
+      ExtStr := ExtStr + ';';
+    ExtStr := ExtStr + Config.FileExtensions[i];
+  end;
+  FIniFile.WriteString(Section, 'FileExtensions', ExtStr);
+  
+  // 刷新 INI 文件
+  FIniFile.UpdateFile;
 end;
 
 function TAppConfig.LoadConfig(const ConfigName: string; out Config: TConversionConfig): Boolean;
+var
+  Section: string;
+  ExtStr: string;
+  ExtList: TStringList;
+  i: Integer;
 begin
-  // TODO: 实现加载单个配置
   Result := False;
+  
+  if ConfigName = '' then
+    Exit;
+    
+  Section := 'Config_' + ConfigName;
+  
+  // 检查配置节是否存在
+  if not FIniFile.SectionExists(Section) then
+    Exit;
+  
+  // 加载配置项
+  Config.Name := FIniFile.ReadString(Section, 'Name', ConfigName);
+  Config.TargetEncoding := FIniFile.ReadString(Section, 'TargetEncoding', 'UTF-8');
+  Config.AddBOM := FIniFile.ReadBool(Section, 'AddBOM', False);
+  Config.IncludeSubdirs := FIniFile.ReadBool(Section, 'IncludeSubdirs', False);
+  Config.LastDirectory := FIniFile.ReadString(Section, 'LastDirectory', '');
+  
+  // 加载文件扩展名列表
+  ExtStr := FIniFile.ReadString(Section, 'FileExtensions', '');
+  if ExtStr <> '' then
+  begin
+    ExtList := TStringList.Create;
+    try
+      ExtList.Delimiter := ';';
+      ExtList.StrictDelimiter := True;
+      ExtList.DelimitedText := ExtStr;
+      
+      SetLength(Config.FileExtensions, ExtList.Count);
+      for i := 0 to ExtList.Count - 1 do
+        Config.FileExtensions[i] := ExtList[i];
+    finally
+      ExtList.Free;
+    end;
+  end
+  else
+    SetLength(Config.FileExtensions, 0);
+  
+  Result := True;
 end;
 
 function TAppConfig.GetConfigNames: TArray<string>;
+var
+  Sections: TStringList;
+  i, Count: Integer;
 begin
-  // TODO: 实现获取配置名称列表
-  Result := nil;
+  SetLength(Result, 0);
+  
+  Sections := TStringList.Create;
+  try
+    FIniFile.ReadSections(Sections);
+    
+    Count := 0;
+    for i := 0 to Sections.Count - 1 do
+    begin
+      // 只读取 Config_ 开头的节
+      if Sections[i].StartsWith('Config_') then
+      begin
+        SetLength(Result, Count + 1);
+        // 移除 Config_ 前缀
+        Result[Count] := Copy(Sections[i], 8, MaxInt);
+        Inc(Count);
+      end;
+    end;
+  finally
+    Sections.Free;
+  end;
 end;
 
 procedure TAppConfig.DeleteConfig(const ConfigName: string);
+var
+  Section: string;
+  i: Integer;
 begin
-  // TODO: 实现删除配置
+  if ConfigName = '' then
+    Exit;
+    
+  Section := 'Config_' + ConfigName;
+  
+  // 从 INI 文件中删除
+  FIniFile.EraseSection(Section);
+  FIniFile.UpdateFile;
+  
+  // 从内存中删除
+  for i := High(FSavedConfigs) downto 0 do
+  begin
+    if FSavedConfigs[i].Name = ConfigName then
+    begin
+      // 移动后面的元素
+      if i < High(FSavedConfigs) then
+        Move(FSavedConfigs[i + 1], FSavedConfigs[i], 
+             (Length(FSavedConfigs) - i - 1) * SizeOf(TConversionConfig));
+      // 减少数组大小
+      SetLength(FSavedConfigs, Length(FSavedConfigs) - 1);
+      Break;
+    end;
+  end;
 end;
-
-{ TAppConfig }
 
 constructor TAppConfig.Create;
 var

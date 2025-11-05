@@ -1,3 +1,0 @@
-﻿﻿这是一个带BOM的UTF-8编码测试文件。
-It contains both Chinese and English characters.
-UTF-8 BOM编码在文件开头有一个特殊的标记。

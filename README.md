@@ -81,6 +81,10 @@ EncodingConverter.exe -r -b -s auto -t utf8 C:\MyFiles\
 build.bat
 ```
 
+### 异常处理与崩溃报告
+
+本项目现已统一采用 `madExcept` 进行异常捕获与崩溃报告。配置与使用请参考：`docs/madExcept_Integration.md`。
+
 ### 运行测试
 
 ```
@@ -99,6 +103,7 @@ bin\EncodingTestRunner.exe
 - `UtilsEncodingPerformance.pas` - 性能相关工具
 - `ViewEncodingConverter.pas` - 用户界面
 - `Tests/` - 测试用例
+- `docs/madExcept_Integration.md` - madExcept 集成指南
 
 ## 贡献指南
 

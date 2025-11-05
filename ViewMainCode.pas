@@ -1,4 +1,4 @@
-﻿Unit ViewMainCode;
+Unit ViewMainCode;
 
 interface
 
@@ -10,8 +10,7 @@ uses
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
   ControllerEncoding, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
   System.UIConsts, System.IniFiles, ModelLanguage, ControllerLanguage,
-  System.TypInfo, Vcl.Clipbrd, UtilsAsyncFileProcessor;
-
+  System.TypInfo, Vcl.Clipbrd;
 
 Type
 
@@ -53,7 +52,6 @@ Type
     btnShowContent: TButton;
     Button2: TButton;
     btnSelectAllExt: TButton;
-    chkIncludeSubdirs: TCheckBox;
     btnClose: TButton;
     PageControl1: TPageControl;
     TabSheet1: TTabSheet;
@@ -62,6 +60,8 @@ Type
     ProgressBar1: TProgressBar;
     lblProgress: TLabel;
     btnCancel: TButton;
+    CBoxDirHistory: TComboBox;
+    chkIncludeSubdirs: TCheckBox;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
@@ -88,15 +88,17 @@ Type
     procedure MenuItemCopyFullPathClick(Sender: TObject);
     procedure UpdateFileCountLabel;
     procedure TreeViewEncodingsAdvancedCustomDrawItem(Sender: TCustomTreeView;
-      Node: TTreeNode; Stage: TCustomDrawStage; var PaintImages,
-      DefaultDraw: Boolean);
+      Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
+      var PaintImages, DefaultDraw: Boolean);
     procedure SelectUTF8BOMInTreeView;
     procedure ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
     procedure AdjustGridColumnWidths;
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure chkIncludeSubdirsClick(Sender: TObject);
-    procedure btnCancelClick(Sender: TObject);
+    procedure CBoxDirHistoryChange(Sender: TObject);
+    procedure CBoxDirHistoryDropDown(Sender: TObject);
+    // procedure btnCancelClick(Sender: TObject); // 暂时禁用
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
@@ -117,9 +119,9 @@ Type
     // 国际化相关
     FCurrentLanguage: string;
 
-    // 异步处理相关
-    FAsyncProcessor: TAsyncFileProcessor;
-    FProgressController: TProgressController;
+    // 异步处理相关（暂时禁用）
+    // FAsyncProcessor: TAsyncFileProcessor;
+    // FProgressController: TProgressController;
 
     // 获取翻译后的消息
     function GetLocalizedMessage(const MsgId: string): string;
@@ -147,17 +149,26 @@ Type
 
     procedure UpdateSingleFileInGrid(const FilePath: string);
 
-    // 异步处理相关方法
-    procedure InitializeAsyncComponents;
-    procedure FinalizeAsyncComponents;
-    procedure UpdateFileGridAsync(const FolderPath: string);
-    procedure ConvertFilesAsync(const Files: TArray<string>; const TargetEncoding: string; WithBOM: Boolean);
-    procedure OnFileScanProgress(const Progress: TFileScanProgress);
-    procedure OnFileScanResult(const Result: TFileScanResult);
-    procedure OnConversionProgress(const Progress: TBatchConversionResult);
-    procedure ShowProgress;
-    procedure HideProgress;
+    // 历史目录管理
+    procedure LoadDirHistory;
+    procedure SaveDirHistory;
+    procedure AddDirToHistory(const DirPath: string);
+    procedure UpdateDirHistoryUI;
 
+    // 异步处理相关方法（暂时禁用）
+    // procedure InitializeAsyncComponents;
+    // procedure FinalizeAsyncComponents;
+    // procedure UpdateFileGridAsync(const FolderPath: string);
+    // procedure ConvertFilesAsync(const Files: TArray<string>; const TargetEncoding: string; WithBOM: Boolean);
+    // procedure OnFileScanProgress(const Progress: TFileScanProgress);
+    // procedure OnFileScanResult(const Result: TFileScanResult);
+    // procedure OnConversionProgress(const Progress: TBatchConversionResult);
+    // procedure ShowProgress;
+    // procedure HideProgress;
+
+    // 将编码树的水平滚动条重置到最左侧，确保能看到根节点
+    procedure ScrollEncodingTreeToLeft;
+  
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -223,14 +234,14 @@ begin
   // 创建语言选择器
   CreateLanguageSelector;
 
-  // 初始化异步组件
-  InitializeAsyncComponents;
+  // 初始化异步组件（暂时禁用）
+  // InitializeAsyncComponents;
 end;
 
 destructor TForm1.Destroy;
 begin
-  // 释放异步组件
-  FinalizeAsyncComponents;
+  // 释放异步组件（暂时禁用）
+  // FinalizeAsyncComponents;
 
   // 释放MVC架构组件
   FEncodingController.Free;
@@ -332,9 +343,17 @@ begin
   SuccessCount := 0;
 
   try
-    // 使用异步方式执行转换
-    ConvertFilesAsync(SelectedFiles, TargetInfo.ShortName, WithBOM);
-    Log(System.SysUtils.Format('开始异步批量转换 %d 个文件到 %s', [Length(SelectedFiles), TargetInfo.Name]));
+    // 使用同步方式执行转换（异步暂时禁用）
+    FEncodingController.ConvertFiles(SelectedFiles, TargetInfo.ShortName, WithBOM);
+    Log(System.SysUtils.Format('批量转换完成，转换到 %s', [TargetInfo.Name]));
+
+    // 批量转换完成后刷新文件网格以更新编码信息
+    if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
+    begin
+      Log('正在刷新文件列表以更新编码信息...');
+      UpdateFileGrid(DirectoryListBox1.Directory);
+      Log('文件列表已刷新');
+    end;
   finally
     Screen.Cursor := crDefault;
 
@@ -347,9 +366,9 @@ procedure TForm1.btnRefreshClick(Sender: TObject);
 begin
   if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
   begin
-    // 使用异步方式刷新文件列表
-    UpdateFileGridAsync(DirectoryListBox1.Directory);
-    Log('开始异步刷新目录: ' + DirectoryListBox1.Directory);
+    // 使用同步方式刷新文件列表（异步暂时禁用）
+    UpdateFileGrid(DirectoryListBox1.Directory);
+    Log('刷新目录: ' + DirectoryListBox1.Directory);
   end;
 end;
 
@@ -369,7 +388,7 @@ end;
 procedure TForm1.CheckListBox1ClickCheck(Sender: TObject);
 begin
   // 当CheckListBox1的项目被选中或取消选中时更新文件列表
-  UpdateFileGridAsync(FSelectedFolder);
+  UpdateFileGrid(FSelectedFolder);
 end;
 
 procedure TForm1.cmbLanguageChange(Sender: TObject);
@@ -416,11 +435,14 @@ procedure TForm1.DirectoryListBox1Change(Sender: TObject);
 
   // 更新配置中的最后使用目录
   FConfig.LastDirectory := FSelectedFolder;
+  
+  // 添加到历史记录
+  AddDirToHistory(FSelectedFolder);
 
   // 更新文件列表和文件扩展名列表
   Log('选择的目录: ' + FSelectedFolder);
   UpdateFileExtensions(FSelectedFolder);
-  UpdateFileGridAsync(FSelectedFolder);
+  UpdateFileGrid(FSelectedFolder);
 end;
 
 procedure TForm1.DirectoryListBox1MouseDown(Sender: TObject; Button: TMouseButton;
@@ -445,7 +467,7 @@ begin
     Log('驱动器: ' + DriveComboBox1.Drive + ', 选择的目录: ' + FSelectedFolder);
     // 更新文件列表
     UpdateFileExtensions(FSelectedFolder);
-    UpdateFileGridAsync(FSelectedFolder);
+    UpdateFileGrid(FSelectedFolder);
   finally
     Screen.Cursor := crDefault;
   end;
@@ -470,6 +492,9 @@ begin
 
   // 应用当前语言字符串
   ApplyLanguageStrings;
+  
+  // 加载历史目录
+  LoadDirHistory;
 end;
 
 procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
@@ -532,7 +557,6 @@ begin
       except
         on E: EEncodingError do
         begin
-          // 特别处理编码错误
           try
             if Assigned(FLogBuffer) then
               FLogBuffer.Add('(编码错误的日志)');
@@ -543,7 +567,6 @@ begin
         end;
         on E: Exception do
         begin
-          // 处理其他异常
           try
             OutputDebugString(PChar('错误: 添加日志到缓冲区时出错: ' + E.Message));
           except
@@ -1697,7 +1720,7 @@ begin
       // 创建新的SynEditForm实例
       Log('正在创建新的SynEditForm实例...');
       try
-        Application.CreateForm(TSynEditForm, SynEditForm);
+        SynEditForm := TSynEditForm.Create(Self, FFileHelper);
         if not Assigned(SynEditForm) then
         begin
           ShowLocalizedMessage('MsgCannotCreateViewer');
@@ -1738,7 +1761,7 @@ begin
           FileEncoding := TEncoding.Default;
 
         // 使用指定编码加载文件
-        SynEditForm.SetFileInfo(SelectedFile, DetectedEncoding, HasBOM);
+        SynEditForm.SetFileInfo(SelectedFile);
         SynEditForm.LoadFileWithEncoding(SelectedFile, FileEncoding, DetectedEncoding, HasBOM);
         Log('成功加载文件到SynEditForm，编码: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
       finally
@@ -1781,9 +1804,7 @@ begin
 
       SynEditForm.Top := Self.Top + 50; // 略微偏下
 
-      // 调整窗体大小为合理值
-      SynEditForm.Width := 800;
-      SynEditForm.Height := 600;
+      // 窗体大小已在设计时设置，无需运行时调整
 
       // 显示实例（非模态）
       SynEditForm.Show;
@@ -1927,50 +1948,108 @@ begin
 end;
 
 procedure TForm1.TreeViewEncodingsAdvancedCustomDrawItem(Sender: TCustomTreeView;
-  Node: TTreeNode; Stage: TCustomDrawStage; var PaintImages,
+  Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage; var PaintImages,
   DefaultDraw: Boolean);
 var
   Tree: TTreeView;
-  NewStyle: TFontStyles;
-  NewSize: Integer;
+  NodeText: string;
+  BracketPos: Integer;
+  EncodingPart, DescPart: string;
+  TextRect: TRect;
+  TextWidth: Integer;
+  IsSelected: Boolean;
 begin
   Tree := Sender as TTreeView;
-
+  
   if Stage = cdPrePaint then
   begin
-    NewStyle := [];
-    NewSize := FOriginalFontSize; // Start with default
-
+    IsSelected := cdsSelected in State;
+    
+    // 根据节点层级设置样式
     case Node.Level of
-      0: // Root Node ("目标编码")
+      0: // 根节点
       begin
-        NewStyle := [fsBold];
-        NewSize := FOriginalFontSize + 2;
+        Tree.Canvas.Font.Style := [fsBold];
+        Tree.Canvas.Font.Size := FOriginalFontSize + 2;
+        if not IsSelected then
+          Tree.Canvas.Font.Color := clNavy
+        else
+          Tree.Canvas.Font.Color := clHighlightText;
       end;
-      1: // Category Node
+      
+      1: // 分类节点（Unicode、亚洲编码等）
       begin
-        NewStyle := [fsBold];
-        NewSize := FOriginalFontSize + 1;
+        Tree.Canvas.Font.Style := [fsBold];
+        Tree.Canvas.Font.Size := FOriginalFontSize + 1;
+        if not IsSelected then
+          Tree.Canvas.Font.Color := clBlue
+        else
+          Tree.Canvas.Font.Color := clHighlightText;
       end;
-      2: // Encoding Node
-        ;// Keep default style and size
-    end;
-
-    // Apply changes only if different from current canvas font
-    if (Tree.Canvas.Font.Style <> NewStyle) or (Tree.Canvas.Font.Size <> NewSize) then
-    begin
-       Tree.Canvas.Font.Style := NewStyle;
-       Tree.Canvas.Font.Size := NewSize;
-    end;
-  end
-  else if Stage = cdPostPaint then
-  begin
-    // Restore default font settings after painting the item
-    // Check if it was changed before restoring
-    if (Tree.Canvas.Font.Style <> []) or (Tree.Canvas.Font.Size <> FOriginalFontSize) then
-    begin
-        Tree.Canvas.Font.Style := [];
-        Tree.Canvas.Font.Size := FOriginalFontSize;
+      
+      2: // 编码节点
+      begin
+        NodeText := Node.Text;
+        BracketPos := Pos('(', NodeText);
+        
+        if BracketPos > 0 then
+        begin
+          // 有说明部分，自定义绘制
+          DefaultDraw := False;
+          
+          // 分离编码名称和说明
+          EncodingPart := Copy(NodeText, 1, BracketPos - 1);
+          DescPart := Copy(NodeText, BracketPos, Length(NodeText));
+          
+          // 获取绘制区域
+          TextRect := Node.DisplayRect(True);
+          
+          if IsSelected then
+          begin
+            // 选中状态：绘制背景
+            Tree.Canvas.Brush.Color := clHighlight;
+            Tree.Canvas.FillRect(TextRect);
+            
+            // 编码名称：白色加粗
+            Tree.Canvas.Font.Style := [fsBold];
+            Tree.Canvas.Font.Color := clHighlightText;
+            Tree.Canvas.TextOut(TextRect.Left, TextRect.Top, EncodingPart);
+            
+            // 说明：白色普通
+            TextWidth := Tree.Canvas.TextWidth(EncodingPart);
+            Tree.Canvas.Font.Style := [];
+            Tree.Canvas.Font.Color := clHighlightText;
+            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, DescPart);
+          end
+          else
+          begin
+            // 未选中状态
+            // 编码名称：黑色加粗
+            Tree.Canvas.Font.Style := [fsBold];
+            Tree.Canvas.Font.Size := FOriginalFontSize;
+            Tree.Canvas.Font.Color := clWindowText;
+            Tree.Canvas.TextOut(TextRect.Left, TextRect.Top, EncodingPart);
+            
+            // 说明：灰色普通
+            TextWidth := Tree.Canvas.TextWidth(EncodingPart);
+            Tree.Canvas.Font.Style := [];
+            Tree.Canvas.Font.Color := clGray;
+            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, DescPart);
+          end;
+          
+          Exit;
+        end
+        else
+        begin
+          // 没有说明，编码名称加粗
+          Tree.Canvas.Font.Style := [fsBold];
+          Tree.Canvas.Font.Size := FOriginalFontSize;
+          if not IsSelected then
+            Tree.Canvas.Font.Color := clWindowText
+          else
+            Tree.Canvas.Font.Color := clHighlightText;
+        end;
+      end;
     end;
   end;
 end;
@@ -2049,6 +2128,21 @@ begin
   end;
 end;
 
+procedure TForm1.ScrollEncodingTreeToLeft;
+begin
+  try
+    if Assigned(TreeViewEncodings) and TreeViewEncodings.HandleAllocated then
+    begin
+      // 将水平滚动条移动到最左侧
+      TreeViewEncodings.Perform(WM_HSCROLL, SB_LEFT, 0);
+      // 再次确保可见区域从最左开始
+      TreeViewEncodings.Perform(WM_HSCROLL, SB_LEFT, 0);
+    end;
+  except
+    // 忽略任何滚动异常
+  end;
+end;
+
 procedure TForm1.AdjustGridColumnWidths;
 begin
   // 设置列宽
@@ -2066,11 +2160,17 @@ begin
   FUIHelper.InitStringGrid(StringGrid1);
   FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
 
+  // 绑定编码树的高级自定义绘制事件，实现分类节点着色、编码加粗
+  TreeViewEncodings.OnAdvancedCustomDrawItem := TreeViewEncodingsAdvancedCustomDrawItem;
+
   // 手动调整列宽 (即使InitStringGrid已经设置过，再设置一次确保生效)
   AdjustGridColumnWidths;
 
   // 默认选中UTF-8 BOM编码
   SelectUTF8BOMInTreeView;
+
+  // 将水平滚动条滚到最左侧，确保显示根节点
+  ScrollEncodingTreeToLeft;
 
   // 绑定事件
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
@@ -2372,6 +2472,9 @@ begin
     TreeViewEncodings.Items.EndUpdate;
   end;
 
+  // 重置TreeView到最左侧，避免水平滚动条停在中间
+  ScrollEncodingTreeToLeft;
+
   // 记录日志
   Log('已应用语言字符串: ' + FCurrentLanguage);
 end;
@@ -2456,9 +2559,7 @@ begin
 
       SynEditForm.Top := Self.Top + 50; // 略微偏下
 
-      // 调整窗体大小为合理值
-      SynEditForm.Width := 800;
-      SynEditForm.Height := 600;
+      // 窗体大小已在设计时设置，无需运行时调整
 
       // 显示窗体(非模态)
       SynEditForm.Show;
@@ -2487,8 +2588,7 @@ begin
   if (Key = Ord('W')) and (ssCtrl in Shift) and (ssShift in Shift) then
   begin
     AdjustGridColumnWidths;
-    Log('表格列宽已调整');
-    Key := 0; // 防止按键继续处理
+    Log('已调整表格列宽');
   end;
 end;
 
@@ -2504,20 +2604,18 @@ begin
         begin
           SynEditForm.Hide;
           Log('已隐藏SynEditForm窗体');
-          Application.ProcessMessages; // 给系统一些时间处理隐藏操作
-          Sleep(100); // 等待一下，确保窗体已隐藏
+          Application.ProcessMessages;
+          Sleep(100);
         end;
       except
         on E: Exception do
         begin
           Log('隐藏SynEditForm失败: ' + E.Message);
-          // 即使隐藏失败也继续尝试释放
         end;
       end;
 
       // 然后尝试释放实例
       try
-        // 使用Release而非Free，让VCL在下一个消息循环中释放实例
         SynEditForm.Release;
         SynEditForm := nil;
         Log('已释放SynEditForm实例');
@@ -2525,31 +2623,33 @@ begin
         on E: Exception do
         begin
           Log('释放SynEditForm失败: ' + E.Message);
-          // 如果Release失败，尝试使用FreeAndNil
           try
             FreeAndNil(SynEditForm);
             Log('使用FreeAndNil释放SynEditForm实例');
           except
             on E2: Exception do
+            begin
               Log('使用FreeAndNil释放SynEditForm也失败: ' + E2.Message);
+            end;
           end;
         end;
       end;
-    end;
-
-    // 释放日志缓冲区
-    try
-      FUIHelper.FreeLogBuffer;
-      Log('已释放日志缓冲区');
-    except
-      on E: Exception do
-        Log('释放日志缓冲区失败: ' + E.Message);
     end;
   except
     on E: Exception do
     begin
       Log('关闭时处理SynEditForm失败: ' + E.Message);
-      // 忽略最终错误，确保主窗体可以关闭
+    end;
+  end;
+
+  // 释放日志缓冲区
+  try
+    FUIHelper.FreeLogBuffer;
+    Log('已释放日志缓冲区');
+  except
+    on E: Exception do
+    begin
+      Log('释放日志缓冲区失败: ' + E.Message);
     end;
   end;
 end;
@@ -2569,12 +2669,13 @@ begin
     Log('已禁用子目录搜索 - 只搜索当前文件夹');
 
   // 更新文件列表以反映子目录包含状态
-  UpdateFileGridAsync(FSelectedFolder);
+  UpdateFileGrid(FSelectedFolder);
 
   // 在日志中显示文件数量信息
   Log('文件列表已更新，当前共显示 ' + IntToStr(StringGrid1.RowCount - 1) + ' 个文件');
 end;
 
+{
 procedure TForm1.btnCancelClick(Sender: TObject);
 begin
   if Assigned(FAsyncProcessor) then
@@ -2584,7 +2685,9 @@ begin
     HideProgress;
   end;
 end;
+}
 
+{
 procedure TForm1.InitializeAsyncComponents;
 begin
   // 创建异步处理器
@@ -2603,7 +2706,9 @@ begin
 
   Log('异步组件初始化完成');
 end;
+}
 
+{
 procedure TForm1.FinalizeAsyncComponents;
 begin
   try
@@ -2624,7 +2729,9 @@ begin
       Log('释放异步组件时出错: ' + E.Message);
   end;
 end;
+}
 
+{
 procedure TForm1.ShowProgress;
 begin
   if Assigned(FProgressController) then
@@ -2636,7 +2743,9 @@ begin
   if Assigned(FProgressController) then
     FProgressController.Hide;
 end;
+}
 
+{
 procedure TForm1.OnFileScanProgress(const Progress: TFileScanProgress);
 begin
   // 在主线程中更新进度
@@ -2669,7 +2778,9 @@ begin
     end;
   end;
 end;
+}
 
+{
 procedure TForm1.OnFileScanResult(const Result: TFileScanResult);
 begin
   // 在主线程中添加文件到表格
@@ -2722,7 +2833,7 @@ var
   HasSelectedExtensions: Boolean;
 begin
   // 检查目录是否存在
-  if not DirectoryExists(FolderPath) then
+  if not System.SysUtils.DirectoryExists(FolderPath) then
   begin
     StringGrid1.Cells[2, 1] := '(目录不存在)';
     AdjustGridColumnWidths;
@@ -2793,6 +2904,176 @@ begin
     WithBOM,
     OnConversionProgress
   );
+end;
+}
+
+{ 历史目录管理 }
+
+procedure TForm1.LoadDirHistory;
+var
+  HistoryCount, i: Integer;
+  DirPath: string;
+begin
+  if not Assigned(CBoxDirHistory) then
+    Exit;
+    
+  CBoxDirHistory.Items.Clear;
+  
+  try
+    HistoryCount := FConfig.IniFile.ReadInteger('DirHistory', 'Count', 0);
+    
+    for i := 0 to HistoryCount - 1 do
+    begin
+      DirPath := FConfig.IniFile.ReadString('DirHistory', 'Dir' + IntToStr(i), '');
+      if (DirPath <> '') and System.SysUtils.DirectoryExists(DirPath) then
+        CBoxDirHistory.Items.Add(DirPath);
+    end;
+    
+    Log(Format('加载了 %d 个历史目录', [CBoxDirHistory.Items.Count]));
+  except
+    on E: Exception do
+      Log('加载历史目录失败: ' + E.Message);
+  end;
+end;
+
+procedure TForm1.SaveDirHistory;
+var
+  i: Integer;
+begin
+  if not Assigned(CBoxDirHistory) then
+    Exit;
+    
+  try
+    // 清除旧数据
+    FConfig.IniFile.EraseSection('DirHistory');
+    
+    // 保存数量
+    FConfig.IniFile.WriteInteger('DirHistory', 'Count', CBoxDirHistory.Items.Count);
+    
+    // 保存每个目录
+    for i := 0 to CBoxDirHistory.Items.Count - 1 do
+      FConfig.IniFile.WriteString('DirHistory', 'Dir' + IntToStr(i), CBoxDirHistory.Items[i]);
+      
+    // 刷新 INI 文件
+    FConfig.IniFile.UpdateFile;
+      
+    Log(Format('保存了 %d 个历史目录', [CBoxDirHistory.Items.Count]));
+  except
+    on E: Exception do
+      Log('保存历史目录失败: ' + E.Message);
+  end;
+end;
+
+procedure TForm1.AddDirToHistory(const DirPath: string);
+var
+  Index: Integer;
+const
+  MAX_HISTORY = 20; // 最多保存 20 个历史目录
+begin
+  if not Assigned(CBoxDirHistory) then
+    Exit;
+    
+  if (DirPath = '') or not System.SysUtils.DirectoryExists(DirPath) then
+    Exit;
+    
+  // 检查是否已存在
+  Index := CBoxDirHistory.Items.IndexOf(DirPath);
+  
+  if Index >= 0 then
+  begin
+    // 已存在，移动到顶部
+    CBoxDirHistory.Items.Move(Index, 0);
+  end
+  else
+  begin
+    // 不存在，添加到顶部
+    CBoxDirHistory.Items.Insert(0, DirPath);
+    
+    // 限制数量
+    while CBoxDirHistory.Items.Count > MAX_HISTORY do
+      CBoxDirHistory.Items.Delete(CBoxDirHistory.Items.Count - 1);
+  end;
+  
+  // 更新UI
+  UpdateDirHistoryUI;
+  
+  // 保存到配置
+  SaveDirHistory;
+  
+  Log('添加目录到历史: ' + DirPath);
+end;
+
+procedure TForm1.UpdateDirHistoryUI;
+begin
+  if not Assigned(CBoxDirHistory) then
+    Exit;
+    
+  if CBoxDirHistory.Items.Count > 0 then
+  begin
+    CBoxDirHistory.ItemIndex := 0;
+    CBoxDirHistory.Text := CBoxDirHistory.Items[0];
+  end
+  else
+  begin
+    CBoxDirHistory.ItemIndex := -1;
+    CBoxDirHistory.Text := '无历史记录';
+  end;
+end;
+
+procedure TForm1.CBoxDirHistoryChange(Sender: TObject);
+var
+  SelectedDir: string;
+begin
+  if not Assigned(CBoxDirHistory) then
+    Exit;
+    
+  if CBoxDirHistory.ItemIndex < 0 then
+    Exit;
+    
+  SelectedDir := CBoxDirHistory.Items[CBoxDirHistory.ItemIndex];
+  
+  if System.SysUtils.DirectoryExists(SelectedDir) then
+  begin
+    // 更新目录列表框
+    DirectoryListBox1.Directory := SelectedDir;
+    
+    // 更新磁盘选择
+    if Length(SelectedDir) >= 2 then
+      DriveComboBox1.Drive := UpCase(SelectedDir[1]);
+      
+    Log('从历史选择目录: ' + SelectedDir);
+  end
+  else
+  begin
+    ShowMessage('目录不存在: ' + SelectedDir);
+    // 从历史中移除
+    CBoxDirHistory.Items.Delete(CBoxDirHistory.ItemIndex);
+    SaveDirHistory;
+    UpdateDirHistoryUI;
+  end;
+end;
+
+procedure TForm1.CBoxDirHistoryDropDown(Sender: TObject);
+var
+  i: Integer;
+begin
+  if not Assigned(CBoxDirHistory) then
+    Exit;
+    
+  // 下拉时刷新列表，移除不存在的目录
+  i := CBoxDirHistory.Items.Count - 1;
+  while i >= 0 do
+  begin
+    if not System.SysUtils.DirectoryExists(CBoxDirHistory.Items[i]) then
+    begin
+      Log('移除无效目录: ' + CBoxDirHistory.Items[i]);
+      CBoxDirHistory.Items.Delete(i);
+    end;
+    Dec(i);
+  end;
+  
+  if CBoxDirHistory.Items.Count = 0 then
+    CBoxDirHistory.Text := '无历史记录';
 end;
 
 end.

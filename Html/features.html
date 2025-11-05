@@ -4,270 +4,175 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>功能介绍 - TransSuccess</title>
-    <style>
-        body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            color: #333;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 20px 0;
-            text-align: center;
-        }
-        h1 {
-            margin: 0;
-            font-size: 2.5em;
-        }
-        .subtitle {
-            font-size: 1.2em;
-            margin-top: 10px;
-            color: #ecf0f1;
-        }
-        nav {
-            background-color: #34495e;
-            padding: 10px 0;
-        }
-        nav ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
-        nav ul li {
-            display: inline-block;
-            margin: 0 15px;
-        }
-        nav ul li a {
-            color: white;
-            text-decoration: none;
-            font-size: 1.1em;
-            transition: color 0.3s;
-        }
-        nav ul li a:hover {
-            color: #3498db;
-        }
-        .page-title {
-            text-align: center;
-            margin: 40px 0;
-        }
-        .page-title h2 {
-            font-size: 2.2em;
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-        .page-title p {
-            font-size: 1.2em;
-            color: #555;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .feature-section {
-            background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            padding: 30px;
-            margin-bottom: 30px;
-        }
-        .feature-section h3 {
-            color: #2c3e50;
-            font-size: 1.8em;
-            margin-top: 0;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        .feature-grid {
-            display: flex;
-            flex-wrap: wrap;
-            margin: 0 -15px;
-        }
-        .feature-item {
-            flex: 0 0 50%;
-            padding: 15px;
-            box-sizing: border-box;
-        }
-        .feature-item h4 {
-            color: #3498db;
-            font-size: 1.4em;
-            margin-top: 0;
-            margin-bottom: 10px;
-        }
-        .feature-item p {
-            color: #555;
-            margin-bottom: 0;
-        }
-        .encoding-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        .encoding-table th, .encoding-table td {
-            border: 1px solid #ddd;
-            padding: 12px 15px;
-            text-align: left;
-        }
-        .encoding-table th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .encoding-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .encoding-table tr:hover {
-            background-color: #f1f1f1;
-        }
-        footer {
-            background-color: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 20px 0;
-            margin-top: 40px;
-        }
-        @media (max-width: 768px) {
-            .feature-item {
-                flex: 0 0 100%;
-            }
-        }
-    </style>
+    <meta name="description" content="TransSuccess功能介绍：高精度编码检测、批量转换、BOM处理、多语言支持等专业功能">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header>
+        <div class="language-selector">
+            <select id="languageSelector">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
         <div class="container">
-            <h1>TransSuccess</h1>
-            <div class="subtitle">高效、可靠的文件编码转换工具</div>
+            <div class="header-content">
+                <img src="images/logo.ico" alt="码到成功 Logo" class="logo">
+                <div class="header-text">
+                    <h1><span data-i18n="brand_name">码到成功</span> <span data-i18n="product_name">TransSuccess</span></h1>
+                    <div class="subtitle" data-i18n="subtitle">码到成功 - 让编码转换变得简单高效</div>
+                </div>
+            </div>
         </div>
     </header>
 
     <nav>
         <div class="container">
             <ul>
-                <li><a href="index.html">首页</a></li>
-                <li><a href="features.html">功能介绍</a></li>
-                <li><a href="help.html">使用帮助</a></li>
-                <li><a href="about.html">关于我们</a></li>
+                <li><a href="index.html" data-i18n="nav_home">首页</a></li>
+                <li><a href="features.html" data-i18n="nav_features">功能介绍</a></li>
+                <li><a href="help.html" data-i18n="nav_help">使用帮助</a></li>
+                <li><a href="about.html" data-i18n="nav_about">关于我们</a></li>
             </ul>
         </div>
     </nav>
 
     <div class="container">
         <div class="page-title">
-            <h2>功能介绍</h2>
-            <p>TransSuccess 提供丰富的功能，满足您的各种文件编码转换需求。</p>
+            <h2 data-i18n="features_page_title">功能介绍</h2>
+            <p data-i18n="features_page_desc">码到成功(TransSuccess)提供丰富的功能，满足您的各种文件编码转换需求。</p>
         </div>
 
-        <section class="feature-section">
-            <h3>核心功能</h3>
-            <div class="feature-grid">
-                <div class="feature-item">
-                    <h4>多种编码格式支持</h4>
-                    <p>支持多种编码格式之间的转换，包括 UTF-8、UTF-16LE/BE、UTF-32LE/BE、GBK、GB18030、BIG5、GB2312、Shift-JIS、EUC-JP、ISO-8859 系列等。</p>
+        <!-- 操作流程展示 -->
+        <section class="content-section">
+            <h3>📱 操作流程展示</h3>
+            <p>码到成功的操作流程简单直观，让编码转换变得轻松愉快：</p>
+            <div class="screenshot-gallery">
+                <div class="screenshot-item">
+                    <img src="images/03.文件查找区域.png" alt="文件查找区域" class="screenshot">
+                    <h4>第一步：选择文件</h4>
+                    <p>在文件查找区域选择需要转换的文件或文件夹，支持拖拽操作</p>
                 </div>
-                <div class="feature-item">
-                    <h4>批量转换</h4>
-                    <p>支持批量选择文件进行转换，提高工作效率。可以按文件类型筛选，轻松处理大量文件。</p>
+                <div class="screenshot-item">
+                    <img src="images/04.根据文件类型进行文件筛选.png" alt="文件类型筛选" class="screenshot">
+                    <h4>第二步：文件筛选</h4>
+                    <p>根据文件类型进行智能筛选，只处理需要的文件格式</p>
                 </div>
-                <div class="feature-item">
+                <div class="screenshot-item">
+                    <img src="images/05.单独选择要转换的文件.png" alt="选择转换文件" class="screenshot">
+                    <h4>第三步：精确选择</h4>
+                    <p>可以单独选择要转换的文件，精确控制转换范围</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="images/06.成批转换或单个文件转换按钮.png" alt="转换按钮" class="screenshot">
+                    <h4>第四步：执行转换</h4>
+                    <p>选择批量转换或单个文件转换，一键完成编码转换</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="images/08.查看文件内容按钮.png" alt="查看文件内容" class="screenshot">
+                    <h4>第五步：内容预览</h4>
+                    <p>转换前后可查看文件内容，确保转换效果符合预期</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 核心功能 -->
+        <section class="content-section">
+            <h3>🎯 码到成功核心功能</h3>
+            <div class="grid-2">
+                <div class="grid-item">
+                    <h4>近100种编码格式支持</h4>
+                    <p>码到成功支持近100种编码格式之间的转换，包括 UTF-8、UTF-16LE/BE、UTF-32LE/BE、GBK、GB18030、BIG5、GB2312、Shift-JIS、EUC-JP、ISO-8859 系列等，真正做到全面覆盖。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>智能批量转换</h4>
+                    <p>码到成功支持智能批量选择文件进行转换，大幅提高工作效率。可以按文件类型筛选，轻松处理大量文件。支持子目录递归处理和智能文件过滤，让批量操作变得简单。</p>
+                </div>
+                <div class="grid-item">
                     <h4>高精度编码检测</h4>
                     <p>采用全新改进的多层级编码检测算法，通过字节模式分析、统计特征识别和上下文验证，准确识别UTF-8、UTF-16、UTF-32、GBK、GB18030等多种编码格式。彻底解决了UTF-8文件被错误检测为ANSI的问题，支持混合内容智能检测，检测准确率提升至99%以上。</p>
                 </div>
-                <div class="feature-item">
+                <div class="grid-item">
                     <h4>精确BOM处理</h4>
                     <p>采用字节级精确控制的BOM处理技术，支持UTF-8、UTF-16LE/BE、UTF-32LE/BE的BOM添加与移除。通过CompareText字符串比较和二进制流操作，彻底修复了UTF-8与UTF-8+BOM互相转换的问题，确保100%转换成功率，满足各种严格编码规范要求。</p>
                 </div>
-                <div class="feature-item">
+                <div class="grid-item">
                     <h4>文件备份</h4>
-                    <p>转换前自动创建备份，确保数据安全，防止意外情况导致文件损坏。</p>
+                    <p>转换前自动创建备份，确保数据安全，防止意外情况导致文件损坏。支持自定义备份策略和备份文件管理。</p>
                 </div>
-                <div class="feature-item">
+                <div class="grid-item">
                     <h4>高级转换引擎</h4>
                     <p>基于全新设计的TEncodingConverter_Improved转换引擎，采用流式处理和缓冲区优化技术，支持多种错误处理策略（抛出、替换、跳过、报告），提供毫秒级转换性能和精确的错误定位。通过TEncodingConversionOptions参数化配置，实现灵活可控的转换过程。</p>
                 </div>
-                <div class="feature-item">
+            </div>
+        </section>
+
+        <!-- 技术亮点 -->
+        <section class="content-section">
+            <h3>⚡ 技术亮点</h3>
+            <div class="grid-2">
+                <div class="grid-item">
+                    <h4>静态类设计模式</h4>
+                    <p>采用静态类设计模式（TEncodingBOMDetector_Improved、TUTF8EncodingDetector_Improved等），提高代码复用性和维护性，减少内存占用，优化性能。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>大小端字节序处理</h4>
+                    <p>精确处理UTF-16和UTF-32的大小端字节序（LE/BE），通过字节级操作确保跨平台兼容性和数据完整性。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>智能错误恢复</h4>
+                    <p>实现了TEncodingConversionErrorHandlingStrategy错误处理策略，支持多种错误恢复机制，确保在遇到无效字符或编码错误时能够智能处理，最大程度保留有效数据。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>高效内存管理</h4>
+                    <p>通过TBytes和流式处理技术，优化内存使用，支持处理大型文件而不会导致内存溢出，保持稳定的性能表现。</p>
+                </div>
+                <div class="grid-item">
+                    <h4>多层级编码验证</h4>
+                    <p>集成了多层级编码验证系统，包括往返转换验证、特殊字符验证、BOM完整性检查和内容一致性比对。通过MilliSecondsBetween精确计时和二进制比对技术，确保转换过程的准确性和可靠性，支持对400+种编码组合的全面验证。</p>
+                </div>
+                <div class="grid-item">
                     <h4>详细转换报告</h4>
                     <p>提供完整的转换报告系统，精确记录每个文件的转换过程、耗时统计和潜在问题。支持字节级错误定位，包含错误类型、位置和原因分析，便于开发者快速定位和解决编码问题。转换结果自动验证确保数据完整性。</p>
                 </div>
             </div>
         </section>
 
-        <section class="feature-section">
-            <h3>高级功能</h3>
-            <div class="feature-grid">
-                <div class="feature-item">
+        <!-- 高级功能 -->
+        <section class="content-section">
+            <h3>🔧 高级功能</h3>
+            <div class="grid-2">
+                <div class="grid-item">
                     <h4>SVG 转 ICO</h4>
-                    <p>支持将 SVG 矢量图形转换为 ICO 图标文件，方便创建应用程序图标。</p>
+                    <p>支持将 SVG 矢量图形转换为 ICO 图标文件，方便创建应用程序图标。支持多种尺寸输出。</p>
                 </div>
-                <div class="feature-item">
+                <div class="grid-item">
                     <h4>文件内容预览</h4>
-                    <p>内置文件预览功能，可以在转换前查看文件内容，确保转换的必要性和正确性。</p>
+                    <p>内置文件预览功能，可以在转换前查看文件内容，确保转换的必要性和正确性。支持语法高亮显示。</p>
                 </div>
-                <div class="feature-item">
-                    <h4>语法高亮</h4>
-                    <p>预览代码文件时支持语法高亮，提高代码可读性，支持多种编程语言，帮助验证编码转换的正确性。</p>
-                </div>
-                <div class="feature-item">
+                <div class="grid-item">
                     <h4>命令行支持</h4>
-                    <p>提供命令行接口，支持脚本和自动化操作，方便集成到开发流程中。</p>
+                    <p>提供命令行接口，支持脚本和自动化操作，方便集成到开发流程中。支持批处理和参数化配置。</p>
                 </div>
-                <div class="feature-item">
-                    <h4>最近文件记录</h4>
-                    <p>记录最近处理的文件，方便快速访问和再次处理。</p>
-                </div>
-                <div class="feature-item">
+                <div class="grid-item">
                     <h4>国际化支持</h4>
                     <p>支持16种语言的界面显示，所有70+编码在所有语言中都有完整的翻译，满足全球用户的需求。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>多层级编码验证</h4>
-                    <p>集成了多层级编码验证系统，包括往返转换验证、特殊字符验证、BOM完整性检查和内容一致性比对。通过MilliSecondsBetween精确计时和二进制比对技术，确保转换过程的准确性和可靠性，支持对400+种编码组合的全面验证。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>自定义设置</h4>
-                    <p>提供丰富的自定义设置选项，满足不同用户的个性化需求。</p>
                 </div>
             </div>
         </section>
 
-        <section class="feature-section">
-            <h3>技术亮点</h3>
-            <div class="feature-grid">
-                <div class="feature-item">
-                    <h4>静态类设计模式</h4>
-                    <p>采用静态类设计模式（TEncodingBOMDetector_Improved、TUTF8EncodingDetector_Improved等），提高代码复用性和维护性，减少内存占用，优化性能。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>大小端字节序处理</h4>
-                    <p>精确处理UTF-16和UTF-32的大小端字节序（LE/BE），通过字节级操作确保跨平台兼容性和数据完整性。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>智能错误恢复</h4>
-                    <p>实现了TEncodingConversionErrorHandlingStrategy错误处理策略，支持多种错误恢复机制，确保在遇到无效字符或编码错误时能够智能处理，最大程度保留有效数据。</p>
-                </div>
-                <div class="feature-item">
-                    <h4>高效内存管理</h4>
-                    <p>通过TBytes和流式处理技术，优化内存使用，支持处理大型文件而不会导致内存溢出，保持稳定的性能表现。</p>
-                </div>
-            </div>
-
-            <h3>支持的编码格式</h3>
+        <!-- 支持的编码格式表格 -->
+        <section class="content-section">
+            <h3>📋 支持的编码格式</h3>
             <p>TransSuccess 支持多种编码格式之间的转换，通过改进的检测和转换算法确保99%以上的准确率，以下是主要支持的编码格式列表：</p>
 
-            <table class="encoding-table">
+            <table class="data-table">
                 <thead>
                     <tr>
                         <th>编码名称</th>
                         <th>描述</th>
                         <th>常用地区/语言</th>
+                        <th>BOM支持</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -275,101 +180,61 @@
                         <td>UTF-8</td>
                         <td>Unicode 的可变长度字符编码，兼容 ASCII</td>
                         <td>全球通用</td>
+                        <td>✅ 完全支持</td>
                     </tr>
                     <tr>
                         <td>UTF-16LE</td>
                         <td>16 位 Unicode 转换格式，小端序</td>
                         <td>Windows 系统内部使用</td>
+                        <td>✅ 完全支持</td>
                     </tr>
                     <tr>
                         <td>UTF-16BE</td>
                         <td>16 位 Unicode 转换格式，大端序</td>
                         <td>Java、macOS 等</td>
+                        <td>✅ 完全支持</td>
                     </tr>
                     <tr>
-                        <td>UTF-32LE</td>
-                        <td>32 位 Unicode 转换格式，小端序</td>
+                        <td>UTF-32LE/BE</td>
+                        <td>32 位 Unicode 转换格式</td>
                         <td>特定应用场景</td>
-                    </tr>
-                    <tr>
-                        <td>UTF-32BE</td>
-                        <td>32 位 Unicode 转换格式，大端序</td>
-                        <td>特定应用场景</td>
+                        <td>✅ 完全支持</td>
                     </tr>
                     <tr>
                         <td>GBK</td>
                         <td>汉字内码扩展规范</td>
                         <td>中国大陆</td>
-                    </tr>
-                    <tr>
-                        <td>GB2312</td>
-                        <td>中国国家标准简体中文字符集</td>
-                        <td>中国大陆</td>
+                        <td>❌ 无BOM</td>
                     </tr>
                     <tr>
                         <td>GB18030</td>
                         <td>中国国家标准字符集，兼容 GB2312 和 GBK</td>
                         <td>中国大陆</td>
+                        <td>❌ 无BOM</td>
                     </tr>
                     <tr>
                         <td>BIG5</td>
                         <td>繁体中文字符集</td>
                         <td>台湾、香港</td>
+                        <td>❌ 无BOM</td>
                     </tr>
                     <tr>
                         <td>Shift-JIS</td>
                         <td>日文字符编码</td>
                         <td>日本</td>
+                        <td>❌ 无BOM</td>
                     </tr>
                     <tr>
-                        <td>EUC-JP</td>
-                        <td>日文扩展 Unix 编码</td>
-                        <td>日本</td>
+                        <td>EUC-JP/KR</td>
+                        <td>日文/韩文扩展 Unix 编码</td>
+                        <td>日本/韩国</td>
+                        <td>❌ 无BOM</td>
                     </tr>
                     <tr>
-                        <td>EUC-KR</td>
-                        <td>韩文扩展 Unix 编码</td>
-                        <td>韩国</td>
-                    </tr>
-                    <tr>
-                        <td>ISO-8859-1</td>
-                        <td>拉丁字母表第一部分</td>
-                        <td>西欧</td>
-                    </tr>
-                    <tr>
-                        <td>ISO-8859-2</td>
-                        <td>拉丁字母表第二部分</td>
-                        <td>中欧和东欧</td>
-                    </tr>
-                    <tr>
-                        <td>ISO-8859-5</td>
-                        <td>拉丁/西里尔字母表</td>
-                        <td>俄罗斯</td>
-                    </tr>
-                    <tr>
-                        <td>KOI8-R</td>
-                        <td>俄文字符编码</td>
-                        <td>俄罗斯</td>
-                    </tr>
-                    <tr>
-                        <td>Windows-1250</td>
-                        <td>中欧语言字符编码</td>
-                        <td>中欧</td>
-                    </tr>
-                    <tr>
-                        <td>Windows-1251</td>
-                        <td>西里尔字母编码</td>
-                        <td>俄罗斯</td>
-                    </tr>
-                    <tr>
-                        <td>Windows-1252</td>
-                        <td>西欧语言字符编码</td>
-                        <td>西欧</td>
-                    </tr>
-                    <tr>
-                        <td>ASCII</td>
-                        <td>美国信息交换标准代码</td>
-                        <td>全球通用</td>
+                        <td>ISO-8859 系列</td>
+                        <td>拉丁字母表各部分</td>
+                        <td>欧洲各国</td>
+                        <td>❌ 无BOM</td>
                     </tr>
                 </tbody>
             </table>
@@ -378,8 +243,10 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2024 TransSuccess. 保留所有权利。</p>
+            <p data-i18n="copyright">&copy; 2024 TransSuccess. 保留所有权利。</p>
         </div>
     </footer>
+
+    <script src="scripts.js"></script>
 </body>
 </html>

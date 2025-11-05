@@ -1,0 +1,98 @@
+program TransSuccess;
+
+{$R *.res}
+
+// EurekaLog 异常追踪和调试支持
+// 暂时禁用 - 需要配置库路径后再启用
+// 启用方法：去掉下面的点号，改为 {$DEFINE USE_EUREKALOG}
+{.$DEFINE USE_EUREKALOG}
+
+// JCL 异常追踪和内存泄漏检测
+{.$DEFINE USE_JCL} // 已禁用：异常处理已切换到 madExcept，详见 docs/madExcept_Integration.md
+
+uses
+  {$IFDEF USE_EUREKALOG}
+  EMemLeaks,        // 内存泄漏检测
+  EResLeaks,        // 资源泄漏检测  
+  EDialogWinAPIMSClassic,  // 异常对话框
+  EDialogWinAPIEurekaLogDetailed, // 详细异常对话框
+  EDebugExports,    // 调试信息导出
+  EDebugJCL,        // JCL 调试支持
+  EFixSafeCallException,  // SafeCall 异常修复
+  EMapWin32,        // MAP 文件支持
+  EAppWinAPI,       // Windows API 应用支持
+  ExceptionLog7,    // 核心异常日志
+  {$ENDIF}
+  Vcl.Forms,
+  System.SysUtils,
+  System.Classes,
+  Winapi.Windows,
+  {$IFDEF USE_JCL}
+  JclDebug,         // JCL 调试和内存泄漏检测
+  {$ENDIF}
+  ViewMainCode in 'ViewMainCode.pas' {Form1},
+  ModelEncoding in 'ModelEncoding.pas',
+  UtilsTypes in 'UtilsTypes.pas',
+  ControllerEncoding in 'ControllerEncoding.pas',
+  HelperFiles in 'HelperFiles.pas',
+  HelperUI in 'HelperUI.pas',
+  ModelConfig in 'ModelConfig.pas',
+  HelperLanguage in 'HelperLanguage.pas',
+  ViewSynEdit in 'ViewSynEdit.pas' {SynEditForm},
+  ControllerLanguage in 'ControllerLanguage.pas',
+  UtilsEncodingTypes in 'UtilsEncodingTypes.pas',
+  UtilsEncodingLogger in 'UtilsEncodingLogger.pas',
+
+  UtilsEncodingBOM_Improved in 'UtilsEncodingBOM_Improved.pas',
+  UtilsEncodingUTF8Detector_Improved in 'UtilsEncodingUTF8Detector_Improved.pas',
+  ChineseEncodingDetector_Improved in 'ChineseEncodingDetector_Improved.pas',
+  JapaneseEncodingDetector_Improved in 'JapaneseEncodingDetector_Improved.pas',
+  KoreanEncodingDetector_Improved in 'KoreanEncodingDetector_Improved.pas',
+  EncodingConverter_Improved in 'EncodingConverter_Improved.pas',
+  UTF8BOMConverter_Improved in 'UTF8BOMConverter_Improved.pas',
+  UtilsJclException in 'UtilsJclException.pas',
+  UtilsJclEncodingHelper in 'UtilsJclEncodingHelper.pas',
+  ViewExceptionReport in 'ViewExceptionReport.pas' {ExceptionReportForm};
+
+{$R *.res}
+
+begin
+  // 启用 JCL 内存泄漏检测和异常追踪
+  {$IF defined(USE_JCL) and not defined(USE_EUREKALOG)}
+  JclStartExceptionTracking;
+  {$ENDIF}
+  
+  // 初始化全局变量
+  InitializeGlobalVariables;
+
+  // 初始化应用程序
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.Title := '码到成功 - 文件编码转换工具';
+  
+  {$IFDEF DEBUG}
+  // Debug 自测：通过命令行参数触发异常以验证 madExcept 集成
+  // 用法：TransSuccess.exe --self-test-exception
+  if FindCmdLineSwitch('self-test-exception', ['-', '/'], True) or
+     SameText(ParamStr(1), '--self-test-exception') then
+    raise Exception.Create('madExcept integration self-test');
+  {$ENDIF}
+
+  try
+    // 创建主窗体
+    Application.CreateForm(TForm1, Form1);
+    // 不需要预先创建SynEditForm，在需要时再创建
+    // Application.CreateForm(TSynEditForm, SynEditForm);
+    Application.Run;
+  except
+    on E: Exception do
+    begin
+      MessageBox(0, PChar('程序启动时发生异常: ' + E.Message), '错误', MB_OK or MB_ICONERROR);
+    end;
+  end;
+  
+  // 停止 JCL 异常追踪（内存泄漏报告会自动生成）
+  {$IF defined(USE_JCL) and not defined(USE_EUREKALOG)}
+  JclStopExceptionTracking;
+  {$ENDIF}
+end.

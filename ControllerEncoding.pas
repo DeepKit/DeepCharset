@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Math, System.TypInfo, System.DateUtils,
-  ModelEncoding, Winapi.Windows, JclBOM, JclEncodingUtils, HelperFiles, UtilsEncodingTypes,
+  ModelEncoding, Winapi.Windows, HelperFiles, UtilsEncodingTypes,
   UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
   ChineseEncodingDetector_Improved, JapaneseEncodingDetector_Improved, KoreanEncodingDetector_Improved,
   UTF8BOMConverter_Improved, EncodingConverter_Improved;
@@ -420,16 +420,16 @@ begin
 
   // 输出详细的完成报告
   Log('');
-  Log(Format(string('批量转换完成: 成功 %d/%d 个文件'), [SuccessCount, TotalCount]));
-  Log(Format(string('- 总文件数: %d'), [TotalCount]));
-  Log(Format(string('- 成功转换: %d (%.1f%%)'), [SuccessCount, SuccessCount / TotalCount * 100]));
-  Log(Format(string('- 转换失败: %d (%.1f%%)'), [FailCount, FailCount / TotalCount * 100]));
-  Log(Format(string('- 总耗时: %.2f秒 (平均每文件 %.2f毫秒)'),
+  Log(Format('批量转换完成: 成功 %d/%d 个文件', [SuccessCount, TotalCount]));
+  Log(Format('- 总文件数: %d', [TotalCount]));
+  Log(Format('- 成功转换: %d (%.1f%%)', [SuccessCount, SuccessCount / TotalCount * 100]));
+  Log(Format('- 转换失败: %d (%.1f%%)', [FailCount, FailCount / TotalCount * 100]));
+  Log(Format('- 总耗时: %.2f秒 (平均每文件 %.2f毫秒)',
     [ElapsedSeconds, ElapsedSeconds * 1000 / TotalCount]));
 
   // 如果有失败的文件，建议用户查看日志
   if FailCount > 0 then
-    Log(string('请查看上方日志了解失败详情'));
+    Log('请查看上方日志了解失败详情');
 end;
 
 end.
