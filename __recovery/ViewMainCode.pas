@@ -10,7 +10,7 @@ uses
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
   ControllerEncoding, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
   System.UIConsts, System.IniFiles, ModelLanguage, ControllerLanguage,
-  System.TypInfo, Vcl.Clipbrd;
+  System.TypInfo, Vcl.Clipbrd, Vcl.ImgList;
 
 Type
 
@@ -119,6 +119,9 @@ Type
     // 国际化相关
     FCurrentLanguage: string;
 
+    // 图标资源（用于TreeView）
+    FIconList: TImageList;
+
     // 异步处理相关（暂时禁用）
     // FAsyncProcessor: TAsyncFileProcessor;
     // FProgressController: TProgressController;
@@ -166,6 +169,11 @@ Type
     // procedure ShowProgress;
     // procedure HideProgress;
 
+    // 将编码树的水平滚动条重置到最左侧，确保能看到根节点
+    procedure ScrollEncodingTreeToLeft;
+
+    // 初始化TreeView图标
+    procedure InitTreeIcons;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -199,7 +207,7 @@ begin
   FEncodingModel := TEncodingModel.Create;
   FUIHelper := TUIHelper.Create;
 
-  // 创建编码控制器，使用匿名方法作为日志回调
+  // 创建编码控制器，使用显式TProc<string>强制类型的匿名方法
   FEncodingController := TEncodingController.Create(
     TProc<string>(
       procedure(const LogMsg: string)
@@ -209,7 +217,7 @@ begin
     )
   );
 
-  // 创建文件助手，使用匿名方法作为日志回调
+  // 创建文件助手，使用显式TProc<string>强制类型的匿名方法
   FFileHelper := TFileHelper.Create(
     TProc<string>(
       procedure(const LogMsg: string)
@@ -222,8 +230,8 @@ begin
   // 设置根目录和INI目录
   RootDir := FFileHelper.GetRootDir;
   IniDir := RootDir + '\ini';
-  Log('设置根目录: ' + RootDir);
-  Log('设置INI目录: ' + IniDir);
+  Log('Root directory: ' + RootDir);
+  Log('INI directory: ' + IniDir);
 
   // 初始化语言管理器
   InitializeLanguageManager;
@@ -233,6 +241,7 @@ begin
 
   // 初始化异步组件（暂时禁用）
   // InitializeAsyncComponents;
+
 end;
 
 destructor TForm1.Destroy;
@@ -250,6 +259,7 @@ begin
   // 释放其他资源
   FLogBuffer.Free;
   FFileExtensions.Free;
+  FIconList.Free;
   inherited;
 end;
 
@@ -274,16 +284,16 @@ begin
   // 强制重绘整个窗体
   InvalidateForm;
 
-  // 记录日志
-  Log('程序界面已显示');
-  Log('当前语言: ' + FCurrentLanguage);
-  Log('主窗体标题: ' + Caption);
-  Log('按钮状态检查:');
-  Log(' - 转换按钮: ' + btnConvert.Caption);
-  Log(' - 单文件按钮: ' + btnSingleFile.Caption);
-  Log(' - 刷新按钮: ' + btnRefresh.Caption);
-  Log(' - 全选类型按钮: ' + btnSelectAllExt.Caption);
-  Log(' - 查看内容按钮: ' + btnShowContent.Caption);
+  // Log UI status
+  Log('UI displayed');
+  Log('Current language: ' + FCurrentLanguage);
+  Log('Form title: ' + Caption);
+  Log('Button status check:');
+  Log(' - Convert button: ' + btnConvert.Caption);
+  Log(' - Single file button: ' + btnSingleFile.Caption);
+  Log(' - Refresh button: ' + btnRefresh.Caption);
+  Log(' - Select all types button: ' + btnSelectAllExt.Caption);
+  Log(' - Show content button: ' + btnShowContent.Caption);
 
   // 应用列宽设置
   AdjustGridColumnWidths;
@@ -308,7 +318,7 @@ begin
   // Ensure folder path is valid (Fix Deprecation Warning)
   if not System.SysUtils.DirectoryExists(FolderPath) then // Ensure qualified
   begin
-    Log('请选择有效的文件夹');
+    Log('Please select a valid folder');
     Exit;
   end;
 
@@ -332,7 +342,7 @@ begin
   end;
 
   // Start log buffering
-  Log('开始批量转换 ' + IntToStr(Length(SelectedFiles)) + ' 个文件到 ' + TargetInfo.Name + '...');
+  Log('Starting batch conversion of ' + IntToStr(Length(SelectedFiles)) + ' files to ' + TargetInfo.Name + '...');
   StartLogBuffering;
 
   // Execute conversion
@@ -347,9 +357,9 @@ begin
     // 批量转换完成后刷新文件网格以更新编码信息
     if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
     begin
-      Log('正在刷新文件列表以更新编码信息...');
+      Log('Refreshing file list to update encoding info...');
       UpdateFileGrid(DirectoryListBox1.Directory);
-      Log('文件列表已刷新');
+      Log('File list refreshed');
     end;
   finally
     Screen.Cursor := crDefault;
@@ -365,7 +375,7 @@ begin
   begin
     // 使用同步方式刷新文件列表（异步暂时禁用）
     UpdateFileGrid(DirectoryListBox1.Directory);
-    Log('刷新目录: ' + DirectoryListBox1.Directory);
+    Log('Refresh directory: ' + DirectoryListBox1.Directory);
   end;
 end;
 
@@ -375,9 +385,8 @@ begin
   MenuItemConvertCurrentClick(Sender);
 end;
 
-
 procedure TForm1.btnToggleSelectClick(Sender: TObject);
-        begin
+begin
   // 全选/取消全选
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
@@ -397,7 +406,7 @@ begin
   Index := ComboBox1.ItemIndex;
   if Index < 0 then
   begin
-    Log('警告: 无效的语言索引');
+    Log('Warning: Invalid language index');
     Exit;
   end;
 
@@ -405,20 +414,20 @@ begin
   LangIndex := Integer(ComboBox1.Items.Objects[Index]);
 
   // 记录用户选择的语言
-  Log('用户选择语言: ' + ComboBox1.Items[Index] + ' (Index: ' + IntToStr(LangIndex) + ')');
+  Log('User selected language: ' + ComboBox1.Items[Index] + ' (Index: ' + IntToStr(LangIndex) + ')');
 
   // 获取语言代码
   if (LangIndex >= 0) and (LangIndex <= High(LANGUAGE_MAPPINGS)) then
   begin
     LangCode := LANGUAGE_MAPPINGS[LangIndex].LanguageCode;
-    Log('切换到语言: ' + LangCode);
+    Log('Switch to language: ' + LangCode);
 
     // 切换语言
     SwitchToLanguageCode(LangCode);
   end
   else
   begin
-    Log('警告: 无效的语言索引: ' + IntToStr(LangIndex));
+    Log('Warning: Invalid language index: ' + IntToStr(LangIndex));
   end;
 
   // 确保界面及时刷新
@@ -426,7 +435,7 @@ begin
 end;
 
 procedure TForm1.DirectoryListBox1Change(Sender: TObject);
-  begin
+begin
   // 更新选中的文件夹
   FSelectedFolder := DirectoryListBox1.Directory;
 
@@ -495,7 +504,7 @@ begin
 end;
 
 procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
-    begin
+begin
   // 当用户点击TreeViewEncodings中的项目时触发
   // 如果点击的是组标题（根节点），取消选择
   if (TreeViewEncodings.Selected <> nil) and (TreeViewEncodings.Selected.Level = 0) then
@@ -513,8 +522,9 @@ begin
     // 添加时间戳
     TimeStamp := FormatDateTime('hh:nn:ss.zzz', Now);
 
-    // 安全处理消息，移除可能导致问题的字符
-    SafeMsg := StringReplace(Msg, #0, '', [rfReplaceAll]);
+    // 安全处理消息，只移除控制字符
+    SafeMsg := Msg;
+    SafeMsg := StringReplace(SafeMsg, #0, '', [rfReplaceAll]);
     SafeMsg := StringReplace(SafeMsg, #13#10, ' ', [rfReplaceAll]);
     SafeMsg := StringReplace(SafeMsg, #13, ' ', [rfReplaceAll]);
     SafeMsg := StringReplace(SafeMsg, #10, ' ', [rfReplaceAll]);
@@ -1150,7 +1160,7 @@ begin
 end;
 
 procedure TForm1.MenuItemToggleSelectClick(Sender: TObject);
-        begin
+begin
   // 全选/取消全选
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
@@ -1305,7 +1315,7 @@ begin
   end;
 
   // 安全检查：确保目录存在
-  if not DirectoryExists(SafePath) then
+  if not System.SysUtils.DirectoryExists(SafePath) then
   begin
     Log('目录不存在: ' + SafePath);
     Exit;
@@ -1468,21 +1478,37 @@ begin
         Exit;
       end;
 
-      // 记录搜索设置
-      Log('开始搜索文件: ' + FolderPath + ', 包含子目录: ' + BoolToStr(FIncludeSubdirs, True));
+      // 记录搜索设置（使用英文，避免源文件编码问题）
+      Log('Start searching files: ' + FolderPath + ', include subdirectories: ' + BoolToStr(FIncludeSubdirs, True));
 
-      // 如果包含子目录，在界面上明确提示
+      // 如果包含子目录，在界面上明确提示（使用本地化消息）
       if FIncludeSubdirs then
-        Log('【注意】子目录搜索已启用，将包含所有子文件夹中的匹配文件')
+        Log(GetLocalizedMessage('LogSubdirEnabled'))
       else
-        Log('【注意】子目录搜索已禁用，只搜索当前文件夹');
+        Log(GetLocalizedMessage('LogSubdirDisabled'));
+
+      // 显示进度条和提示
+      ProgressBar1.Visible := True;
+      lblProgress.Visible := True;
+      lblProgress.Caption := GetLocalizedMessage('ProgressSearchingFiles');
+      ProgressBar1.Position := 0;
+      Application.ProcessMessages;
 
       // 获取文件列表 - 使用FIncludeSubdirs参数
       Files := FFileHelper.GetFilesInFolder(FolderPath, FileExtensions, FIncludeSubdirs);
 
       // 记录找到的文件数量
       FileCount := Length(Files);
-      Log(Format('找到 %d 个文件，开始检测编码...', [FileCount]));
+      Log(GetLocalizedMessageFmt('LogFilesFound', [FileCount]));
+
+      // 设置进度条范围
+      if FileCount > 0 then
+      begin
+        ProgressBar1.Max := FileCount;
+        ProgressBar1.Position := 0;
+        lblProgress.Caption := GetLocalizedMessageFmt('ProgressDetectingEncoding', [FileCount]);
+        Application.ProcessMessages;
+      end;
 
       // 禁用UI更新，提高性能
       StringGrid1.BeginUpdate;
@@ -1505,12 +1531,27 @@ begin
           // 添加到表格，使用保存的选择状态（行索引从1开始）
           FUIHelper.AddFileToGridAt(StringGrid1, i + 1, FileName, EncodingName, ExtSelected);
 
-          // 每处理10个文件更新一次进度
-          if (i > 0) and (i mod 10 = 0) then
+          // 根据文件数量动态调整更新频率，减少UI开销
+          var UpdateInterval := 50; // 默认50个文件更新一次
+          if FileCount < 100 then
+            UpdateInterval := 10  // 小于100个文件时10个更新一次
+          else if FileCount > 1000 then
+            UpdateInterval := 100; // 大于1000个文件每100个更新一次
+
+          if (i > 0) and ((i mod UpdateInterval = 0) or (i = High(Files))) then
           begin
-            Log(Format('已处理 %d/%d 个文件 (%.1f%%)', [i, FileCount, i / FileCount * 100]));
+            ProgressBar1.Position := i;
+            lblProgress.Caption := GetLocalizedMessageFmt('ProgressDetecting', [i, FileCount, i / FileCount * 100]);
             Application.ProcessMessages; // 允许UI响应
           end;
+        end;
+
+        // 最后更新进度为100%
+        if FileCount > 0 then
+        begin
+          ProgressBar1.Position := FileCount;
+          lblProgress.Caption := GetLocalizedMessageFmt('ProgressCompleteFiles', [FileCount]);
+          Application.ProcessMessages;
         end;
       finally
         StringGrid1.EndUpdate;
@@ -1524,7 +1565,12 @@ begin
       AdjustGridColumnWidths;
 
       // 记录完成信息
-      Log(Format('编码检测完成，共处理 %d 个文件', [FileCount]));
+      Log(GetLocalizedMessageFmt('LogDetectionComplete', [FileCount]));
+      
+      // 隐藏进度条
+      Sleep(300); // 稍微延迟以便用户看到完成状态
+      ProgressBar1.Visible := False;
+      lblProgress.Visible := False;
     finally
       Screen.Cursor := crDefault;
     end;
@@ -1535,7 +1581,7 @@ begin
 end;
 
 procedure TForm1.InvalidateForm;
-  begin
+begin
   // 使用继承的方法重绘窗体
   inherited Invalidate;
   // 强制处理所有消息队列中的事件
@@ -1872,8 +1918,8 @@ begin
         CheckListBox1.Checked[i] := False;
       end;
 
-      btnSelectAllExt.Caption := '选择所有文件类型';
-      Log('已取消选择所有文件类型');
+      btnSelectAllExt.Caption := LangStrings.BtnSelectAllFileTypes;
+      Log(LangStrings.LogDeselectAllFileTypes);
     end
     else
     begin
@@ -1883,8 +1929,8 @@ begin
         CheckListBox1.Checked[i] := True;
       end;
 
-      btnSelectAllExt.Caption := '取消选择所有文件类型';
-      Log('已选择所有文件类型');
+      btnSelectAllExt.Caption := LangStrings.BtnDeselectAllFileTypes;
+      Log(LangStrings.LogSelectAllFileTypes);
     end;
 
     // 直接调用UpdateFileCountLabel来更新状态显示
@@ -1894,7 +1940,7 @@ begin
     if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
     begin
       // 清空并重新加载文件列表
-      Log('强制更新文件列表');
+      Log(LangStrings.LogForceUpdateFileList);
       StringGrid1.RowCount := 2; // 重置表格，只保留标题行
       StringGrid1.Rows[1].Clear(); // 清空第一个数据行
 
@@ -1957,12 +2003,11 @@ var
   IsSelected: Boolean;
 begin
   Tree := Sender as TTreeView;
-  
+
   if Stage = cdPrePaint then
   begin
     IsSelected := cdsSelected in State;
-    
-    // 根据节点层级设置样式
+
     case Node.Level of
       0: // 根节点
       begin
@@ -1973,8 +2018,8 @@ begin
         else
           Tree.Canvas.Font.Color := clHighlightText;
       end;
-      
-      1: // 分类节点（Unicode、亚洲编码等）
+
+      1: // 分类节点
       begin
         Tree.Canvas.Font.Style := [fsBold];
         Tree.Canvas.Font.Size := FOriginalFontSize + 1;
@@ -1983,62 +2028,57 @@ begin
         else
           Tree.Canvas.Font.Color := clHighlightText;
       end;
-      
-      2: // 编码节点
+
+      else // 编码节点（含说明）
       begin
         NodeText := Node.Text;
         BracketPos := Pos('(', NodeText);
-        
+
         if BracketPos > 0 then
         begin
-          // 有说明部分，自定义绘制
-          DefaultDraw := False;
-          
-          // 分离编码名称和说明
-          EncodingPart := Copy(NodeText, 1, BracketPos - 1);
-          DescPart := Copy(NodeText, BracketPos, Length(NodeText));
-          
-          // 获取绘制区域
+          DefaultDraw := False; // 我们自绘文本
+
+          EncodingPart := Trim(Copy(NodeText, 1, BracketPos - 1));
+          DescPart := Copy(NodeText, BracketPos, MaxInt);
+
           TextRect := Node.DisplayRect(True);
-          
+
           if IsSelected then
           begin
-            // 选中状态：绘制背景
+            // 选中状态背景
             Tree.Canvas.Brush.Color := clHighlight;
             Tree.Canvas.FillRect(TextRect);
-            
-            // 编码名称：白色加粗
+
+            // 名称（白色加粗）
             Tree.Canvas.Font.Style := [fsBold];
             Tree.Canvas.Font.Color := clHighlightText;
             Tree.Canvas.TextOut(TextRect.Left, TextRect.Top, EncodingPart);
-            
-            // 说明：白色普通
+
+            // 描述（白色普通）
             TextWidth := Tree.Canvas.TextWidth(EncodingPart);
             Tree.Canvas.Font.Style := [];
             Tree.Canvas.Font.Color := clHighlightText;
-            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, DescPart);
+            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, ' ' + DescPart);
           end
           else
           begin
-            // 未选中状态
-            // 编码名称：黑色加粗
+            // 未选中：名称黑色加粗，描述灰色
             Tree.Canvas.Font.Style := [fsBold];
             Tree.Canvas.Font.Size := FOriginalFontSize;
             Tree.Canvas.Font.Color := clWindowText;
             Tree.Canvas.TextOut(TextRect.Left, TextRect.Top, EncodingPart);
-            
-            // 说明：灰色普通
+
             TextWidth := Tree.Canvas.TextWidth(EncodingPart);
             Tree.Canvas.Font.Style := [];
             Tree.Canvas.Font.Color := clGray;
-            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, DescPart);
+            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, ' ' + DescPart);
           end;
-          
+
           Exit;
         end
         else
         begin
-          // 没有说明，编码名称加粗
+          // 无说明：仅加粗名称
           Tree.Canvas.Font.Style := [fsBold];
           Tree.Canvas.Font.Size := FOriginalFontSize;
           if not IsSelected then
@@ -2048,6 +2088,173 @@ begin
         end;
       end;
     end;
+  end;
+end;
+
+procedure TForm1.InitTreeIcons;
+var
+  bmp: Vcl.Graphics.TBitmap;
+  procedure AddIcon(const DrawProc: TProc<Vcl.Graphics.TCanvas>);
+  begin
+    bmp.SetSize(16, 16);
+    bmp.PixelFormat := pf32bit;
+    bmp.Canvas.Brush.Style := bsSolid;
+    // 先涂白作为透明色背景
+    bmp.Canvas.Brush.Color := clWhite;
+    bmp.Canvas.Pen.Color := clWhite;
+    bmp.Canvas.Rectangle(0, 0, 16, 16);
+    bmp.Transparent := True;
+    bmp.TransparentColor := clWhite;
+    // 绘制内容
+    DrawProc(bmp.Canvas);
+    if not Assigned(FIconList) then
+    begin
+      FIconList := TImageList.Create(Self);
+      FIconList.Width := 16;
+      FIconList.Height := 16;
+      FIconList.ColorDepth := cd32Bit;
+    end
+    else
+      FIconList.Clear;
+    FIconList.AddMasked(bmp, clWhite);
+  end;
+
+  procedure AddIconNoClear(const DrawProc: TProc<Vcl.Graphics.TCanvas>);
+  begin
+    // 在同一个imagelist上追加
+    bmp.SetSize(16, 16);
+    bmp.PixelFormat := pf32bit;
+    bmp.Canvas.Brush.Color := clWhite;
+    bmp.Canvas.Pen.Color := clWhite;
+    bmp.Canvas.Rectangle(0, 0, 16, 16);
+    bmp.Transparent := True;
+    bmp.TransparentColor := clWhite;
+    DrawProc(bmp.Canvas);
+    FIconList.AddMasked(bmp, clWhite);
+  end;
+begin
+  // 如果已初始化且数量满足，直接返回
+  if Assigned(FIconList) and (FIconList.Count >= 10) then
+    Exit;
+
+  bmp := Vcl.Graphics.TBitmap.Create;
+  try
+    // 创建/清空ImageList，并依次添加各组图标
+    // 0: Root (App)
+    AddIcon(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(0,122,204);
+        C.Pen.Color := RGB(0,90,160);
+        C.RoundRect(1,3,15,13,3,3);
+        C.Pen.Color := clWhite;
+        C.MoveTo(4,6); C.LineTo(12,6);
+        C.MoveTo(4,8); C.LineTo(12,8);
+        C.MoveTo(4,10); C.LineTo(9,10);
+      end);
+
+    // 1: Unicode (U)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(120, 80, 200);
+        C.Pen.Color := RGB(90, 60, 160);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
+        C.TextOut(4,3,'U');
+      end);
+
+    // 2: Asian (中)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(0, 160, 80);
+        C.Pen.Color := RGB(0,120,60);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
+        C.TextOut(3,3,'中');
+      end);
+
+    // 3: Western (W)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(0, 150, 220);
+        C.Pen.Color := RGB(0,110,180);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
+        C.TextOut(3,3,'W');
+      end);
+
+    // 4: Eastern (E)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(230, 120, 20);
+        C.Pen.Color := RGB(190,90,10);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
+        C.TextOut(4,3,'E');
+      end);
+
+    // 5: MiddleEast (ME)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(200, 80, 80);
+        C.Pen.Color := RGB(160,60,60);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 7; C.Font.Style := [fsBold];
+        C.TextOut(2,3,'ME');
+      end);
+
+    // 6: Nordic (N)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(60, 160, 220);
+        C.Pen.Color := RGB(40,120,180);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
+        C.TextOut(4,3,'N');
+      end);
+
+    // 7: Southern (S)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(120, 180, 60);
+        C.Pen.Color := RGB(90,140,40);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
+        C.TextOut(4,3,'S');
+      end);
+
+    // 8: Other (O)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := RGB(160, 160, 160);
+        C.Pen.Color := RGB(120,120,120);
+        C.RoundRect(1,1,15,15,3,3);
+        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
+        C.TextOut(4,3,'O');
+      end);
+
+    // 9: Encoding (document)
+    AddIconNoClear(
+      procedure(C: Vcl.Graphics.TCanvas)
+      begin
+        C.Brush.Color := clWhite;
+        C.Pen.Color := RGB(160,160,160);
+        C.Rectangle(3,2,13,14);
+        C.Pen.Color := RGB(120,120,120);
+        C.MoveTo(5,5); C.LineTo(11,5);
+        C.MoveTo(5,7); C.LineTo(11,7);
+        C.MoveTo(5,9); C.LineTo(11,9);
+      end);
+  finally
+    bmp.Free;
   end;
 end;
 
@@ -2125,6 +2332,21 @@ begin
   end;
 end;
 
+procedure TForm1.ScrollEncodingTreeToLeft;
+begin
+  try
+    if Assigned(TreeViewEncodings) and TreeViewEncodings.HandleAllocated then
+    begin
+      // 将水平滚动条移动到最左侧
+      TreeViewEncodings.Perform(WM_HSCROLL, SB_LEFT, 0);
+      // 再次确保可见区域从最左开始
+      TreeViewEncodings.Perform(WM_HSCROLL, SB_LEFT, 0);
+    end;
+  except
+    // 忽略任何滚动异常
+  end;
+end;
+
 procedure TForm1.AdjustGridColumnWidths;
 begin
   // 设置列宽
@@ -2142,6 +2364,10 @@ begin
   FUIHelper.InitStringGrid(StringGrid1);
   FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
 
+  // 初始化树图标
+  InitTreeIcons;
+  TreeViewEncodings.Images := FIconList;
+
   // 绑定编码树的高级自定义绘制事件，实现分类节点着色、编码加粗
   TreeViewEncodings.OnAdvancedCustomDrawItem := TreeViewEncodingsAdvancedCustomDrawItem;
 
@@ -2150,6 +2376,9 @@ begin
 
   // 默认选中UTF-8 BOM编码
   SelectUTF8BOMInTreeView;
+
+  // 将水平滚动条滚到最左侧，确保显示根节点
+  ScrollEncodingTreeToLeft;
 
   // 绑定事件
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
@@ -2233,7 +2462,7 @@ begin
   // 延迟更新文件列表，避免在初始化阶段产生过多I/O
   try
     // 安全检查：确保FSelectedFolder有效
-    if (FSelectedFolder = '') or (not DirectoryExists(FSelectedFolder)) then
+    if (FSelectedFolder = '') or (not System.SysUtils.DirectoryExists(FSelectedFolder)) then
     begin
       Log('选择的目录无效，使用C盘作为默认目录');
       FSelectedFolder := 'C:\';
@@ -2391,7 +2620,7 @@ begin
   // 应用到界面
   Self.Caption := LangStrings.WindowTitle;
   btnConvert.Caption := LangStrings.BtnConvert;
-  btnSingleFile.Caption := LangStrings.BtnSingleFile + ' 转换'; // 添加"转换"文本
+  btnSingleFile.Caption := LangStrings.BtnSingleFile + LangStrings.SingleFileConvertSuffix;
   btnRefresh.Caption := LangStrings.BtnRefresh;
   btnClose.Caption := LangStrings.BtnClose;
   btnToggleSelect.Caption := LangStrings.BtnToggleSelect;
@@ -2403,7 +2632,7 @@ begin
   // 菜单项
   MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
   MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
-  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile + ' 转换'; // 添加"转换"文本
+  MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile + LangStrings.SingleFileConvertSuffix;
   MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
   MenuItemViewContent.Caption := LangStrings.BtnPreview;
 
@@ -2450,6 +2679,9 @@ begin
   finally
     TreeViewEncodings.Items.EndUpdate;
   end;
+
+  // 重置TreeView到最左侧，避免水平滚动条停在中间
+  ScrollEncodingTreeToLeft;
 
   // 记录日志
   Log('已应用语言字符串: ' + FCurrentLanguage);
@@ -2732,7 +2964,7 @@ begin
   if Progress.TotalFiles > 0 then
   begin
     var ProgressPercent := (Progress.ProcessedFiles * 100) div Progress.TotalFiles;
-    Caption := Format('文件转换工具 - 扫描进度: %d%% (%d/%d)',
+    Caption := Format(FLanguageStrings.WindowTitleScanProgress,
       [ProgressPercent, Progress.ProcessedFiles, Progress.TotalFiles]);
 
     // 检查是否完成
@@ -2740,10 +2972,10 @@ begin
     begin
       // 直接在主线程中处理完成事件
       HideProgress;
-      Caption := '文件转换工具';
+      Caption := FLanguageStrings.WindowTitleDefault;
 
       var Results := FAsyncProcessor.GetResults;
-      Log(Format('异步扫描完成: 共找到 %d 个文件', [Length(Results)]));
+      Log(Format(FLanguageStrings.LogAsyncScanComplete, [Length(Results)]));
 
       // 如果没有文件，显示提示
       if Length(Results) = 0 then
@@ -2783,7 +3015,7 @@ begin
   begin
     var ProcessedFiles := Progress.SuccessCount + Progress.FailCount + Progress.SkippedCount;
     var ProgressPercent := (ProcessedFiles * 100) div Progress.TotalFiles;
-    Caption := Format('文件转换工具 - 转换进度: %d%% (成功:%d 失败:%d)',
+    Caption := Format(FLanguageStrings.WindowTitleConvertProgress,
       [ProgressPercent, Progress.SuccessCount, Progress.FailCount]);
 
     // 检查是否完成
@@ -2791,7 +3023,7 @@ begin
     begin
       // 直接在主线程中处理完成事件
       HideProgress;
-      Caption := '文件转换工具';
+      Caption := FLanguageStrings.WindowTitleDefault;
 
       // 刷新文件列表以显示更新后的编码
       UpdateFileGrid(FSelectedFolder);

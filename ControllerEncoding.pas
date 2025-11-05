@@ -71,8 +71,8 @@ begin
   // 创建文件助手
   FFileHelper := TFileHelper.Create(ALogCallback);
 
-  // 记录日志
-  Log(string('编码控制器已初始化'));
+  // Log initialization in English to avoid mojibake
+  Log(string('Encoding controller initialized'));
 end;
 
 destructor TEncodingController.Destroy;
@@ -133,17 +133,17 @@ begin
   if Assigned(FFileHelper) then
   begin
     Result := FFileHelper.DetectFileEncoding(FileName, HasBOM);
-    Log(Format('使用FileHelper检测到文件 %s 的编码为: %s (BOM: %s)',
+    Log(Format('Detected encoding by FileHelper for %s: %s (BOM: %s)',
       [ExtractFileName(FileName), Result, BoolToStr(HasBOM, True)]));
     Exit;
   end;
 
-  // 如果FileHelper不可用，使用改进版的检测逻辑
-  Log(Format('使用改进版检测算法检测文件编码: %s', [FileName]));
+  // Fallback: use improved detection algorithm
+  Log(Format('Detecting file encoding (improved): %s', [FileName]));
 
-  // 获取文件扩展名
+  // Get file extension
   FileExt := LowerCase(ExtractFileExt(FileName));
-  Log(Format('文件扩展名: %s', [FileExt]));
+  Log(Format('File extension: %s', [FileExt]));
 
   // 初始化检测器（这些类都是静态类，不需要创建实例）
 
@@ -151,10 +151,10 @@ begin
     // 记录开始时间
     StartTime := Now;
 
-    // 首先检查文件是否存在
+    // Check file existence first
     if not FileExists(FileName) then
     begin
-      Log(Format('文件不存在: %s', [FileName]));
+      Log(Format('File not found: %s', [FileName]));
       Result := 'Unknown';
       HasBOM := False;
       Exit;
@@ -174,7 +174,7 @@ begin
     except
       on E: Exception do
       begin
-        Log(Format('读取文件失败: %s - %s', [FileName, E.Message]));
+        Log(Format('Read file failed: %s - %s', [FileName, E.Message]));
         Result := 'ANSI';
         HasBOM := False;
         Exit;
@@ -189,9 +189,9 @@ begin
       Result := BOMResult.Encoding;
       HasBOM := True;
 
-      // 记录详细日志
+      // Detailed log
       ElapsedTime := MilliSecondsBetween(StartTime, Now);
-      Log(Format('BOM检测成功: %s, 耗时: %d ms',
+      Log(Format('BOM detected: %s, elapsed: %d ms',
         [Result, ElapsedTime]));
     end
     else
@@ -204,9 +204,9 @@ begin
         Result := 'UTF-8';
         HasBOM := False;
 
-        // 记录详细日志
+        // Detailed log
         ElapsedTime := MilliSecondsBetween(StartTime, Now);
-        Log(Format('UTF-8检测成功: 置信度: %.2f, 有效字节: %d, 无效字节: %d, 耗时: %d ms',
+        Log(Format('UTF-8 detected: confidence: %.2f, valid: %d, invalid: %d, elapsed: %d ms',
           [UTF8Result.Confidence, UTF8Result.ValidByteCount,
            UTF8Result.InvalidByteCount, ElapsedTime]));
       end
@@ -221,9 +221,9 @@ begin
           Result := JapaneseResult.Encoding;
           HasBOM := JapaneseResult.HasBOM;
 
-          // 记录详细日志
+          // Detailed log
           ElapsedTime := MilliSecondsBetween(Now, StartTime);
-          Log(Format('日文编码检测成功: %s, 置信度: %.2f, 耗时: %d ms',
+          Log(Format('Japanese encoding detected: %s, confidence: %.2f, elapsed: %d ms',
             [Result, JapaneseResult.Confidence, ElapsedTime]));
         end
         else
@@ -237,9 +237,9 @@ begin
             Result := KoreanResult.Encoding;
             HasBOM := KoreanResult.HasBOM;
 
-            // 记录详细日志
+            // Detailed log
             ElapsedTime := MilliSecondsBetween(Now, StartTime);
-            Log(Format('韩文编码检测成功: %s, 置信度: %.2f, 耗时: %d ms',
+            Log(Format('Korean encoding detected: %s, confidence: %.2f, elapsed: %d ms',
               [Result, KoreanResult.Confidence, ElapsedTime]));
           end
           else
@@ -248,17 +248,17 @@ begin
             Result := 'ANSI';
             HasBOM := False;
 
-            // 记录详细日志
+            // Detailed log
             ElapsedTime := MilliSecondsBetween(Now, StartTime);
-            Log(Format('未能确定编码，使用默认编码: %s, 耗时: %d ms',
+            Log(Format('Encoding not determined, using default: %s, elapsed: %d ms',
               [Result, ElapsedTime]));
           end;
         end;
       end;
     end;
 
-    // 记录最终结果
-    Log(Format('检测到文件 %s 的编码为: %s (BOM: %s)',
+    // Final result
+    Log(Format('Detected encoding for %s: %s (BOM: %s)',
       [ExtractFileName(FileName), Result, BoolToStr(HasBOM, True)]));
   except
     on E: Exception do
@@ -267,8 +267,8 @@ begin
       Result := 'ANSI';
       HasBOM := False;
 
-      // 记录错误
-      Log(Format('检测文件编码失败: %s - %s', [FileName, E.Message]));
+      // Error log
+      Log(Format('Detect encoding failed: %s - %s', [FileName, E.Message]));
     end;
   end;
 end;
@@ -286,7 +286,7 @@ begin
     if SameText(BaseName, UNSUPPORTED_FILES[i]) then
     begin
       Result := True;
-      Log(Format(string('文件 %s 在不支持列表中，跳过处理'), [BaseName]));
+      Log(Format(string('File %s is in unsupported list, skipped'), [BaseName]));
       Break;
     end;
   end;

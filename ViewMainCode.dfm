@@ -67,8 +67,8 @@ object Form1: TForm1
     Height = 157
     Align = alBottom
     TabOrder = 0
-    ExplicitTop = 424
-    ExplicitWidth = 1030
+    ExplicitTop = 439
+    ExplicitWidth = 1034
     object Splitter7: TSplitter
       Left = 754
       Top = 1
@@ -91,7 +91,7 @@ object Form1: TForm1
       Height = 155
       Align = alRight
       TabOrder = 0
-      ExplicitLeft = 747
+      ExplicitLeft = 751
       DesignSize = (
         282
         155)
@@ -154,7 +154,7 @@ object Form1: TForm1
       MultiLine = True
       TabOrder = 1
       TabPosition = tpRight
-      ExplicitWidth = 740
+      ExplicitWidth = 744
       object TabSheet1: TTabSheet
         Caption = 'Log'
         TabVisible = False
@@ -168,7 +168,7 @@ object Form1: TForm1
             'MemLog')
           ScrollBars = ssVertical
           TabOrder = 0
-          ExplicitWidth = 732
+          ExplicitWidth = 736
         end
       end
     end
@@ -180,7 +180,7 @@ object Form1: TForm1
     Height = 41
     Align = alTop
     TabOrder = 1
-    ExplicitWidth = 1030
+    ExplicitWidth = 1034
     object ComboBox1: TComboBox
       Left = 11
       Top = 6
@@ -231,7 +231,7 @@ object Form1: TForm1
     Height = 409
     Align = alLeft
     TabOrder = 2
-    ExplicitHeight = 377
+    ExplicitHeight = 392
     object DriveComboBox1: TDriveComboBox
       AlignWithMargins = True
       Left = 11
@@ -260,7 +260,7 @@ object Form1: TForm1
       TabOrder = 1
       OnChange = DirectoryListBox1Change
       OnMouseDown = DirectoryListBox1MouseDown
-      ExplicitHeight = 304
+      ExplicitHeight = 319
     end
     object chkIncludeSubdirs: TCheckBox
       Left = 11
@@ -278,8 +278,8 @@ object Form1: TForm1
     Height = 409
     Align = alRight
     TabOrder = 3
-    ExplicitLeft = 750
-    ExplicitHeight = 377
+    ExplicitLeft = 754
+    ExplicitHeight = 392
     object Splitter6: TSplitter
       Left = 1
       Top = 1
@@ -304,7 +304,7 @@ object Form1: TForm1
       RightClickSelect = True
       TabOrder = 0
       OnClick = TreeViewEncodingsClick
-      ExplicitHeight = 366
+      ExplicitHeight = 381
     end
   end
   object Panel5: TPanel
@@ -314,8 +314,8 @@ object Form1: TForm1
     Height = 409
     Align = alClient
     TabOrder = 4
-    ExplicitWidth = 519
-    ExplicitHeight = 377
+    ExplicitWidth = 523
+    ExplicitHeight = 392
     object Splitter5: TSplitter
       Left = 1
       Top = 43
@@ -341,8 +341,8 @@ object Form1: TForm1
       OnClick = StringGrid1Click
       OnContextPopup = StringGrid1ContextPopup
       OnSelectCell = StringGridSelectCell
-      ExplicitWidth = 445
-      ExplicitHeight = 330
+      ExplicitWidth = 449
+      ExplicitHeight = 345
     end
     object Panel7: TPanel
       Left = 1
@@ -351,7 +351,7 @@ object Form1: TForm1
       Height = 362
       Align = alLeft
       TabOrder = 1
-      ExplicitHeight = 330
+      ExplicitHeight = 345
       object CheckListBox1: TCheckListBox
         Left = 1
         Top = 1
@@ -361,7 +361,7 @@ object Form1: TForm1
         Columns = 1
         ItemHeight = 15
         TabOrder = 0
-        ExplicitHeight = 328
+        ExplicitHeight = 343
       end
     end
     object Panel8: TPanel
@@ -371,7 +371,7 @@ object Form1: TForm1
       Height = 42
       Align = alTop
       TabOrder = 2
-      ExplicitWidth = 517
+      ExplicitWidth = 521
       object btnConvert: TButton
         Left = 183
         Top = 5

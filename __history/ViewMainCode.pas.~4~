@@ -10,7 +10,7 @@ uses
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
   ControllerEncoding, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
   System.UIConsts, System.IniFiles, ModelLanguage, ControllerLanguage,
-  System.TypInfo, Vcl.Clipbrd, Vcl.ImgList;
+  System.TypInfo, Vcl.Clipbrd;
 
 Type
 
@@ -119,9 +119,6 @@ Type
     // 国际化相关
     FCurrentLanguage: string;
 
-    // 图标资源（用于TreeView）
-    FIconList: TImageList;
-
     // 异步处理相关（暂时禁用）
     // FAsyncProcessor: TAsyncFileProcessor;
     // FProgressController: TProgressController;
@@ -171,9 +168,7 @@ Type
 
     // 将编码树的水平滚动条重置到最左侧，确保能看到根节点
     procedure ScrollEncodingTreeToLeft;
-
-    // 初始化TreeView图标
-    procedure InitTreeIcons;
+  
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -207,7 +202,7 @@ begin
   FEncodingModel := TEncodingModel.Create;
   FUIHelper := TUIHelper.Create;
 
-  // 创建编码控制器，使用显式TProc<string>强制类型的匿名方法
+  // 创建编码控制器，使用匿名方法作为日志回调
   FEncodingController := TEncodingController.Create(
     TProc<string>(
       procedure(const LogMsg: string)
@@ -217,7 +212,7 @@ begin
     )
   );
 
-  // 创建文件助手，使用显式TProc<string>强制类型的匿名方法
+  // 创建文件助手，使用匿名方法作为日志回调
   FFileHelper := TFileHelper.Create(
     TProc<string>(
       procedure(const LogMsg: string)
@@ -241,7 +236,6 @@ begin
 
   // 初始化异步组件（暂时禁用）
   // InitializeAsyncComponents;
-
 end;
 
 destructor TForm1.Destroy;
@@ -259,7 +253,6 @@ begin
   // 释放其他资源
   FLogBuffer.Free;
   FFileExtensions.Free;
-  FIconList.Free;
   inherited;
 end;
 
@@ -385,8 +378,9 @@ begin
   MenuItemConvertCurrentClick(Sender);
 end;
 
+
 procedure TForm1.btnToggleSelectClick(Sender: TObject);
-begin
+        begin
   // 全选/取消全选
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
@@ -435,7 +429,7 @@ begin
 end;
 
 procedure TForm1.DirectoryListBox1Change(Sender: TObject);
-begin
+  begin
   // 更新选中的文件夹
   FSelectedFolder := DirectoryListBox1.Directory;
 
@@ -504,7 +498,7 @@ begin
 end;
 
 procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
-begin
+    begin
   // 当用户点击TreeViewEncodings中的项目时触发
   // 如果点击的是组标题（根节点），取消选择
   if (TreeViewEncodings.Selected <> nil) and (TreeViewEncodings.Selected.Level = 0) then
@@ -1160,7 +1154,7 @@ begin
 end;
 
 procedure TForm1.MenuItemToggleSelectClick(Sender: TObject);
-begin
+        begin
   // 全选/取消全选
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
@@ -1315,7 +1309,7 @@ begin
   end;
 
   // 安全检查：确保目录存在
-  if not System.SysUtils.DirectoryExists(SafePath) then
+  if not DirectoryExists(SafePath) then
   begin
     Log('目录不存在: ' + SafePath);
     Exit;
@@ -1478,14 +1472,14 @@ begin
         Exit;
       end;
 
-      // 记录搜索设置（使用英文，避免源文件编码问题）
-      Log('Start searching files: ' + FolderPath + ', include subdirectories: ' + BoolToStr(FIncludeSubdirs, True));
+      // 记录搜索设置
+      Log('开始搜索文件: ' + FolderPath + ', 包含子目录: ' + BoolToStr(FIncludeSubdirs, True));
 
-      // 如果包含子目录，在界面上明确提示（使用本地化消息）
+      // 如果包含子目录，在界面上明确提示
       if FIncludeSubdirs then
-        Log(GetLocalizedMessage('LogSubdirEnabled'))
+        Log('【注意】子目录搜索已启用，将包含所有子文件夹中的匹配文件')
       else
-        Log(GetLocalizedMessage('LogSubdirDisabled'));
+        Log('【注意】子目录搜索已禁用，只搜索当前文件夹');
 
       // 显示进度条和提示
       ProgressBar1.Visible := True;
@@ -1581,7 +1575,7 @@ begin
 end;
 
 procedure TForm1.InvalidateForm;
-begin
+  begin
   // 使用继承的方法重绘窗体
   inherited Invalidate;
   // 强制处理所有消息队列中的事件
@@ -2003,11 +1997,12 @@ var
   IsSelected: Boolean;
 begin
   Tree := Sender as TTreeView;
-
+  
   if Stage = cdPrePaint then
   begin
     IsSelected := cdsSelected in State;
-
+    
+    // 根据节点层级设置样式
     case Node.Level of
       0: // 根节点
       begin
@@ -2018,8 +2013,8 @@ begin
         else
           Tree.Canvas.Font.Color := clHighlightText;
       end;
-
-      1: // 分类节点
+      
+      1: // 分类节点（Unicode、亚洲编码等）
       begin
         Tree.Canvas.Font.Style := [fsBold];
         Tree.Canvas.Font.Size := FOriginalFontSize + 1;
@@ -2028,57 +2023,62 @@ begin
         else
           Tree.Canvas.Font.Color := clHighlightText;
       end;
-
-      else // 编码节点（含说明）
+      
+      2: // 编码节点
       begin
         NodeText := Node.Text;
         BracketPos := Pos('(', NodeText);
-
+        
         if BracketPos > 0 then
         begin
-          DefaultDraw := False; // 我们自绘文本
-
-          EncodingPart := Trim(Copy(NodeText, 1, BracketPos - 1));
-          DescPart := Copy(NodeText, BracketPos, MaxInt);
-
+          // 有说明部分，自定义绘制
+          DefaultDraw := False;
+          
+          // 分离编码名称和说明
+          EncodingPart := Copy(NodeText, 1, BracketPos - 1);
+          DescPart := Copy(NodeText, BracketPos, Length(NodeText));
+          
+          // 获取绘制区域
           TextRect := Node.DisplayRect(True);
-
+          
           if IsSelected then
           begin
-            // 选中状态背景
+            // 选中状态：绘制背景
             Tree.Canvas.Brush.Color := clHighlight;
             Tree.Canvas.FillRect(TextRect);
-
-            // 名称（白色加粗）
+            
+            // 编码名称：白色加粗
             Tree.Canvas.Font.Style := [fsBold];
             Tree.Canvas.Font.Color := clHighlightText;
             Tree.Canvas.TextOut(TextRect.Left, TextRect.Top, EncodingPart);
-
-            // 描述（白色普通）
+            
+            // 说明：白色普通
             TextWidth := Tree.Canvas.TextWidth(EncodingPart);
             Tree.Canvas.Font.Style := [];
             Tree.Canvas.Font.Color := clHighlightText;
-            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, ' ' + DescPart);
+            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, DescPart);
           end
           else
           begin
-            // 未选中：名称黑色加粗，描述灰色
+            // 未选中状态
+            // 编码名称：黑色加粗
             Tree.Canvas.Font.Style := [fsBold];
             Tree.Canvas.Font.Size := FOriginalFontSize;
             Tree.Canvas.Font.Color := clWindowText;
             Tree.Canvas.TextOut(TextRect.Left, TextRect.Top, EncodingPart);
-
+            
+            // 说明：灰色普通
             TextWidth := Tree.Canvas.TextWidth(EncodingPart);
             Tree.Canvas.Font.Style := [];
             Tree.Canvas.Font.Color := clGray;
-            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, ' ' + DescPart);
+            Tree.Canvas.TextOut(TextRect.Left + TextWidth, TextRect.Top, DescPart);
           end;
-
+          
           Exit;
         end
         else
         begin
-          // 无说明：仅加粗名称
+          // 没有说明，编码名称加粗
           Tree.Canvas.Font.Style := [fsBold];
           Tree.Canvas.Font.Size := FOriginalFontSize;
           if not IsSelected then
@@ -2088,222 +2088,6 @@ begin
         end;
       end;
     end;
-  end;
-end;
-
-procedure TForm1.InitTreeIcons;
-var
-  bmp: Vcl.Graphics.TBitmap;
-  procedure AddIcon(const DrawProc: TProc<Vcl.Graphics.TCanvas>);
-  begin
-    bmp.SetSize(16, 16);
-    bmp.PixelFormat := pf32bit;
-    bmp.Canvas.Brush.Style := bsSolid;
-    // 先涂白作为透明色背景
-    bmp.Canvas.Brush.Color := clWhite;
-    bmp.Canvas.Pen.Color := clWhite;
-    bmp.Canvas.Rectangle(0, 0, 16, 16);
-    SetBkMode(bmp.Canvas.Handle, TRANSPARENT);
-    bmp.Transparent := True;
-    bmp.TransparentColor := clWhite;
-    // 绘制内容
-    DrawProc(bmp.Canvas);
-    if not Assigned(FIconList) then
-    begin
-      FIconList := TImageList.Create(Self);
-      FIconList.Width := 16;
-      FIconList.Height := 16;
-      FIconList.ColorDepth := cd32Bit;
-      FIconList.Masked := True;
-      FIconList.BkColor := clWhite;
-    end
-    else
-      FIconList.Clear;
-    FIconList.AddMasked(bmp, clWhite);
-  end;
-
-  procedure AddIconNoClear(const DrawProc: TProc<Vcl.Graphics.TCanvas>);
-  begin
-    // 在同一个imagelist上追加
-    bmp.SetSize(16, 16);
-    bmp.PixelFormat := pf32bit;
-    bmp.Canvas.Brush.Color := clWhite;
-    bmp.Canvas.Pen.Color := clWhite;
-    bmp.Canvas.Rectangle(0, 0, 16, 16);
-    SetBkMode(bmp.Canvas.Handle, TRANSPARENT);
-    bmp.Transparent := True;
-    bmp.TransparentColor := clWhite;
-    DrawProc(bmp.Canvas);
-    FIconList.AddMasked(bmp, clWhite);
-  end;
-begin
-  // 如果已初始化且数量满足，直接返回
-  if Assigned(FIconList) and (FIconList.Count >= 10) then
-    Exit;
-
-  bmp := Vcl.Graphics.TBitmap.Create;
-  try
-    // 创建/清空ImageList，并依次添加各组图标
-    // 0: Root (App)
-    AddIcon(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(0,122,204);
-        C.Pen.Color := RGB(0,90,160);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        C.Pen.Color := clWhite;
-        C.MoveTo(R.Left+2, R.Top+3); C.LineTo(R.Right-2, R.Top+3);
-        C.MoveTo(R.Left+2, R.Top+5); C.LineTo(R.Right-2, R.Top+5);
-        C.MoveTo(R.Left+2, R.Top+7); C.LineTo(R.Left+7, R.Top+7);
-      end);
-
-    // 1: Unicode (U)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(120, 80, 200);
-        C.Pen.Color := RGB(90, 60, 160);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := 'U';
-        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 2: Asian (中)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(0, 160, 80);
-        C.Pen.Color := RGB(0,120,60);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := '中';
-        C.Font.Color := clWhite; C.Font.Size := 7; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 3: Western (W)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(0, 150, 220);
-        C.Pen.Color := RGB(0,110,180);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := 'W';
-        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 4: Eastern (E)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(230, 120, 20);
-        C.Pen.Color := RGB(190,90,10);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := 'E';
-        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 5: MiddleEast (ME)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(200, 80, 80);
-        C.Pen.Color := RGB(160,60,60);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := 'ME';
-        C.Font.Color := clWhite; C.Font.Size := 7; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 6: Nordic (N)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(60, 160, 220);
-        C.Pen.Color := RGB(40,120,180);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := 'N';
-        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 7: Southern (S)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(120, 180, 60);
-        C.Pen.Color := RGB(90,140,40);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := 'S';
-        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 8: Other (O)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect; TW, TH: Integer; S: string;
-      begin
-        R := Rect(2,2,14,14);
-        C.Brush.Color := RGB(160, 160, 160);
-        C.Pen.Color := RGB(120,120,120);
-        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := 'O';
-        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        TW := C.TextWidth(S); TH := C.TextHeight(S);
-        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
-      end);
-
-    // 9: Encoding (document)
-    AddIconNoClear(
-      procedure(C: Vcl.Graphics.TCanvas)
-      var R: TRect;
-      begin
-        // 更精美的文档图标：带折角和三条横线
-        R := Rect(3,2,13,14);
-        // 文档主体
-        C.Brush.Color := clWhite;
-        C.Pen.Color := RGB(150,150,150);
-        C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
-        // 右上折角
-        C.Pen.Color := RGB(180,180,180);
-        C.MoveTo(R.Right-5, R.Top);
-        C.LineTo(R.Right-1, R.Top+4);
-        C.LineTo(R.Right-1, R.Bottom-1);
-        C.LineTo(R.Left, R.Bottom-1);
-        // 文档横线
-        C.Pen.Color := RGB(110,110,110);
-        C.MoveTo(R.Left+2, R.Top+4); C.LineTo(R.Right-2, R.Top+4);
-        C.MoveTo(R.Left+2, R.Top+6); C.LineTo(R.Right-2, R.Top+6);
-        C.MoveTo(R.Left+2, R.Top+8); C.LineTo(R.Right-4, R.Top+8);
-      end);
-  finally
-    bmp.Free;
   end;
 end;
 
@@ -2413,10 +2197,6 @@ begin
   FUIHelper.InitStringGrid(StringGrid1);
   FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
 
-  // 初始化树图标
-  InitTreeIcons;
-  TreeViewEncodings.Images := FIconList;
-
   // 绑定编码树的高级自定义绘制事件，实现分类节点着色、编码加粗
   TreeViewEncodings.OnAdvancedCustomDrawItem := TreeViewEncodingsAdvancedCustomDrawItem;
 
@@ -2511,7 +2291,7 @@ begin
   // 延迟更新文件列表，避免在初始化阶段产生过多I/O
   try
     // 安全检查：确保FSelectedFolder有效
-    if (FSelectedFolder = '') or (not System.SysUtils.DirectoryExists(FSelectedFolder)) then
+    if (FSelectedFolder = '') or (not DirectoryExists(FSelectedFolder)) then
     begin
       Log('选择的目录无效，使用C盘作为默认目录');
       FSelectedFolder := 'C:\';

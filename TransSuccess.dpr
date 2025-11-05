@@ -9,13 +9,17 @@ program TransSuccess;
 
 // JCL 异常追踪和内存泄漏检测（已弃用）
 // 已切换到 madExcept，详见 docs/madExcept_Integration.md
+// madExcept 暂时禁用 - 版本不兼容问题
+{.$DEFINE USE_MADEXCEPT}
 
 uses
+{$IFDEF USE_MADEXCEPT}
   madExcept,
   madLinkDisAsm,
   madListHardware,
   madListProcesses,
   madListModules,
+{$ENDIF}
  {$IFDEF USE_EUREKALOG}
   EMemLeaks,        // 内存泄漏检测
   EResLeaks,        // 资源泄漏检测  

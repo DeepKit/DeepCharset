@@ -1,0 +1,122 @@
+Embarcadero Delphi for Win64 compiler version 36.0
+Copyright (c) 1983,2024 Embarcadero Technologies, Inc.
+JclStrings.pas(158) Hint: H2077 Value assigned to 'NextLowByte' never used
+JclStrings.pas(163) Hint: H2077 Value assigned to 'NextLowByte' never used
+JclStringConversions.pas(65) Warning: W1000 Symbol 'StrLen' is deprecated: 'Moved to the AnsiStrings unit'
+HelperLanguage.pas(398) Hint: H2164 Variable 'CurrentSection' is declared but never used in 'TLanguageManager.LoadFromIniFile'
+HelperLanguage.pas(399) Hint: H2164 Variable 'i' is declared but never used in 'TLanguageManager.LoadFromIniFile'
+HelperLanguage.pas(400) Hint: H2164 Variable 'Line' is declared but never used in 'TLanguageManager.LoadFromIniFile'
+HelperLanguage.pas(400) Hint: H2164 Variable 'Key' is declared but never used in 'TLanguageManager.LoadFromIniFile'
+HelperLanguage.pas(400) Hint: H2164 Variable 'Value' is declared but never used in 'TLanguageManager.LoadFromIniFile'
+ModelEncoding.pas(354) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(356) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(357) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(361) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(379) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(385) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(395) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(396) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(405) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(406) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(410) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(411) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(412) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(416) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(426) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(429) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(440) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(447) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(448) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(449) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(450) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(469) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(470) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(473) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(480) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(484) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(485) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(486) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(487) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(489) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(490) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ModelEncoding.pas(491) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+HelperUI.pas(263) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+HelperUI.pas(409) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+HelperUI.pas(433) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+HelperUI.pas(454) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+HelperUI.pas(518) Hint: H2077 Value assigned to 'IsCommonEncoding' never used
+UtilsEncodingUTF8Detector_Improved.pas(178) Hint: H2077 Value assigned to 'LeadingByteCount' never used
+UtilsEncodingUTF8Detector_Improved.pas(176) Hint: H2077 Value assigned to 'LeadingByteCount' never used
+UtilsEncodingUTF8Detector_Improved.pas(165) Hint: H2077 Value assigned to 'AsciiCount' never used
+UtilsEncodingUTF8Detector_Improved.pas(163) Hint: H2077 Value assigned to 'AsciiCount' never used
+ChineseEncodingDetector_Improved.pas(187) Hint: H2077 Value assigned to 'GB2312TrailingBytes' never used
+ChineseEncodingDetector_Improved.pas(185) Hint: H2077 Value assigned to 'GB2312TrailingBytes' never used
+ChineseEncodingDetector_Improved.pas(175) Hint: H2077 Value assigned to 'Big5TrailingBytes' never used
+ChineseEncodingDetector_Improved.pas(173) Hint: H2077 Value assigned to 'Big5TrailingBytes' never used
+ChineseEncodingDetector_Improved.pas(141) Hint: H2077 Value assigned to 'GBKTrailingBytes' never used
+ChineseEncodingDetector_Improved.pas(139) Hint: H2077 Value assigned to 'GBKTrailingBytes' never used
+UTF8BOMConverter_Improved.pas(281) Hint: H2077 Value assigned to 'SourceCodePage' never used
+UTF8BOMConverter_Improved.pas(422) Hint: H2077 Value assigned to 'SourceCodePage' never used
+UTF8BOMConverter_Improved.pas(38) Hint: H2219 Private symbol 'IsUTF8Buffer' declared but never used
+UtilsEncodingHelper.pas(53) Hint: H2077 Value assigned to 'TEncodingHelper.TryConvertFast' never used
+EncodingConverter_Improved.pas(398) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+EncodingConverter_Improved.pas(243) Hint: H2164 Variable 'MemoryStream' is declared but never used in 'TEncodingConverter_Improved.ConvertBuffer'
+EncodingConverter_Improved.pas(529) Warning: W1002 Symbol 'FileGetAttr' is specific to a platform
+EncodingConverter_Improved.pas(590) Warning: W1002 Symbol 'FileSetAttr' is specific to a platform
+EncodingConverter_Improved.pas(611) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+EncodingConverter_Improved.pas(648) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+EncodingConverter_Improved.pas(653) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+EncodingConverter_Improved.pas(687) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+EncodingConverter_Improved.pas(721) Warning: W1002 Symbol 'FileSetAttr' is specific to a platform
+EncodingConverter_Improved.pas(96) Hint: H2219 Private symbol 'IsFileAccessible' declared but never used
+HelperFiles.pas(127) Hint: H2164 Variable 'CP' is declared but never used in 'TFileHelper.ConvertFile'
+HelperFiles.pas(223) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+HelperFiles.pas(216) Hint: H2077 Value assigned to 'StartTime' never used
+HelperFiles.pas(211) Hint: H2164 Variable 'ElapsedTime' is declared but never used in 'TFileHelper.DetectFileEncoding'
+HelperFiles.pas(361) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+JapaneseEncodingDetector_Improved.pas(142) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(140) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(130) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(128) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(110) Hint: H2077 Value assigned to 'TotalBytes' never used
+JapaneseEncodingDetector_Improved.pas(239) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+KoreanEncodingDetector_Improved.pas(140) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(138) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(128) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(126) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(110) Hint: H2077 Value assigned to 'TotalBytes' never used
+KoreanEncodingDetector_Improved.pas(235) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+ControllerEncoding.pas(124) Hint: H2164 Variable 'DetectionInfo' is declared but never used in 'TEncodingController.DetectFileEncoding'
+ControllerEncoding.pas(130) Hint: H2164 Variable 'ChineseResult' is declared but never used in 'TEncodingController.DetectFileEncoding'
+ControllerEncoding.pas(309) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(341) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(353) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(375) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(398) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(423) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(428) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(432) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ControllerEncoding.pas(31) Hint: H2219 Private symbol 'GetTempFilePath' declared but never used
+ControllerEncoding.pas(34) Hint: H2219 Private symbol 'IsFileAccessible' declared but never used
+ViewSynEdit.pas(331) Hint: H2077 Value assigned to 'TSynEditForm.LoadFileWithProperEncoding$ActRec.$0$Body' never used
+ViewMainCode.pas(350) Hint: H2077 Value assigned to 'SuccessCount' never used
+ViewMainCode.pas(863) Hint: H2164 Variable 'EncodingName' is declared but never used in 'TForm1.MenuItemConvertAllFilesClick'
+ViewMainCode.pas(864) Hint: H2164 Variable 'FinishMsg' is declared but never used in 'TForm1.MenuItemConvertAllFilesClick'
+ViewMainCode.pas(1722) Hint: H2077 Value assigned to 'Encoding' never used
+ViewMainCode.pas(1690) Hint: H2164 Variable 'EncodingInfo' is declared but never used in 'TForm1.btnShowContentClick'
+UtilsEncodingLogger.pas(512) Hint: H2443 Inline function 'RenameFile' has not been expanded because unit 'Winapi.Windows' is not specified in USES list
+UtilsEncodingLogger.pas(516) Hint: H2443 Inline function 'RenameFile' has not been expanded because unit 'Winapi.Windows' is not specified in USES list
+UtilsJclException.pas(188) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+UtilsJclException.pas(200) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+UtilsJclException.pas(259) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+UtilsJclException.pas(364) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ViewExceptionReport.pas(68) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ViewExceptionReport.pas(74) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ViewExceptionReport.pas(78) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ViewExceptionReport.pas(98) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+ViewExceptionReport.pas(138) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Hint: H2161 Warning: Duplicate resource:  Type 10 (RCDATA), ID PLATFORMTARGETS; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
+Hint: H2161 Warning: Duplicate resource:  Type 14 (ICON GROUP), ID MAINICON; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
+Hint: H2161 Warning: Duplicate resource:  Type 16 (VERSIONINFO), ID 1; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
+Hint: H2161 Warning: Duplicate resource:  Type 24 (user-defined), ID 1; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
+16087 lines, 0.50 seconds, 3934048 bytes code, 389112 bytes data.

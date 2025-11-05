@@ -1,4 +1,4 @@
-﻿unit HelperLanguage;
+unit HelperLanguage;
 
 interface
 
@@ -394,57 +394,128 @@ end;
 
 function TLanguageManager.LoadFromIniFile(const FileName: string): TLanguageStrings;
 var
-  IniFile: TMemIniFile;
+  Lines: TStringList;
+  CurrentSection: string;
+  i: Integer;
+  Line, Key, Value: string;
+  EqualPos: Integer;
+  
+  function GetValue(const Section, KeyName: string): string;
+  var
+    j: Integer;
+    InSection: Boolean;
+    TempLine, TempKey: string;
+  begin
+    Result := '';
+    InSection := False;
+    
+    for j := 0 to Lines.Count - 1 do
+    begin
+      TempLine := Trim(Lines[j]);
+      
+      // 跳过空行和注释
+      if (TempLine = '') or (TempLine.StartsWith('#')) or (TempLine.StartsWith(';')) then
+        Continue;
+      
+      // 检查是否是节标题
+      if TempLine.StartsWith('[') and TempLine.EndsWith(']') then
+      begin
+        InSection := SameText(Copy(TempLine, 2, Length(TempLine) - 2), Section);
+        Continue;
+      end;
+      
+      // 如果在目标节中，查找键值
+      if InSection then
+      begin
+        EqualPos := Pos('=', TempLine);
+        if EqualPos > 0 then
+        begin
+          TempKey := Trim(Copy(TempLine, 1, EqualPos - 1));
+          if SameText(TempKey, KeyName) then
+          begin
+            Result := Trim(Copy(TempLine, EqualPos + 1, MaxInt));
+            Exit;
+          end;
+        end;
+      end;
+    end;
+  end;
+  
 begin
   // 初始化为默认字符串
   Result := CreateDefaultLanguageStrings;
 
   try
-    // 使用TMemIniFile读取语言文件
-    IniFile := TMemIniFile.Create(FileName, TEncoding.UTF8);
+    // 使用TStringList直接读取UTF-8文件
+    Lines := TStringList.Create;
     try
+      Lines.LoadFromFile(FileName, TEncoding.UTF8);
+      
       // 读取字符串部分
-      Result.WindowTitle := IniFile.ReadString('Strings', 'WindowTitle', Result.WindowTitle);
-      Result.BtnConvert := IniFile.ReadString('Strings', 'BtnConvert', Result.BtnConvert);
-      Result.BtnSingleFile := IniFile.ReadString('Strings', 'BtnSingleFile', Result.BtnSingleFile);
-      Result.BtnRefresh := IniFile.ReadString('Strings', 'BtnRefresh', Result.BtnRefresh);
-      Result.BtnClose := IniFile.ReadString('Strings', 'BtnClose', Result.BtnClose);
-      Result.BtnToggleSelect := IniFile.ReadString('Strings', 'BtnToggleSelect', Result.BtnToggleSelect);
-      Result.BtnPreview := IniFile.ReadString('Strings', 'BtnPreview', Result.BtnPreview);
-      Result.LanguageGroupCaption := IniFile.ReadString('Strings', 'LanguageGroupCaption', Result.LanguageGroupCaption);
-      Result.DirectoryListBoxLabel := IniFile.ReadString('Strings', 'DirectoryListBoxLabel', Result.DirectoryListBoxLabel);
-      Result.FileListLabel := IniFile.ReadString('Strings', 'FileListLabel', Result.FileListLabel);
-      Result.CurrentEncodingLabel := IniFile.ReadString('Strings', 'CurrentEncodingLabel', Result.CurrentEncodingLabel);
-      Result.FileSelectColumn := IniFile.ReadString('Strings', 'FileSelectColumn', Result.FileSelectColumn);
-      Result.FileNameColumn := IniFile.ReadString('Strings', 'FileNameColumn', Result.FileNameColumn);
-      Result.EncodingColumn := IniFile.ReadString('Strings', 'EncodingColumn', Result.EncodingColumn);
-      Result.PopupMenuConvert := IniFile.ReadString('Strings', 'PopupMenuConvert', Result.PopupMenuConvert);
-      Result.PopupMenuToggleSelect := IniFile.ReadString('Strings', 'PopupMenuToggleSelect', Result.PopupMenuToggleSelect);
-      Result.NoFilesText := IniFile.ReadString('Strings', 'NoFilesText', Result.NoFilesText);
-      Result.ReadErrorText := IniFile.ReadString('Strings', 'ReadErrorText', Result.ReadErrorText);
-      Result.LogSelectedDirectory := IniFile.ReadString('Strings', 'LogSelectedDirectory', Result.LogSelectedDirectory);
-      Result.BtnAllFileTypes := IniFile.ReadString('Strings', 'BtnAllFileTypes', Result.BtnAllFileTypes);
-      Result.BtnCheckContent := IniFile.ReadString('Strings', 'BtnCheckContent', Result.BtnCheckContent);
-      Result.ChkIncludeSubdirs := IniFile.ReadString('Strings', 'ChkIncludeSubdirs', Result.ChkIncludeSubdirs);
+      Result.WindowTitle := GetValue('Strings', 'WindowTitle');
+      Result.BtnConvert := GetValue('Strings', 'BtnConvert');
+      Result.BtnSingleFile := GetValue('Strings', 'BtnSingleFile');
+      Result.BtnRefresh := GetValue('Strings', 'BtnRefresh');
+      Result.BtnClose := GetValue('Strings', 'BtnClose');
+      Result.BtnToggleSelect := GetValue('Strings', 'BtnToggleSelect');
+      Result.BtnPreview := GetValue('Strings', 'BtnPreview');
+      Result.LanguageGroupCaption := GetValue('Strings', 'LanguageGroupCaption');
+      Result.DirectoryListBoxLabel := GetValue('Strings', 'DirectoryListBoxLabel');
+      Result.FileListLabel := GetValue('Strings', 'FileListLabel');
+      Result.CurrentEncodingLabel := GetValue('Strings', 'CurrentEncodingLabel');
+      Result.FileSelectColumn := GetValue('Strings', 'FileSelectColumn');
+      Result.FileNameColumn := GetValue('Strings', 'FileNameColumn');
+      Result.EncodingColumn := GetValue('Strings', 'EncodingColumn');
+      Result.PopupMenuConvert := GetValue('Strings', 'PopupMenuConvert');
+      Result.PopupMenuToggleSelect := GetValue('Strings', 'PopupMenuToggleSelect');
+      Result.NoFilesText := GetValue('Strings', 'NoFilesText');
+      Result.ReadErrorText := GetValue('Strings', 'ReadErrorText');
+      Result.LogSelectedDirectory := GetValue('Strings', 'LogSelectedDirectory');
+      Result.BtnAllFileTypes := GetValue('Strings', 'BtnAllFileTypes');
+      Result.BtnCheckContent := GetValue('Strings', 'BtnCheckContent');
+      Result.ChkIncludeSubdirs := GetValue('Strings', 'ChkIncludeSubdirs');
 
       // 弹窗消息
-      Result.MsgSelectTargetEncoding := IniFile.ReadString('Messages', 'MsgSelectTargetEncoding', Result.MsgSelectTargetEncoding);
-      Result.MsgSelectFiles := IniFile.ReadString('Messages', 'MsgSelectFiles', Result.MsgSelectFiles);
-      Result.MsgNoMatchingFiles := IniFile.ReadString('Messages', 'MsgNoMatchingFiles', Result.MsgNoMatchingFiles);
-      Result.MsgConversionComplete := IniFile.ReadString('Messages', 'MsgConversionComplete', Result.MsgConversionComplete);
-      Result.MsgConversionFailed := IniFile.ReadString('Messages', 'MsgConversionFailed', Result.MsgConversionFailed);
-      Result.MsgFileNotExists := IniFile.ReadString('Messages', 'MsgFileNotExists', Result.MsgFileNotExists);
-      Result.MsgNotTextFile := IniFile.ReadString('Messages', 'MsgNotTextFile', Result.MsgNotTextFile);
-      Result.MsgSingleFileSuccess := IniFile.ReadString('Messages', 'MsgSingleFileSuccess', Result.MsgSingleFileSuccess);
-      Result.MsgSingleFileFailed := IniFile.ReadString('Messages', 'MsgSingleFileFailed', Result.MsgSingleFileFailed);
-      Result.MsgSelectFile := IniFile.ReadString('Messages', 'MsgSelectFile', Result.MsgSelectFile);
-      Result.MsgCannotCreateViewer := IniFile.ReadString('Messages', 'MsgCannotCreateViewer', Result.MsgCannotCreateViewer);
-      Result.MsgCannotLoadFile := IniFile.ReadString('Messages', 'MsgCannotLoadFile', Result.MsgCannotLoadFile);
-      Result.MsgViewerError := IniFile.ReadString('Messages', 'MsgViewerError', Result.MsgViewerError);
-      Result.MsgSubdirEnabled := IniFile.ReadString('Messages', 'MsgSubdirEnabled', Result.MsgSubdirEnabled);
-      Result.MsgConversionSuccess := IniFile.ReadString('Messages', 'MsgConversionSuccess', Result.MsgConversionSuccess);
+      Result.MsgSelectTargetEncoding := GetValue('Messages', 'MsgSelectTargetEncoding');
+      Result.MsgSelectFiles := GetValue('Messages', 'MsgSelectFiles');
+      Result.MsgNoMatchingFiles := GetValue('Messages', 'MsgNoMatchingFiles');
+      Result.MsgConversionComplete := GetValue('Messages', 'MsgConversionComplete');
+      Result.MsgConversionFailed := GetValue('Messages', 'MsgConversionFailed');
+      Result.MsgFileNotExists := GetValue('Messages', 'MsgFileNotExists');
+      Result.MsgNotTextFile := GetValue('Messages', 'MsgNotTextFile');
+      Result.MsgSingleFileSuccess := GetValue('Messages', 'MsgSingleFileSuccess');
+      Result.MsgSingleFileFailed := GetValue('Messages', 'MsgSingleFileFailed');
+      Result.MsgSelectFile := GetValue('Messages', 'MsgSelectFile');
+      Result.MsgCannotCreateViewer := GetValue('Messages', 'MsgCannotCreateViewer');
+      Result.MsgCannotLoadFile := GetValue('Messages', 'MsgCannotLoadFile');
+      Result.MsgViewerError := GetValue('Messages', 'MsgViewerError');
+      Result.MsgSubdirEnabled := GetValue('Messages', 'MsgSubdirEnabled');
+      Result.MsgConversionSuccess := GetValue('Messages', 'MsgConversionSuccess');
+      
+      // 进度提示文本
+      Result.ProgressSearchingFiles := GetValue('Progress', 'ProgressSearchingFiles');
+      Result.ProgressDetectingEncoding := GetValue('Progress', 'ProgressDetectingEncoding');
+      Result.ProgressDetecting := GetValue('Progress', 'ProgressDetecting');
+      Result.ProgressComplete := GetValue('Progress', 'ProgressComplete');
+      Result.ProgressCompleteFiles := GetValue('Progress', 'ProgressCompleteFiles');
+      
+      // 日志消息
+      Result.LogDetectionComplete := GetValue('Logs', 'LogDetectionComplete');
+      Result.LogFilesFound := GetValue('Logs', 'LogFilesFound');
+      Result.LogDeselectAllFileTypes := GetValue('Logs', 'LogDeselectAllFileTypes');
+      Result.LogSelectAllFileTypes := GetValue('Logs', 'LogSelectAllFileTypes');
+      Result.LogForceUpdateFileList := GetValue('Logs', 'LogForceUpdateFileList');
+      Result.LogAsyncScanComplete := GetValue('Logs', 'LogAsyncScanComplete');
+      
+      // UI动态文本
+      Result.BtnSelectAllFileTypes := GetValue('UI', 'BtnSelectAllFileTypes');
+      Result.BtnDeselectAllFileTypes := GetValue('UI', 'BtnDeselectAllFileTypes');
+      Result.WindowTitleDefault := GetValue('UI', 'WindowTitleDefault');
+      Result.WindowTitleScanProgress := GetValue('UI', 'WindowTitleScanProgress');
+      Result.WindowTitleConvertProgress := GetValue('UI', 'WindowTitleConvertProgress');
+      Result.SingleFileConvertSuffix := GetValue('UI', 'SingleFileConvertSuffix');
     finally
-      IniFile.Free;
+      Lines.Free;
     end;
   except
     on E: Exception do

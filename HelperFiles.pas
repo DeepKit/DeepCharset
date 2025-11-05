@@ -89,7 +89,7 @@ begin
   FLogCallback := ALogCallback;
 
   if Assigned(FLogCallback) then
-    FLogCallback('文件助手已初始化，使用改进的编码检测支持');
+    FLogCallback('File helper initialized with improved encoding detection');
 end;
 
 destructor TFileHelper.Destroy;
@@ -134,7 +134,7 @@ begin
     if not IsNormalTextFile(SourceFile) then
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('跳过非文本文件: ' + SourceFile);
+        FLogCallback('Skip non-text file: ' + SourceFile);
       Exit;
     end;
 
@@ -144,7 +144,7 @@ begin
     begin
       if Assigned(FLogCallback) then
       begin
-        FLogCallback('无法检测文件编码: ' + SourceFile);
+        FLogCallback('Cannot detect file encoding: ' + SourceFile);
       end;
       Exit;
     end;
@@ -192,14 +192,14 @@ begin
         if ConvResult.ErrorCount > 0 then
           FLogCallback(Format('编码转换失败: %s', [ConvResult.Errors[High(ConvResult.Errors)].ErrorMessage]))
         else
-          FLogCallback('编码转换失败');
+          FLogCallback('Encoding conversion failed');
       end;
     end;
   except
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('转换异常: ' + SourceFile + ' - ' + E.Message);
+        FLogCallback('Conversion exception: ' + SourceFile + ' - ' + E.Message);
       Result := False;
     end;
   end;
@@ -232,11 +232,7 @@ begin
     begin
       Result := BOMResult.Encoding;
       HasBOM := True;
-
-      ElapsedTime := MilliSecondsBetween(StartTime, Now);
-      if Assigned(FLogCallback) then
-        FLogCallback(Format('检测到文件 %s 的编码为: %s (BOM) (耗时: %d ms)',
-          [ExtractFileName(FileName), Result, ElapsedTime]));
+      // 不再记录每个文件的日志，减少性能开销
       Exit;
     end;
 
@@ -246,11 +242,6 @@ begin
     begin
       Result := ENCODING_UTF8;
       HasBOM := UTF8Result.HasBOM;
-
-      ElapsedTime := MilliSecondsBetween(StartTime, Now);
-      if Assigned(FLogCallback) then
-        FLogCallback(Format('检测到文件 %s 的编码为: %s (UTF-8) (耗时: %d ms)',
-          [ExtractFileName(FileName), Result, ElapsedTime]));
       Exit;
     end;
 
@@ -260,22 +251,12 @@ begin
     begin
       Result := CNResult.Encoding;
       HasBOM := CNResult.HasBOM;
-
-      ElapsedTime := MilliSecondsBetween(StartTime, Now);
-      if Assigned(FLogCallback) then
-        FLogCallback(Format('检测到文件 %s 的编码为: %s (中文编码) (耗时: %d ms)',
-          [ExtractFileName(FileName), Result, ElapsedTime]));
       Exit;
     end;
 
     // 4) 默认回退到 ANSI
     Result := ENCODING_ANSI;
     HasBOM := False;
-
-    ElapsedTime := MilliSecondsBetween(StartTime, Now);
-    if Assigned(FLogCallback) then
-      FLogCallback(Format('检测到文件 %s 的编码为: %s (默认) (耗时: %d ms)',
-        [ExtractFileName(FileName), Result, ElapsedTime]));
   except
     on E: Exception do
     begin
@@ -283,9 +264,8 @@ begin
       Result := ENCODING_UNKNOWN;
       HasBOM := False;
 
-      // 记录错误
-      if Assigned(FLogCallback) then
-        FLogCallback(Format('检测文件编码失败: %s - %s', [FileName, E.Message]));
+      // 只记录严重错误，避免日志过多
+      // 不再记录每个文件的检测失败信息
     end;
   end;
 end;
@@ -300,12 +280,12 @@ begin
       Result := ForceDirectories(Path);
 
       if Result and Assigned(FLogCallback) then
-        FLogCallback('创建目录: ' + Path);
+        FLogCallback('Created directory: ' + Path);
     except
       on E: Exception do
       begin
         if Assigned(FLogCallback) then
-          FLogCallback('创建目录失败: ' + Path + ' - ' + E.Message);
+          FLogCallback('Create directory failed: ' + Path + ' - ' + E.Message);
         Result := False;
       end;
     end;
@@ -327,7 +307,7 @@ begin
   if FolderPath = '' then
   begin
     if Assigned(FLogCallback) then
-      FLogCallback('错误: 提供的目录路径为空');
+      FLogCallback('Error: Provided directory path is empty');
     Exit;
   end;
 
@@ -339,7 +319,7 @@ begin
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('路径格式化错误: ' + E.Message);
+        FLogCallback('Path format error: ' + E.Message);
       Exit;
     end;
   end;
@@ -354,7 +334,7 @@ begin
     if not DirectoryExists(SafePath) then
     begin
       if Assigned(FLogCallback) then
-        FLogCallback('目录不存在: ' + SafePath);
+        FLogCallback('Directory does not exist: ' + SafePath);
       Exit;
     end;
 
@@ -366,13 +346,13 @@ begin
         on E: Exception do
         begin
           if Assigned(FLogCallback) then
-            FLogCallback('获取文件列表出错: ' + E.Message);
+            FLogCallback('Failed to get file list: ' + E.Message);
           Exit;
         end;
       end;
 
       if Assigned(FLogCallback) then
-        FLogCallback('找到 ' + IntToStr(Length(Files)) + ' 个文件，正在提取扩展名');
+        FLogCallback('Found ' + IntToStr(Length(Files)) + ' files, extracting extensions');
 
       // 安全检查：确保文件列表有效
       if Length(Files) = 0 then
@@ -404,7 +384,7 @@ begin
       if Extensions.Count = 0 then
       begin
         if Assigned(FLogCallback) then
-          FLogCallback('未找到任何文件扩展名');
+          FLogCallback('No file extensions found');
         Exit;
       end;
 
@@ -415,12 +395,12 @@ begin
           Result[i] := Extensions[i];
 
         if Assigned(FLogCallback) then
-          FLogCallback('成功获取 ' + IntToStr(Extensions.Count) + ' 个不同的文件扩展名');
+          FLogCallback('Got ' + IntToStr(Extensions.Count) + ' distinct file extensions');
       except
         on E: Exception do
         begin
           if Assigned(FLogCallback) then
-            FLogCallback('转换扩展名列表为数组时出错: ' + E.Message);
+            FLogCallback('Error converting extensions to array: ' + E.Message);
           SetLength(Result, 0);
         end;
       end;
@@ -428,7 +408,7 @@ begin
       on E: Exception do
       begin
         if Assigned(FLogCallback) then
-          FLogCallback('获取文件扩展名出错: ' + E.Message);
+          FLogCallback('Error getting file extensions: ' + E.Message);
         SetLength(Result, 0);
       end;
     end;
@@ -462,9 +442,9 @@ begin
     SearchOption := TSearchOption.soTopDirectoryOnly;
 
   if Assigned(FLogCallback) then
-    FLogCallback('开始搜索文件: ' + FolderPath +
-                 ', 包含子目录: ' + BoolToStr(IncludeSubdirs, True) +
-                 ', 扩展名: ' + IntToStr(Length(Extensions)) + '个');
+    FLogCallback('Start searching files: ' + FolderPath +
+                 ', include subdirectories: ' + BoolToStr(IncludeSubdirs, True) +
+                 ', extensions: ' + IntToStr(Length(Extensions)));
 
   FilteredFiles := TList<string>.Create;
   try
@@ -472,7 +452,7 @@ begin
     Files := TDirectory.GetFiles(FolderPath, '*.*', SearchOption);
 
     if Assigned(FLogCallback) then
-      FLogCallback('找到' + IntToStr(Length(Files)) + '个文件');
+      FLogCallback('Found ' + IntToStr(Length(Files)) + ' files');
 
     for i := 0 to High(Files) do
     begin
@@ -504,7 +484,7 @@ begin
       Result[i] := FilteredFiles[i];
 
     if Assigned(FLogCallback) then
-      FLogCallback('筛选后有' + IntToStr(FilteredFiles.Count) + '个符合条件的文件');
+      FLogCallback('After filtering: ' + IntToStr(FilteredFiles.Count) + ' files match');
 
   finally
     FilteredFiles.Free;
@@ -616,7 +596,7 @@ begin
 
       // 记录分析结果
       if Assigned(FLogCallback) and not Result then
-        FLogCallback('跳过非文本文件: ' + FileName + ' (二进制比例: ' +
+        FLogCallback('Skip non-text file: ' + FileName + ' (binary ratio: ' +
                      FormatFloat('0.00%', BinaryRatio * 100) + ')');
 
     finally
@@ -627,7 +607,7 @@ begin
     begin
       // 如果无法读取文件，认为它不是正常文本文件
       if Assigned(FLogCallback) then
-        FLogCallback('无法分析文件: ' + FileName + ' - ' + E.Message);
+        FLogCallback('Cannot analyze file: ' + FileName + ' - ' + E.Message);
       Result := False;
     end;
   end;
@@ -661,14 +641,14 @@ begin
   begin
     Result := GrandParentDir;
     if Assigned(FLogCallback) then
-      FLogCallback('找到根目录: ' + Result);
+      FLogCallback('Root directory found: ' + Result);
   end
   else
   begin
     // 如果没有找到ini目录，则使用当前目录
     Result := ExeDir;
     if Assigned(FLogCallback) then
-      FLogCallback('未找到ini目录，使用当前目录作为根目录: ' + Result);
+      FLogCallback('INI directory not found, use application directory as root: ' + Result);
   end;
 end;
 

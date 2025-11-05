@@ -1,4 +1,4 @@
-﻿unit ModelLanguage;
+unit ModelLanguage;
 
 interface
 
@@ -97,6 +97,29 @@ type
     MsgViewerError: string;
     MsgSubdirEnabled: string;
     MsgConversionSuccess: string;
+
+    // 进度提示文本
+    ProgressSearchingFiles: string;
+    ProgressDetectingEncoding: string;
+    ProgressDetecting: string;
+    ProgressComplete: string;
+    ProgressCompleteFiles: string;
+
+    // 日志消息
+    LogDetectionComplete: string;
+    LogFilesFound: string;
+    LogDeselectAllFileTypes: string;
+    LogSelectAllFileTypes: string;
+    LogForceUpdateFileList: string;
+    LogAsyncScanComplete: string;
+
+    // UI动态文本
+    BtnSelectAllFileTypes: string;
+    BtnDeselectAllFileTypes: string;
+    WindowTitleDefault: string;
+    WindowTitleScanProgress: string;
+    WindowTitleConvertProgress: string;
+    SingleFileConvertSuffix: string;
 
     // 编码分类标题
     EncCategoryUnicode: string;
@@ -222,6 +245,17 @@ begin
   Result.MsgViewerError := 'Error viewing file: %s';
   Result.MsgSubdirEnabled := 'Subdirectory search enabled. This may increase file list loading time, especially for folders with many subdirectories.';
   Result.MsgConversionSuccess := 'Conversion successful!';
+
+  // 进度提示文本
+  Result.ProgressSearchingFiles := 'Searching files...';
+  Result.ProgressDetectingEncoding := 'Detecting encoding: 0/%d';
+  Result.ProgressDetecting := 'Detecting: %d/%d (%.0f%%)';
+  Result.ProgressComplete := 'Complete: %d files';
+  Result.ProgressCompleteFiles := 'Complete: %d files';
+
+  // 日志消息
+  Result.LogDetectionComplete := 'Detection complete: %d files';
+  Result.LogFilesFound := 'Found %d files, starting encoding detection...';
 
   // 编码分类标题
   Result.EncCategoryUnicode := 'Unicode';

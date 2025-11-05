@@ -477,11 +477,21 @@ begin
     // 设置 TreeView 外观
     TreeView.Font.Size := 10;
     TreeView.Font.Name := 'Segoe UI';
-    TreeView.Indent := 24;
+    // 启用树状连接线和展开按钮，显示根节点
+    TreeView.ShowLines := True;
+    TreeView.ShowButtons := True;
+    TreeView.ShowRoot := True;
+    // 统一缩进，使用视觉连接线
+    TreeView.Indent := 22;
 
     // 获取根节点文本（不使用表情或特殊符号，避免乱码）
     RootText := GetTranslatedText('TreeViewRootNode', '选择目标编码');
     RootNode := TreeView.Items.AddObject(nil, RootText, nil);
+    if Assigned(RootNode) then
+    begin
+      RootNode.ImageIndex := 0;
+      RootNode.SelectedIndex := 0;
+    end;
     GroupNode := nil;
 
     for i := 0 to EncodingModel.EncodingCount - 1 do
@@ -496,6 +506,25 @@ begin
           DisplayText := EncodingInfo.Name;
         
         GroupNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
+        if Assigned(GroupNode) then
+        begin
+          // 根据分组短名为不同语系分配不同的图标索引
+          // 约定的索引：
+          // 0=root，1=Unicode，2=Asian，3=Western，4=Eastern，5=MiddleEast，6=Nordic，7=Southern，8=Other，9=Encoding
+          var idx: Integer := 8; // 默认Other
+          var key := LowerCase(EncodingInfo.ShortName);
+          if key = 'unicode' then idx := 1
+          else if key = 'asian' then idx := 2
+          else if key = 'western' then idx := 3
+          else if key = 'eastern' then idx := 4
+          else if key = 'middleeast' then idx := 5
+          else if key = 'nordic' then idx := 6
+          else if key = 'southern' then idx := 7
+          else idx := 8;
+
+          GroupNode.ImageIndex := idx;
+          GroupNode.SelectedIndex := idx;
+        end;
       end
       else if Assigned(GroupNode) then
       begin
@@ -516,16 +545,25 @@ begin
         if ShortDesc <> '' then
           DisplayText := DisplayText + '  (' + ShortDesc + ')';
         
-        // 常用编码靠前，但不添加特殊符号；普通编码添加适度空格用于对齐
-        if not IsCommonEncoding then
-          DisplayText := '  ' + DisplayText;  // 轻微缩进
+        // 取消手工空格缩进，交给TreeView的层级缩进处理，避免文本不对齐
         
         EncodingNode := TreeView.Items.AddChildObject(GroupNode, DisplayText, Pointer(i));
+        if Assigned(EncodingNode) then
+        begin
+          // 统一使用编码图标索引9
+          EncodingNode.ImageIndex := 9;
+          EncodingNode.SelectedIndex := 9;
+        end;
       end
       else
       begin
         DisplayText := EncodingInfo.Name;
         EncodingNode := TreeView.Items.AddChildObject(RootNode, DisplayText, Pointer(i));
+        if Assigned(EncodingNode) then
+        begin
+          EncodingNode.ImageIndex := 9;
+          EncodingNode.SelectedIndex := 9;
+        end;
       end;
     end;
 

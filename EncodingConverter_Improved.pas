@@ -515,6 +515,14 @@ begin
     // 直接使用 ConvertBuffer 返回的转换结果
     OutputBuffer := Result.OutputData;
 
+    // 【关键修复】验证转换后的数据不为空
+    if Length(OutputBuffer) = 0 then
+    begin
+      AddError(Result, ecetUnknownError, 0, 0, '转换后的数据为空，拒绝写入文件以防止数据丢失');
+      Result.Success := False;
+      Exit;
+    end;
+
     // 保存文件属�?
     FileAttrs := 0;
     try
@@ -567,13 +575,16 @@ begin
           end;
         end;
 
-        // 如果源文件和目标文件相同，需要先删除源文�?
+        // 【关键修复】如果源文件和目标文件相同，使用更安全的替换策略
         if SourceFileName = TargetFileName then
         begin
-          // 尝试删除源文�?
+          // 创建备份文件名（使用时间戳确保唯一性）
+          var BackupFileName := ChangeFileExt(SourceFileName, '.backup_' + FormatDateTime('hhnnsszzz', Now));
+          
+          // 先将源文件重命名为备份文件
           if FileExists(SourceFileName) then
           begin
-            // 先尝试修改文件属性为普通文�?
+            // 先尝试修改文件属性为普通文件
             try
               if (FileAttrs and faReadOnly) <> 0 then
                 System.SysUtils.FileSetAttr(SourceFileName, FileAttrs and (not faReadOnly));
@@ -581,7 +592,8 @@ begin
               // 忽略修改属性的错误
             end;
 
-            if not DeleteFile(PChar(SourceFileName)) then
+            // 重命名源文件为备份文件
+            if not RenameFile(SourceFileName, BackupFileName) then
             begin
               ErrCode := GetLastError;
 
@@ -590,27 +602,74 @@ begin
               begin
                 if RetryCount < MaxRetry then
                 begin
-                  Sleep(500 * RetryCount); // 等待时间逐次延长
+                  Sleep(500 * RetryCount);
                   Continue;
                 end;
               end;
 
-              // 达到最大重试次数或其他错误
-              AddError(Result, ecetIOError, 0, 0, Format('无法删除源文件，错误�? %d', [ErrCode]));
+              // 无法重命名源文件
+              AddError(Result, ecetIOError, 0, 0, Format('无法重命名源文件为备份文件，错误码: %d', [ErrCode]));
               Result.Success := False;
               Exit;
             end;
           end;
-        end;
 
-        // 重命名临时文件为目标文件
-        if RenameFile(TempFileName, TargetFileName) then
-        begin
-          Success := True;
-          Result.Success := True;
-          Break;
+          // 重命名临时文件为目标文件
+          if RenameFile(TempFileName, TargetFileName) then
+          begin
+            Success := True;
+            Result.Success := True;
+            
+            // 成功后删除备份文件
+            if FileExists(BackupFileName) then
+            begin
+              try
+                DeleteFile(PChar(BackupFileName));
+              except
+                // 忽略删除备份文件的错误
+              end;
+            end;
+            
+            Break;
+          end
+          else
+          begin
+            // 重命名失败，尝试恢复备份文件
+            ErrCode := GetLastError;
+            
+            if FileExists(BackupFileName) then
+            begin
+              try
+                // 恢复原文件
+                RenameFile(BackupFileName, SourceFileName);
+                AddError(Result, ecetIOError, 0, 0, Format('重命名临时文件失败，已恢复原文件，错误码: %d', [ErrCode]));
+              except
+                on E: Exception do
+                  AddError(Result, ecetIOError, 0, 0, Format('重命名临时文件失败且无法恢复原文件: %s', [E.Message]));
+              end;
+            end
+            else
+            begin
+              AddError(Result, ecetIOError, 0, 0, Format('重命名临时文件失败，错误码: %d', [ErrCode]));
+            end;
+            
+            Result.Success := False;
+            Exit;
+          end;
         end
         else
+        begin
+          // 源文件和目标文件不同，直接重命名临时文件
+          if RenameFile(TempFileName, TargetFileName) then
+          begin
+            Success := True;
+            Result.Success := True;
+            Break;
+          end;
+        end;
+        
+        // 如果重命名失败（针对不同文件的情况）
+        if not Success then
         begin
           ErrCode := GetLastError;
 
@@ -619,13 +678,13 @@ begin
           begin
             if RetryCount < MaxRetry then
             begin
-              Sleep(500 * RetryCount); // 等待时间逐次延长
+              Sleep(500 * RetryCount);
               Continue;
             end;
           end;
 
           // 达到最大重试次数或其他错误
-          AddError(Result, ecetIOError, 0, 0, Format('无法重命名临时文件，错误�? %d', [ErrCode]));
+          AddError(Result, ecetIOError, 0, 0, Format('无法重命名临时文件，错误码: %d', [ErrCode]));
           Result.Success := False;
           Exit;
         end;
