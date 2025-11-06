@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.DateUtils, System.Generics.Collections,
-  System.Math, System.IOUtils, Winapi.Windows;
+  System.Math, System.IOUtils, Winapi.Windows, UtilsTypes;
 
 // 在此定义一个类型别名，以区分自定义的编码枚举类型和系统的TEncoding类
 type
@@ -17,38 +17,38 @@ type
 
 // 编码常量定义
 const
-  // 编码名称常量
-  ENCODING_UNKNOWN = 'Unknown';
-  ENCODING_ANSI = 'ANSI';
-  ENCODING_ASCII = 'ASCII';
-  ENCODING_UTF8 = 'UTF-8';
-  ENCODING_UTF8_BOM = 'UTF-8 BOM';
-  ENCODING_UTF16_LE = 'UTF-16 LE';
-  ENCODING_UTF16_BE = 'UTF-16 BE';
-  ENCODING_UTF32_LE = 'UTF-32 LE';
-  ENCODING_UTF32_BE = 'UTF-32 BE';
-  ENCODING_GB18030 = 'GB18030';
-  ENCODING_GB2312 = 'GB2312';
-  ENCODING_GBK = 'GBK';
-  ENCODING_BIG5 = 'Big5';
-  ENCODING_SHIFT_JIS = 'Shift-JIS';
-  ENCODING_EUC_JP = 'EUC-JP';
-  ENCODING_ISO2022_JP = 'ISO-2022-JP';
-  ENCODING_EUC_KR = 'EUC-KR';
-  ENCODING_ISO_2022_KR = 'ISO-2022-KR';
-  ENCODING_WINDOWS_1251 = 'Windows-1251';
-  ENCODING_WINDOWS_1252 = 'Windows-1252';
-  ENCODING_WINDOWS_1253 = 'Windows-1253';
-  ENCODING_WINDOWS_1254 = 'Windows-1254';
-  ENCODING_WINDOWS_1255 = 'Windows-1255';
-  ENCODING_WINDOWS_1256 = 'Windows-1256';
-  ENCODING_WINDOWS_1257 = 'Windows-1257';
-  ENCODING_WINDOWS_1258 = 'Windows-1258';
-  ENCODING_KOI8_R = 'KOI8-R';
-  ENCODING_KOI8_U = 'KOI8-U';
-  ENCODING_EUC_TW = 'EUC-TW';
-  ENCODING_CP949 = 'CP949';
-  ENCODING_BINARY = 'Binary';
+  // 编码名称常量（统一转发至 UtilsTypes，保持全项目一致）
+  ENCODING_UNKNOWN        = 'Unknown';
+  ENCODING_ANSI           = UtilsTypes.ENCODING_ANSI;
+  ENCODING_ASCII          = UtilsTypes.ENCODING_ASCII;
+  ENCODING_UTF8           = UtilsTypes.ENCODING_UTF8;
+  ENCODING_UTF8_BOM       = UtilsTypes.ENCODING_UTF8_BOM;     // 'UTF-8 with BOM'
+  ENCODING_UTF16_LE       = UtilsTypes.ENCODING_UTF16_LE;     // 'UTF-16LE'
+  ENCODING_UTF16_BE       = UtilsTypes.ENCODING_UTF16_BE;     // 'UTF-16BE'
+  ENCODING_UTF32_LE       = UtilsTypes.ENCODING_UTF32_LE;     // 'UTF-32LE'
+  ENCODING_UTF32_BE       = UtilsTypes.ENCODING_UTF32_BE;     // 'UTF-32BE'
+  ENCODING_GB18030        = UtilsTypes.ENCODING_GB18030;
+  ENCODING_GB2312         = UtilsTypes.ENCODING_GB2312;
+  ENCODING_GBK            = UtilsTypes.ENCODING_GBK;
+  ENCODING_BIG5           = UtilsTypes.ENCODING_BIG5;         // 'BIG5'
+  ENCODING_SHIFT_JIS      = UtilsTypes.ENCODING_SHIFT_JIS;
+  ENCODING_EUC_JP         = UtilsTypes.ENCODING_EUC_JP;
+  ENCODING_ISO2022_JP     = UtilsTypes.ENCODING_ISO_2022_JP;  // 名称不同但字符串一致
+  ENCODING_EUC_KR         = UtilsTypes.ENCODING_EUC_KR;
+  ENCODING_ISO_2022_KR    = UtilsTypes.ENCODING_ISO_2022_KR;
+  ENCODING_WINDOWS_1251   = 'Windows-1251';
+  ENCODING_WINDOWS_1252   = 'Windows-1252';
+  ENCODING_WINDOWS_1253   = 'Windows-1253';
+  ENCODING_WINDOWS_1254   = 'Windows-1254';
+  ENCODING_WINDOWS_1255   = 'Windows-1255';
+  ENCODING_WINDOWS_1256   = 'Windows-1256';
+  ENCODING_WINDOWS_1257   = 'Windows-1257';
+  ENCODING_WINDOWS_1258   = 'Windows-1258';
+  ENCODING_KOI8_R         = 'KOI8-R';
+  ENCODING_KOI8_U         = 'KOI8-U';
+  ENCODING_EUC_TW         = 'EUC-TW';
+  ENCODING_CP949          = 'CP949';
+  ENCODING_BINARY         = 'Binary';
 
   // 代码页常量
   CP_UTF8 = 65001;

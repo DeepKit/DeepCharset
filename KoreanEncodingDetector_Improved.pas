@@ -3,7 +3,7 @@ unit KoreanEncodingDetector_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes;
+  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsTypes;
 
 type
   /// <summary>

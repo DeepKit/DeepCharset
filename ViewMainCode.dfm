@@ -168,7 +168,6 @@ object Form1: TForm1
             'MemLog')
           ScrollBars = ssVertical
           TabOrder = 0
-          ExplicitWidth = 736
         end
       end
     end
@@ -304,7 +303,6 @@ object Form1: TForm1
       RightClickSelect = True
       TabOrder = 0
       OnClick = TreeViewEncodingsClick
-      ExplicitHeight = 381
     end
   end
   object Panel5: TPanel

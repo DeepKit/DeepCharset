@@ -174,6 +174,11 @@ Type
 
     // 初始化TreeView图标
     procedure InitTreeIcons;
+
+    // UI 快捷操作：针对选中文件快速添加/移除 UTF-8 BOM
+    procedure ConvertSelectedFilesToUTF8(const WithBOM: Boolean);
+    procedure MenuItemAddUTF8BOMClick(Sender: TObject);
+    procedure MenuItemRemoveUTF8BOMClick(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -501,6 +506,25 @@ begin
   
   // 加载历史目录
   LoadDirHistory;
+
+  // 运行时为网格右键菜单增加 UTF-8 BOM 快捷项
+  try
+    var Sep := TMenuItem.Create(GridPopupMenu);
+    Sep.Caption := '-';
+    GridPopupMenu.Items.Add(Sep);
+
+    var ItemAdd := TMenuItem.Create(GridPopupMenu);
+    ItemAdd.Caption := '添加UTF-8 BOM';
+    ItemAdd.OnClick := MenuItemAddUTF8BOMClick;
+    GridPopupMenu.Items.Add(ItemAdd);
+
+    var ItemRemove := TMenuItem.Create(GridPopupMenu);
+    ItemRemove.Caption := '移除UTF-8 BOM';
+    ItemRemove.OnClick := MenuItemRemoveUTF8BOMClick;
+    GridPopupMenu.Items.Add(ItemRemove);
+  except
+    // 忽略菜单创建异常，避免影响主流程
+  end;
 end;
 
 procedure TForm1.TreeViewEncodingsClick(Sender: TObject);

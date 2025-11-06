@@ -1,3 +1,99 @@
-﻿Embarcadero Delphi for Win64 compiler version 36.0
+Embarcadero Delphi for Win64 compiler version 36.0
 Copyright (c) 1983,2024 Embarcadero Technologies, Inc.
-Fatal: F1026 File not found: 'TransSuccess'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\JclStrings.pas(158) Hint: H2077 Value assigned to 'NextLowByte' never used
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\JclStrings.pas(163) Hint: H2077 Value assigned to 'NextLowByte' never used
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\JclStringConversions.pas(65) Warning: W1000 Symbol 'StrLen' is deprecated: 'Moved to the AnsiStrings unit'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(151) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(153) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(154) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(164) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(481) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(483) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(487) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(489) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(491) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(494) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(495) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(496) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(497) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(499) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(501) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(525) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(527) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(533) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(535) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(541) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(543) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(545) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(547) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(549) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(551) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(553) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(555) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(557) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(559) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(561) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(581) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\ChineseEncodingDetector_Improved.pas(127) Hint: H2077 Value assigned to 'TotalBytes' never used
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UTF8BOMConverter_Improved.pas(286) Hint: H2077 Value assigned to 'SourceCodePage' never used
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UTF8BOMConverter_Improved.pas(426) Hint: H2077 Value assigned to 'SourceCodePage' never used
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsEncodingHelper.pas(53) Hint: H2077 Value assigned to 'TEncodingHelper.TryConvertFast' never used
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(407) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(424) Hint: H2077 Value assigned to 'BOMType' never used
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(481) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(481) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(612) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(614) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(637) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(674) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(679) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(713) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(96) Hint: H2219 Private symbol 'IsFileAccessible' declared but never used
+SelfTest_Encoding.dpr(50) Error: E2003 Undeclared identifier: 'LogLine'
+SelfTest_Encoding.dpr(82) Error: E2003 Undeclared identifier: 'WriteAllTextUTF32LE'
+SelfTest_Encoding.dpr(98) Error: E2003 Undeclared identifier: 'WriteAllTextUTF32BE'
+SelfTest_Encoding.dpr(116) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(123) Error: E2066 Missing operator or semicolon
+SelfTest_Encoding.dpr(126) Error: E2066 Missing operator or semicolon
+SelfTest_Encoding.dpr(156) Error: E2250 There is no overloaded version of 'StringOfChar' that can be called with these arguments
+SelfTest_Encoding.dpr(214) Error: E2003 Undeclared identifier: 'LogLine'
+SelfTest_Encoding.dpr(237) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+SelfTest_Encoding.dpr(242) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+SelfTest_Encoding.dpr(251) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(255) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(290) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(297) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(307) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(319) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(322) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(325) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(326) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(581) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(585) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(594) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(598) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(607) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(611) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(703) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(709) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(718) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(732) Error: E2003 Undeclared identifier: 'I'
+SelfTest_Encoding.dpr(763) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(794) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(824) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(840) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(854) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(867) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(1062) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(1081) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(1106) Error: E2250 There is no overloaded version of 'Format' that can be called with these arguments
+SelfTest_Encoding.dpr(1115) Error: E2004 Identifier redeclared: 'WriteAllTextUTF8NoBOM'
+SelfTest_Encoding.dpr(1118) Error: E2038 Illegal character in input file: '}' (#$7D)
+SelfTest_Encoding.dpr(1124) Error: E2004 Identifier redeclared: 'WriteAllTextUTF8WithBOM'
+SelfTest_Encoding.dpr(1140) Error: E2004 Identifier redeclared: 'PrintResult'
+SelfTest_Encoding.dpr(1155) Error: E2004 Identifier redeclared: 'LogLine'
+SelfTest_Encoding.dpr(1161) Error: E2004 Identifier redeclared: 'WriteAllTextGBK'
+SelfTest_Encoding.dpr(1175) Error: E2004 Identifier redeclared: 'RunTests'
+SelfTest_Encoding.dpr(1247) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(1308) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(1326) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'

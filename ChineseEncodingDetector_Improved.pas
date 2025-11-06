@@ -3,7 +3,7 @@ unit ChineseEncodingDetector_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes;
+  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsTypes;
 
 type
   /// <summary>
@@ -96,6 +96,10 @@ implementation
 uses
   UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved;
 
+const
+  // 本地定义未知编码常量，避免依赖 UtilsEncodingTypes
+  ENCODING_UNKNOWN = 'Unknown';
+
 { TChineseEncodingDetector_Improved }
 
 class procedure TChineseEncodingDetector_Improved.AnalyzeChineseFrequency(
@@ -136,10 +140,6 @@ begin
   for i := $81 to $FE do
     Inc(GBKLeadingBytes, ByteFreq[i]);
 
-  var GBKTrailingBytes := 0;
-  for i := $40 to $FE do
-    Inc(GBKTrailingBytes, ByteFreq[i]);
-
   if GBKLeadingBytes > 0 then
     GBKScore := Min(1.0, GBKLeadingBytes / ChineseBytes * 2);
 
@@ -170,10 +170,6 @@ begin
   for i := $A1 to $F9 do
     Inc(Big5LeadingBytes, ByteFreq[i]);
 
-  var Big5TrailingBytes := 0;
-  for i := $40 to $FE do
-    Inc(Big5TrailingBytes, ByteFreq[i]);
-
   if Big5LeadingBytes > 0 then
     Big5Score := Min(1.0, Big5LeadingBytes / ChineseBytes * 2);
 
@@ -181,10 +177,6 @@ begin
   var GB2312LeadingBytes := 0;
   for i := $A1 to $F7 do
     Inc(GB2312LeadingBytes, ByteFreq[i]);
-
-  var GB2312TrailingBytes := 0;
-  for i := $A1 to $FE do
-    Inc(GB2312TrailingBytes, ByteFreq[i]);
 
   if GB2312LeadingBytes > 0 then
     GB2312Score := Min(1.0, GB2312LeadingBytes / ChineseBytes * 2);

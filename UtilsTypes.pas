@@ -1,4 +1,4 @@
-﻿unit UtilsTypes;
+unit UtilsTypes;
 
 interface
 
@@ -107,6 +107,7 @@ const
 
   // 编码名称常量 - 使用标准化的技术名称
   ENCODING_ANSI = 'ANSI';
+  ENCODING_UNKNOWN = 'Unknown';
   ENCODING_UTF8 = 'UTF-8';
   ENCODING_UTF8_BOM = 'UTF-8 with BOM';
   ENCODING_UTF16_LE = 'UTF-16LE';
@@ -121,7 +122,10 @@ const
   ENCODING_SHIFT_JIS = 'Shift-JIS';
   ENCODING_EUC_JP = 'EUC-JP';
   ENCODING_ISO_2022_JP = 'ISO-2022-JP';
+  // 兼容别名（无下划线版本）
+  ENCODING_ISO2022_JP = 'ISO-2022-JP';
   ENCODING_EUC_KR = 'EUC-KR';
+  ENCODING_ISO_2022_KR = 'ISO-2022-KR';
   ENCODING_JOHAB = 'JOHAB';
 
   // 显示名称常量 - 更友好的界面显示

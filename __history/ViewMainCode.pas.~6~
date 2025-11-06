@@ -2103,6 +2103,7 @@ var
     bmp.Canvas.Brush.Color := clWhite;
     bmp.Canvas.Pen.Color := clWhite;
     bmp.Canvas.Rectangle(0, 0, 16, 16);
+    SetBkMode(bmp.Canvas.Handle, TRANSPARENT);
     bmp.Transparent := True;
     bmp.TransparentColor := clWhite;
     // 绘制内容
@@ -2113,6 +2114,8 @@ var
       FIconList.Width := 16;
       FIconList.Height := 16;
       FIconList.ColorDepth := cd32Bit;
+      FIconList.Masked := True;
+      FIconList.BkColor := clWhite;
     end
     else
       FIconList.Clear;
@@ -2127,6 +2130,7 @@ var
     bmp.Canvas.Brush.Color := clWhite;
     bmp.Canvas.Pen.Color := clWhite;
     bmp.Canvas.Rectangle(0, 0, 16, 16);
+    SetBkMode(bmp.Canvas.Handle, TRANSPARENT);
     bmp.Transparent := True;
     bmp.TransparentColor := clWhite;
     DrawProc(bmp.Canvas);
@@ -2143,115 +2147,160 @@ begin
     // 0: Root (App)
     AddIcon(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(0,122,204);
         C.Pen.Color := RGB(0,90,160);
-        C.RoundRect(1,3,15,13,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
         C.Pen.Color := clWhite;
-        C.MoveTo(4,6); C.LineTo(12,6);
-        C.MoveTo(4,8); C.LineTo(12,8);
-        C.MoveTo(4,10); C.LineTo(9,10);
+        C.MoveTo(R.Left+2, R.Top+3); C.LineTo(R.Right-2, R.Top+3);
+        C.MoveTo(R.Left+2, R.Top+5); C.LineTo(R.Right-2, R.Top+5);
+        C.MoveTo(R.Left+2, R.Top+7); C.LineTo(R.Left+7, R.Top+7);
       end);
 
     // 1: Unicode (U)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(120, 80, 200);
         C.Pen.Color := RGB(90, 60, 160);
-        C.RoundRect(1,1,15,15,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := 'U';
         C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        C.TextOut(4,3,'U');
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 2: Asian (中)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(0, 160, 80);
         C.Pen.Color := RGB(0,120,60);
-        C.RoundRect(1,1,15,15,3,3);
-        C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        C.TextOut(3,3,'中');
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := '中';
+        C.Font.Color := clWhite; C.Font.Size := 7; C.Font.Style := [fsBold];
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 3: Western (W)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(0, 150, 220);
         C.Pen.Color := RGB(0,110,180);
-        C.RoundRect(1,1,15,15,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := 'W';
         C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        C.TextOut(3,3,'W');
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 4: Eastern (E)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(230, 120, 20);
         C.Pen.Color := RGB(190,90,10);
-        C.RoundRect(1,1,15,15,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := 'E';
         C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        C.TextOut(4,3,'E');
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 5: MiddleEast (ME)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(200, 80, 80);
         C.Pen.Color := RGB(160,60,60);
-        C.RoundRect(1,1,15,15,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := 'ME';
         C.Font.Color := clWhite; C.Font.Size := 7; C.Font.Style := [fsBold];
-        C.TextOut(2,3,'ME');
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 6: Nordic (N)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(60, 160, 220);
         C.Pen.Color := RGB(40,120,180);
-        C.RoundRect(1,1,15,15,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := 'N';
         C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        C.TextOut(4,3,'N');
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 7: Southern (S)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(120, 180, 60);
         C.Pen.Color := RGB(90,140,40);
-        C.RoundRect(1,1,15,15,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := 'S';
         C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        C.TextOut(4,3,'S');
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 8: Other (O)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect; TW, TH: Integer; S: string;
       begin
+        R := Rect(2,2,14,14);
         C.Brush.Color := RGB(160, 160, 160);
         C.Pen.Color := RGB(120,120,120);
-        C.RoundRect(1,1,15,15,3,3);
+        C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
+        S := 'O';
         C.Font.Color := clWhite; C.Font.Size := 8; C.Font.Style := [fsBold];
-        C.TextOut(4,3,'O');
+        TW := C.TextWidth(S); TH := C.TextHeight(S);
+        C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
     // 9: Encoding (document)
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
+      var R: TRect;
       begin
+        // 更精美的文档图标：带折角和三条横线
+        R := Rect(3,2,13,14);
+        // 文档主体
         C.Brush.Color := clWhite;
-        C.Pen.Color := RGB(160,160,160);
-        C.Rectangle(3,2,13,14);
-        C.Pen.Color := RGB(120,120,120);
-        C.MoveTo(5,5); C.LineTo(11,5);
-        C.MoveTo(5,7); C.LineTo(11,7);
-        C.MoveTo(5,9); C.LineTo(11,9);
+        C.Pen.Color := RGB(150,150,150);
+        C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
+        // 右上折角
+        C.Pen.Color := RGB(180,180,180);
+        C.MoveTo(R.Right-5, R.Top);
+        C.LineTo(R.Right-1, R.Top+4);
+        C.LineTo(R.Right-1, R.Bottom-1);
+        C.LineTo(R.Left, R.Bottom-1);
+        // 文档横线
+        C.Pen.Color := RGB(110,110,110);
+        C.MoveTo(R.Left+2, R.Top+4); C.LineTo(R.Right-2, R.Top+4);
+        C.MoveTo(R.Left+2, R.Top+6); C.LineTo(R.Right-2, R.Top+6);
+        C.MoveTo(R.Left+2, R.Top+8); C.LineTo(R.Right-4, R.Top+8);
       end);
   finally
     bmp.Free;

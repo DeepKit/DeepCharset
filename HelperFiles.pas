@@ -7,7 +7,7 @@ uses
   System.Math, System.StrUtils, System.Generics.Collections, Vcl.Forms, System.TypInfo,
   System.DateUtils, Winapi.Windows,
   UtilsTypes, ModelEncoding,
-  UtilsEncodingTypes,
+  // UtilsEncodingTypes is deprecated in favor of UtilsTypes
   UtilsEncodingBOM_Improved,
   UtilsEncodingUTF8Detector_Improved,
   ChineseEncodingDetector_Improved,
@@ -230,7 +230,8 @@ begin
     BOMResult := TEncodingBOMDetector_Improved.DetectBOMFromFile(FileName);
     if BOMResult.BOMType <> 0 then
     begin
-      Result := BOMResult.Encoding;
+      // 显式转换为 UnicodeString，避免隐式 AnsiString -> string 告警
+      Result := string(BOMResult.Encoding);
       HasBOM := True;
       // 不再记录每个文件的日志，减少性能开销
       Exit;
@@ -249,7 +250,8 @@ begin
     CNResult := TChineseEncodingDetector_Improved.DetectFile(FileName);
     if CNResult.Encoding <> ENCODING_UNKNOWN then
     begin
-      Result := CNResult.Encoding;
+      // 显式转换
+      Result := string(CNResult.Encoding);
       HasBOM := CNResult.HasBOM;
       Exit;
     end;

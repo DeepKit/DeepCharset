@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Generics.Collections, System.SyncObjs,
-  UtilsEncodingTypes, ModelEncoding;
+  UtilsTypes, ModelEncoding;
 
 type
   // 基本日志接口

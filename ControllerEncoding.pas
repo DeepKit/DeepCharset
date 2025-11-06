@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.Math, System.TypInfo, System.DateUtils,
-  ModelEncoding, Winapi.Windows, HelperFiles, UtilsEncodingTypes,
+  ModelEncoding, Winapi.Windows, HelperFiles, UtilsTypes,
   UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved,
   ChineseEncodingDetector_Improved, JapaneseEncodingDetector_Improved, KoreanEncodingDetector_Improved,
   UTF8BOMConverter_Improved, EncodingConverter_Improved;
@@ -132,7 +132,8 @@ begin
   // 使用FileHelper的检测函数，它更全面
   if Assigned(FFileHelper) then
   begin
-    Result := FFileHelper.DetectFileEncoding(FileName, HasBOM);
+    // 显式转换为 UnicodeString，避免隐式 AnsiString -> string 警告
+    Result := string(FFileHelper.DetectFileEncoding(FileName, HasBOM));
     Log(Format('Detected encoding by FileHelper for %s: %s (BOM: %s)',
       [ExtractFileName(FileName), Result, BoolToStr(HasBOM, True)]));
     Exit;
@@ -186,7 +187,8 @@ begin
     if BOMResult.BOMType <> 0 then
     begin
       // 有BOM，直接返回结果
-      Result := BOMResult.Encoding;
+      // 显式转换，防止隐式字符串转换
+      Result := string(BOMResult.Encoding);
       HasBOM := True;
 
       // Detailed log
@@ -218,7 +220,8 @@ begin
         if (JapaneseResult.Confidence >= 0.75) and (JapaneseResult.Encoding <> ENCODING_ANSI) and (JapaneseResult.Encoding <> ENCODING_UNKNOWN) then
         begin
           // 是日文编码
-          Result := JapaneseResult.Encoding;
+          // 显式转换
+          Result := string(JapaneseResult.Encoding);
           HasBOM := JapaneseResult.HasBOM;
 
           // Detailed log
@@ -234,7 +237,8 @@ begin
           if (KoreanResult.Confidence >= 0.75) and (KoreanResult.Encoding <> ENCODING_ANSI) and (KoreanResult.Encoding <> ENCODING_UNKNOWN) then
           begin
             // 是韩文编码
-            Result := KoreanResult.Encoding;
+            // 显式转换
+            Result := string(KoreanResult.Encoding);
             HasBOM := KoreanResult.HasBOM;
 
             // Detailed log
@@ -306,7 +310,7 @@ begin
   // 检查文件是否存在
   if not FileExists(FileName) then
   begin
-    Log(Format('文件不存在: %s', [FileName]));
+    Log(Format(string('文件不存在: %s'), [string(FileName)]));
     Exit;
   end;
 
@@ -337,8 +341,8 @@ begin
   Options.DetectSourceEncoding := False; // 我们已经检测过了
 
   // 记录转换信息
-  Log(Format('准备转换: 从 %s 到 %s (BOM: %s)',
-    [SourceEncodingName, FinalTargetEncoding, BoolToStr(WithBOM, True)]));
+  Log(Format(string('准备转换: 从 %s 到 %s (BOM: %s)'),
+    [string(SourceEncodingName), string(FinalTargetEncoding), string(BoolToStr(WithBOM, True))]));
 
   try
     // 执行转换
@@ -349,8 +353,8 @@ begin
     if ConversionResult.Success then
     begin
       Result := True;
-      Log(Format('成功将文件 %s 从 %s 转换为 %s',
-        [ExtractFileName(FileName), SourceEncodingName, FinalTargetEncoding]));
+      Log(Format(string('成功将文件 %s 从 %s 转换为 %s'),
+        [string(ExtractFileName(FileName)), string(SourceEncodingName), string(FinalTargetEncoding)]));
 
       // 调用成功回调
       if Assigned(OnSuccess) then
@@ -359,20 +363,20 @@ begin
     else
     begin
       Result := False;
-      Log(Format('转换文件 %s 失败，错误数: %d',
-        [ExtractFileName(FileName), ConversionResult.ErrorCount]));
+      Log(Format(string('转换文件 %s 失败，错误数: %d'),
+        [string(ExtractFileName(FileName)), ConversionResult.ErrorCount]));
 
       // 记录详细错误信息
       for var i := 0 to ConversionResult.ErrorCount - 1 do
-        Log(Format('  错误 #%d: %s (位置: %d)',
-          [i+1, ConversionResult.Errors[i].ErrorMessage, ConversionResult.Errors[i].Position]));
+        Log(Format(string('  错误 #%d: %s (位置: %d)'),
+          [i+1, string(ConversionResult.Errors[i].ErrorMessage), ConversionResult.Errors[i].Position]));
     end;
   except
     on E: Exception do
     begin
       Result := False;
-      Log(Format('转换文件时发生异常: %s - %s',
-        [ExtractFileName(FileName), E.Message]));
+      Log(Format(string('转换文件时发生异常: %s - %s'),
+        [string(ExtractFileName(FileName)), string(E.Message)]));
     end;
   end;
 end;
@@ -394,8 +398,8 @@ begin
   ProgressInterval := Max(1, Min(TotalCount div 20, 10));
   LastProgressReport := 0;
 
-  Log(Format('开始批量转换 %d 个文件到 %s (BOM: %s)...',
-    [TotalCount, TargetEncoding, BoolToStr(WithBOM, True)]));
+  Log(Format(string('开始批量转换 %d 个文件到 %s (BOM: %s)...'),
+    [TotalCount, string(TargetEncoding), string(BoolToStr(WithBOM, True))]));
 
   for i := 0 to High(FileNames) do
   begin
@@ -409,7 +413,7 @@ begin
     if (i + 1 - LastProgressReport >= ProgressInterval) or (i = High(FileNames)) then
     begin
       LastProgressReport := i + 1;
-      Log(Format('进度: %d/%d (%.1f%%) - 成功: %d, 失败: %d',
+      Log(Format(string('进度: %d/%d (%.1f%%) - 成功: %d, 失败: %d'),
         [i + 1, TotalCount, (i + 1) / TotalCount * 100, SuccessCount, FailCount]));
     end;
   end;
@@ -420,11 +424,11 @@ begin
 
   // 输出详细的完成报告
   Log('');
-  Log(Format('批量转换完成: 成功 %d/%d 个文件', [SuccessCount, TotalCount]));
-  Log(Format('- 总文件数: %d', [TotalCount]));
-  Log(Format('- 成功转换: %d (%.1f%%)', [SuccessCount, SuccessCount / TotalCount * 100]));
-  Log(Format('- 转换失败: %d (%.1f%%)', [FailCount, FailCount / TotalCount * 100]));
-  Log(Format('- 总耗时: %.2f秒 (平均每文件 %.2f毫秒)',
+  Log(Format(string('批量转换完成: 成功 %d/%d 个文件'), [SuccessCount, TotalCount]));
+  Log(Format(string('- 总文件数: %d'), [TotalCount]));
+  Log(Format(string('- 成功转换: %d (%.1f%%)'), [SuccessCount, SuccessCount / TotalCount * 100]));
+  Log(Format(string('- 转换失败: %d (%.1f%%)'), [FailCount, FailCount / TotalCount * 100]));
+  Log(Format(string('- 总耗时: %.2f秒 (平均每文件 %.2f毫秒)'),
     [ElapsedSeconds, ElapsedSeconds * 1000 / TotalCount]));
 
   // 如果有失败的文件，建议用户查看日志

@@ -3,7 +3,7 @@ unit UtilsEncodingUTF8Detector_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsEncodingTypes;
+  System.SysUtils, System.Classes, Winapi.Windows, System.Math, UtilsTypes;
 
 type
   /// <summary>
@@ -147,7 +147,7 @@ end;
 class function TUTF8EncodingDetector_Improved.AnalyzeByteDistribution(const Buffer: TBytes): Double;
 var
   ByteCount: array[0..255] of Integer;
-  AsciiCount, HighBitCount, LeadingByteCount, ContinuationByteCount: Integer;
+  HighBitCount, ContinuationByteCount: Integer;
   ExpectedContinuationBytes, ActualContinuationBytes: Integer;
   i: Integer;
   DistributionScore: Double;
@@ -159,11 +159,7 @@ begin
   for i := 0 to Length(Buffer) - 1 do
     Inc(ByteCount[Buffer[i]]);
 
-  // 计算ASCII字符和高位字节的数量
-  AsciiCount := 0;
-  for i := 0 to 127 do
-    Inc(AsciiCount, ByteCount[i]);
-
+  // 计算高位字节的数量
   HighBitCount := 0;
   for i := 128 to 255 do
     Inc(HighBitCount, ByteCount[i]);
@@ -172,11 +168,7 @@ begin
   if HighBitCount = 0 then
     Exit(1.0);
 
-  // 计算UTF-8前导字节和后续字节的数量
-  LeadingByteCount := 0;
-  for i := $C0 to $F7 do
-    Inc(LeadingByteCount, ByteCount[i]);
-
+  // 计算后续字节的数量
   ContinuationByteCount := 0;
   for i := $80 to $BF do
     Inc(ContinuationByteCount, ByteCount[i]);

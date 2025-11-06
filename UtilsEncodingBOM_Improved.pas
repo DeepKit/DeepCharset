@@ -3,7 +3,7 @@ unit UtilsEncodingBOM_Improved;
 interface
 
 uses
-  System.SysUtils, System.Classes, Winapi.Windows, UtilsEncodingTypes;
+  System.SysUtils, System.Classes, Winapi.Windows, UtilsTypes;
 
 type
 
@@ -74,6 +74,8 @@ type
 implementation
 
 const
+  // 本地定义未知编码常量，避免依赖 UtilsEncodingTypes
+  ENCODING_UNKNOWN = 'Unknown';
   // BOM 字节数组
   BOM_UTF8: array[0..2] of Byte = ($EF, $BB, $BF);
   BOM_UTF16_LE: array[0..1] of Byte = ($FF, $FE);

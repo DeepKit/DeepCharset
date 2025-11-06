@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Generics.Collections,
-  UtilsEncodingTypes, UtilsEncodingBOM_Improved,
+  UtilsTypes, UtilsEncodingBOM_Improved,
   UtilsEncodingDetector_Improved, UtilsEncodingConverter_Improved,
   UtilsEncodingManager;
 
@@ -91,27 +91,27 @@ type
     class function GetEncodingDescription(const EncodingName: string): string;
   end;
 
-// 编码常量
+// 编码常量（统一引用 UtilsTypes）
 const
-  ENCODING_UNKNOWN = UtilsEncodingTypes.ENCODING_UNKNOWN;
-  ENCODING_ANSI = UtilsEncodingTypes.ENCODING_ANSI;
-  ENCODING_ASCII = UtilsEncodingTypes.ENCODING_ASCII;
-  ENCODING_UTF8 = UtilsEncodingTypes.ENCODING_UTF8;
-  ENCODING_UTF8_BOM = UtilsEncodingTypes.ENCODING_UTF8_BOM;
-  ENCODING_UTF16_LE = UtilsEncodingTypes.ENCODING_UTF16_LE;
-  ENCODING_UTF16_BE = UtilsEncodingTypes.ENCODING_UTF16_BE;
-  ENCODING_UTF32_LE = UtilsEncodingTypes.ENCODING_UTF32_LE;
-  ENCODING_UTF32_BE = UtilsEncodingTypes.ENCODING_UTF32_BE;
-  ENCODING_GBK = UtilsEncodingTypes.ENCODING_GBK;
-  ENCODING_GB2312 = UtilsEncodingTypes.ENCODING_GB2312;
-  ENCODING_GB18030 = UtilsEncodingTypes.ENCODING_GB18030;
-  ENCODING_BIG5 = UtilsEncodingTypes.ENCODING_BIG5;
-  ENCODING_SHIFT_JIS = UtilsEncodingTypes.ENCODING_SHIFT_JIS;
-  ENCODING_EUC_JP = UtilsEncodingTypes.ENCODING_EUC_JP;
-  ENCODING_ISO_2022_JP = UtilsEncodingTypes.ENCODING_ISO2022_JP;
-  ENCODING_EUC_KR = UtilsEncodingTypes.ENCODING_EUC_KR;
-  ENCODING_ISO_2022_KR = UtilsEncodingTypes.ENCODING_ISO_2022_KR;
-  ENCODING_BINARY = UtilsEncodingTypes.ENCODING_BINARY;
+  ENCODING_UNKNOWN = UtilsTypes.ENCODING_UNKNOWN;
+  ENCODING_ANSI = UtilsTypes.ENCODING_ANSI;
+  ENCODING_ASCII = UtilsTypes.ENCODING_ASCII;
+  ENCODING_UTF8 = UtilsTypes.ENCODING_UTF8;
+  ENCODING_UTF8_BOM = UtilsTypes.ENCODING_UTF8_BOM;
+  ENCODING_UTF16_LE = UtilsTypes.ENCODING_UTF16_LE;
+  ENCODING_UTF16_BE = UtilsTypes.ENCODING_UTF16_BE;
+  ENCODING_UTF32_LE = UtilsTypes.ENCODING_UTF32_LE;
+  ENCODING_UTF32_BE = UtilsTypes.ENCODING_UTF32_BE;
+  ENCODING_GBK = UtilsTypes.ENCODING_GBK;
+  ENCODING_GB2312 = UtilsTypes.ENCODING_GB2312;
+  ENCODING_GB18030 = UtilsTypes.ENCODING_GB18030;
+  ENCODING_BIG5 = UtilsTypes.ENCODING_BIG5;
+  ENCODING_SHIFT_JIS = UtilsTypes.ENCODING_SHIFT_JIS;
+  ENCODING_EUC_JP = UtilsTypes.ENCODING_EUC_JP;
+  ENCODING_ISO_2022_JP = UtilsTypes.ENCODING_ISO2022_JP;
+  ENCODING_EUC_KR = UtilsTypes.ENCODING_EUC_KR;
+  ENCODING_ISO_2022_KR = UtilsTypes.ENCODING_ISO_2022_KR;
+  ENCODING_BINARY = UtilsTypes.ENCODING_BINARY;
 
 implementation
 
