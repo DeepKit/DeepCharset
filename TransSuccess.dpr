@@ -46,6 +46,7 @@ uses
   HelperLanguage in 'HelperLanguage.pas',
   ViewSynEdit in 'ViewSynEdit.pas' {SynEditForm},
   ControllerLanguage in 'ControllerLanguage.pas',
+  ControllerCommandLine in 'ControllerCommandLine.pas',
   UtilsEncodingTypes in 'UtilsEncodingTypes.pas',
   UtilsEncodingLogger in 'UtilsEncodingLogger.pas',
 
@@ -60,12 +61,33 @@ uses
 
 {$R *.res}
 
+var
+  CLIController: TCommandLineController;
+  ExitCode: Integer;
+
 begin
-  
   // 初始化全局变量
   InitializeGlobalVariables;
 
-  // 初始化应用程序
+  // 检查是否为命令行模式
+  if ParamCount > 0 then
+  begin
+    // 检查第一个参数，如果不是调试参数则进入CLI模式
+    if not (FindCmdLineSwitch('self-test-exception', ['-', '/'], True) or
+            SameText(ParamStr(1), '--self-test-exception')) then
+    begin
+      // 命令行模式
+      CLIController := TCommandLineController.Create;
+      try
+        ExitCode := CLIController.Execute;
+        Halt(ExitCode); // 退出程序，返回错误码
+      finally
+        CLIController.Free;
+      end;
+    end;
+  end;
+
+  // GUI模式：初始化应用程序
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.Title := '码到成功 - 文件编码转换工具';

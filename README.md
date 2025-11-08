@@ -96,6 +96,72 @@ build.bat --run-tests
 bin\EncodingTestRunner.exe
 ```
 
+### 自测脚本与日志查看
+
+项目包含一套自测与回归脚本，位于根目录：
+
+```
+tests_run.bat [/crit] [/cp] [/quick] [/openlogs] [/perf]
+```
+
+- `/crit` 仅运行关键 UTF-8 BOM 清理与跨码页回归（更快）。
+- `/cp` 仅运行跨码页回归（GBK/Big5 等）。
+- `/quick` 超快速冒烟测试（仅 3 个核心用例，<10s）。
+- `/openlogs` 运行结束后自动打开日志文件。
+- `/perf` 追加一次性能计时（对 `/crit` 模式），输出到 `tmp_tests/perf_log.txt`。
+
+运行完成后会 tail `tmp_tests/selftest_log.txt` 的末尾 200 行，便于快速查看结果。
+
+可选调试开关（默认关闭）：
+
+- `Tests/SelfTest_Encoding.dpr` 顶部的 `DEBUG_CP2_DIAG`：Big5 路径诊断（源/输出十六进制头、WinAPI 解码对照）。
+- `EncodingConverter_Improved.pas` 顶部的 `DEBUG_CONVERT_TRACE`：转换器内部 trace，输出到 `tmp_tests/convert_trace.txt`。
+
+跨码页注意事项：
+
+- 如已知源为 Big5，请使用字符串 `'950'` 指定；GBK 使用 `'GBK'`（或 `936`）。
+- 当目标为 `UTF-8` 或 `UTF-8 with BOM` 时，转换器会统一清理“内嵌 BOM 片段 (EF BB BF)”与“误作 ANSI 后再转 UTF-8 的六字节序列 (C3 AF C2 BB C2 BF)”。
+
+### 常见问题（FAQ）
+
+1. 何时使用 `950` 与 `Big5`？
+   - 建议在转换参数中直接使用字符串 `'950'` 作为源编码，避免别名差异；日志与诊断会标明 codepage 与名称映射。
+
+2. 何时使用 `936` 与 `GBK`？
+   - 二选一均可。测试中用 `'GBK'` 便于可读，或用 `936` 保持一致性。
+
+3. 如何判断“中文被误伤”？
+   - 自测日志会输出键值对：`okClean/leadOK/keepCN/head/tail`。若 `keepCN=False`，观察 `head/tail` 片段，结合源样本定位差异。
+
+4. 如何开启诊断日志？
+   - 在 `Tests/SelfTest_Encoding.dpr` 顶部设置 `DEBUG_CP2_DIAG := True;`。
+   - 在 `EncodingConverter_Improved.pas` 顶部设置 `DEBUG_CONVERT_TRACE := True;`。
+   - 运行 `tests_run.bat /openlogs` 自动打开日志。
+
+### 故障排查
+
+常见错误与解决方案：
+
+1. **转换后中文乱码**
+   - 检查源编码是否正确指定（Big5 用 `'950'`，GBK 用 `'GBK'` 或 `936`）
+   - 查看日志中的 `keepCN=False` 与 `head/tail` 片段定位问题
+   - 开启 `DEBUG_CP2_DIAG` 查看源文件 HEX 与 WinAPI 解码结果
+
+2. **UTF-8 文件出现 `?unit` 等乱码**
+   - 这是内嵌 BOM 片段导致，转换器已自动清理
+   - 确认目标编码为 `UTF-8` 或 `UTF-8 with BOM`
+   - 查看 `[47]` 系列测试用例确认清理逻辑
+
+3. **转换后文件为空**
+   - 检查源文件是否可读（权限/占用）
+   - 查看 `tmp_tests/selftest_log.txt` 中的错误信息
+   - 确认源编码与实际文件编码匹配
+
+4. **性能问题（大文件转换慢）**
+   - 使用 `/perf` 参数测量基准耗时
+   - 检查是否开启了调试开关（`DEBUG_CONVERT_TRACE`）
+   - 大文件（>100MB）建议分批处理
+
 ### 项目结构
 
 - `ModelEncoding.pas` - 编码模型和核心逻辑

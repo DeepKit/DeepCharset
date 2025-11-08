@@ -20,7 +20,7 @@ type
   end;
 
   /// <summary>
-  /// 改进的UTF-8 BOM转换�?
+  /// 改进的UTF-8 BOM转换器
   /// </summary>
   TUTF8BOMConverter_Improved = class
   private
@@ -32,9 +32,8 @@ type
     /// </summary>
     class function IsUTF8File(const FileName: string; out HasBOM: Boolean): Boolean;
 
-
     /// <summary>
-    /// 添加UTF-8 BOM到字节数�?
+    /// 添加UTF-8 BOM到字节数组
     /// </summary>
     class function AddUTF8BOM(const Buffer: TBytes): TBytes;
 
@@ -42,6 +41,12 @@ type
     /// 移除UTF-8 BOM
     /// </summary>
     class function RemoveUTF8BOM(const Buffer: TBytes): TBytes;
+
+    /// <summary>
+    /// 清理 UTF-8 内容中的内部 BOM 片段与被误编码的 6 字节序列（C3 AF C2 BB C2 BF）。
+    /// EnsureLeadingBOM=True 时，保证首部有且仅有一个 BOM；False 时移除所有 BOM。
+    /// </summary>
+    class function CleanUTF8Artifacts(const Buffer: TBytes; EnsureLeadingBOM: Boolean): TBytes;
 
   public
     /// <summary>
@@ -55,7 +60,7 @@ type
     class function ConvertToUTF8WithoutBOM(const SourceFileName, TargetFileName: string): TUTF8BOMConversionResult;
 
     /// <summary>
-    /// 添加UTF-8 BOM到文�?
+    /// 添加UTF-8 BOM到文本文件
     /// </summary>
     class function AddBOMToUTF8File(const SourceFileName, TargetFileName: string): TUTF8BOMConversionResult;
 
@@ -71,6 +76,80 @@ type
   end;
 
 implementation
+
+  // 清理 UTF-8 内容中的内部 BOM 片段与被误编码的六字节序列
+  class function TUTF8BOMConverter_Improved.CleanUTF8Artifacts(const Buffer: TBytes; EnsureLeadingBOM: Boolean): TBytes;
+  var
+    B: TBytes;
+    i: Integer;
+  begin
+    B := Copy(Buffer);
+
+    if EnsureLeadingBOM then
+    begin
+      // 确保首部有 BOM
+      var Leading := (Length(B) >= 3) and (B[0]=$EF) and (B[1]=$BB) and (B[2]=$BF);
+      if not Leading then
+        B := TEncodingBOMDetector_Improved.AddBOM(B, 1);
+      // 从索引3开始清理内部 BOM
+      i := 3;
+      while i <= Length(B) - 3 do
+      begin
+        if (B[i]=$EF) and (B[i+1]=$BB) and (B[i+2]=$BF) then
+        begin
+          var tail := Length(B) - (i + 3);
+          if tail > 0 then System.Move(B[i+3], B[i], tail);
+          SetLength(B, Length(B) - 3);
+          Continue;
+        end;
+        Inc(i);
+      end;
+      // 清理六字节序列（索引3开始）
+      i := 3;
+      while i <= Length(B) - 6 do
+      begin
+        if (B[i]=$C3) and (B[i+1]=$AF) and (B[i+2]=$C2) and (B[i+3]=$BB) and (B[i+4]=$C2) and (B[i+5]=$BF) then
+        begin
+          var tail6 := Length(B) - (i + 6);
+          if tail6 > 0 then System.Move(B[i+6], B[i], tail6);
+          SetLength(B, Length(B) - 6);
+          Continue;
+        end;
+        Inc(i);
+      end;
+    end
+    else
+    begin
+      // 移除所有位置的 BOM
+      i := 0;
+      while i <= Length(B) - 3 do
+      begin
+        if (B[i]=$EF) and (B[i+1]=$BB) and (B[i+2]=$BF) then
+        begin
+          var tail := Length(B) - (i + 3);
+          if tail > 0 then System.Move(B[i+3], B[i], tail);
+          SetLength(B, Length(B) - 3);
+          Continue;
+        end;
+        Inc(i);
+      end;
+      // 移除六字节序列
+      i := 0;
+      while i <= Length(B) - 6 do
+      begin
+        if (B[i]=$C3) and (B[i+1]=$AF) and (B[i+2]=$C2) and (B[i+3]=$BB) and (B[i+4]=$C2) and (B[i+5]=$BF) then
+        begin
+          var tail6 := Length(B) - (i + 6);
+          if tail6 > 0 then System.Move(B[i+6], B[i], tail6);
+          SetLength(B, Length(B) - 6);
+          Continue;
+        end;
+        Inc(i);
+      end;
+    end;
+
+    Result := B;
+  end;
 
 const
   // 本地定义未知编码常量，避免依赖旧的 UtilsEncodingTypes
@@ -174,6 +253,9 @@ begin
         BufferWithBOM := Copy(Buffer)
       else
         BufferWithBOM := AddUTF8BOM(Buffer);
+
+      // 规范化：仅保留首部 BOM，清理内部碎片
+      BufferWithBOM := CleanUTF8Artifacts(BufferWithBOM, True);
 
       // 写入目标文件
       TargetStream := TFileStream.Create(TargetFileName, fmCreate);
@@ -321,6 +403,9 @@ begin
         end;
       end;
 
+      // 规范化：仅保留首部 BOM，清理内部碎片
+      ConvertedBuffer := CleanUTF8Artifacts(ConvertedBuffer, True);
+
       // 写入目标文件
       TargetStream := TFileStream.Create(TargetFileName, fmCreate);
       try
@@ -409,7 +494,7 @@ begin
                      (Buffer[0] = $EF) and (Buffer[1] = $BB) and (Buffer[2] = $BF);
 
         if HasBOM then
-          // 有BOM，移除BOM
+          // 有BOM，移除首部BOM
           ConvertedBuffer := RemoveUTF8BOM(Buffer)
         else
           // 没有BOM，直接使用原始缓冲区
@@ -565,6 +650,9 @@ begin
         BufferWithoutBOM := RemoveUTF8BOM(Buffer)
       else
         BufferWithoutBOM := Copy(Buffer);
+
+      // 在写出前，统一清理内部 BOM 与六字节序列
+      BufferWithoutBOM := CleanUTF8Artifacts(BufferWithoutBOM, False);
 
       // 写入目标文件
       TargetStream := TFileStream.Create(TargetFileName, fmCreate);

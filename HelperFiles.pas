@@ -244,6 +244,17 @@ begin
       Result := ENCODING_UTF8;
       HasBOM := UTF8Result.HasBOM;
       Exit;
+    end
+    else
+    begin
+      // 兼容性修复：
+      // 对于纯 ASCII 或“全部为有效 UTF-8 字节但置信度未达阈值”的情况，直接判为 UTF-8，避免后续被中文探测误判为 Big5/GBK。
+      if (UTF8Result.InvalidByteCount = 0) and (UTF8Result.TotalByteCount > 0) then
+      begin
+        Result := ENCODING_UTF8;
+        HasBOM := UTF8Result.HasBOM;
+        Exit;
+      end;
     end;
 
     // 3) 中文编码综合检测（GBK/GB18030/Big5/GB2312）

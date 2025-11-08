@@ -125,9 +125,62 @@ type
     /// 验证转换结果
     /// </summary>
     class function ValidateConversion(const SourceFileName, TargetFileName: string): Boolean;
+
+    // TODO: 实现编码转换结果完整性校验
+    {$MESSAGE HINT '待实现: ValidateConversionIntegrity'}
+    (*
+    /// <summary>
+    /// 验证编码转换结果的完整性（内容校验）
+    /// </summary>
+    class function ValidateConversionIntegrity(
+      const SourceBuffer: TBytes;
+      const SourceEncoding: string;
+      const ConversionResult: TEncodingConversionResult): Boolean;
+    *)
   end;
 
 implementation
+
+const
+  DEBUG_CONVERT_TRACE: Boolean = False; // 控制转换器内部 trace 输出（默认关闭）
+
+var
+  CodePageCache: array[0..31] of record
+    Name: string;
+    CodePage: Integer;
+  end;
+  CodePageCacheCount: Integer = 0;
+
+function _TraceFilePath: string;
+begin
+  // 写入到与自测一致的 tmp_tests 目录，便于统一查看
+  var Root := ExtractFilePath(ParamStr(0));
+  var Dir := TPath.Combine(Root, '..\tmp_tests');
+  ForceDirectories(Dir);
+  Result := TPath.Combine(Dir, 'convert_trace.txt');
+end;
+
+procedure _Trace(const S: string);
+begin
+  if not DEBUG_CONVERT_TRACE then Exit;
+  try
+    TFile.AppendAllText(_TraceFilePath, FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', Now) + ' ' + S + sLineBreak, TEncoding.UTF8);
+  except
+    // 忽略日志写入错误
+  end;
+end;
+
+function _BytesHeadHex(const B: TBytes; Count: Integer): string;
+var i, L: Integer;
+begin
+  Result := '';
+  L := Length(B); if Count < L then L := Count;
+  for i := 0 to L-1 do
+  begin
+    Result := Result + IntToHex(B[i], 2);
+    if i < L-1 then Result := Result + ' ';
+  end;
+end;
 
 // 从指定代码页的字符串转换为Unicode字符�?
 function StringToUnicodeString(const Source: PAnsiChar; CodePage: Integer; SourceLength: Integer): UnicodeString;
@@ -242,6 +295,10 @@ var
   SourceBuffer: TBytes;
 begin
   // 初始化结�?
+  _Trace(Format('[ConvertStream] begin src="%s" tgt="%s" detectSrc=%s',
+    [SourceEncoding, TargetEncoding, BoolToStr(Options.DetectSourceEncoding, True)]));
+  _Trace(Format('[ConvertBuffer] begin src="%s" tgt="%s" addBOM=%s detectSrc=%s len=%d head=%s',
+    [SourceEncoding, TargetEncoding, BoolToStr(Options.AddBOM, True), BoolToStr(Options.DetectSourceEncoding, True), Length(Buffer), _BytesHeadHex(Buffer, 24)]));
   Result.Success := False;
   Result.SourceEncoding := SourceEncoding;
   Result.TargetEncoding := TargetEncoding;
@@ -276,6 +333,7 @@ begin
         // 显式转换
         ActualSourceEncoding := string(BOMResult.Encoding);
         Result.HasBOM := True;
+        _Trace(Format('[ConvertBuffer] BOM detected type=%d enc=%s', [BOMResult.BOMType, ActualSourceEncoding]));
       end
       else
       begin
@@ -291,26 +349,106 @@ begin
           // 显式转换
           ActualSourceEncoding := string(ChineseResult.Encoding);
         end;
+        _Trace(Format('[ConvertBuffer] Detect src enc=%s utf8=%s conf=%.3f', [ActualSourceEncoding, BoolToStr(UTF8Result.IsUTF8, True), UTF8Result.Confidence]));
       end;
     end
     else
       ActualSourceEncoding := SourceEncoding;
 
     Result.SourceEncoding := ActualSourceEncoding;
+    _Trace('[ConvertStream] ActualSourceEncoding=' + ActualSourceEncoding);
 
     // 获取源编码和目标编码的代码页
     SourceCodePage := GetCodePage(ActualSourceEncoding);
     TargetCodePage := GetCodePage(TargetEncoding);
+    _Trace(Format('[ConvertBuffer] CodePages src=%d tgt=%d', [SourceCodePage, TargetCodePage]));
 
-    // 如果源编码和目标编码相同，并且不需要添加/移除 BOM，则直接透传原始数据
-    // 但是如果需要添加 BOM，则不能透传
-    if (SourceCodePage = TargetCodePage) and not Options.AddBOM and
-       (((CompareText(ActualSourceEncoding, ENCODING_UTF8) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8) = 0)) or
-        ((CompareText(ActualSourceEncoding, ENCODING_UTF8_BOM) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0))) then
+    // 快速路径：源编码和目标编码相同，且不需要添加 BOM
+    // 对于 UTF-8/UTF-8 with BOM，不能直接透传，仍需执行内嵌 BOM 清理/规范化
+    var IsUTF8Family := (SourceCodePage = 65001) or (TargetCodePage = 65001);
+    if (SourceCodePage = TargetCodePage) and not Options.AddBOM and not IsUTF8Family then
     begin
+      ResultBuffer := Buffer;
+
+      // 目标为 UTF-8（无 BOM）：移除所有位置的 EF BB BF
+      if (CompareText(TargetEncoding, ENCODING_UTF8) = 0) then
+      begin
+        var j := 0;
+        while j <= Length(ResultBuffer) - 3 do
+        begin
+          if (ResultBuffer[j] = $EF) and (ResultBuffer[j+1] = $BB) and (ResultBuffer[j+2] = $BF) then
+          begin
+            var Tail := Length(ResultBuffer) - (j + 3);
+            if Tail > 0 then
+              System.Move(ResultBuffer[j+3], ResultBuffer[j], Tail);
+            SetLength(ResultBuffer, Length(ResultBuffer) - 3);
+            Continue;
+          end;
+          Inc(j);
+        end;
+
+        // 同时移除被误作 ANSI 后再转 UTF-8 的 6 字节序列：C3 AF C2 BB C2 BF（对应 "ï»¿"）
+        j := 0;
+        while j <= Length(ResultBuffer) - 6 do
+        begin
+          if (ResultBuffer[j] = $C3) and (ResultBuffer[j+1] = $AF) and
+             (ResultBuffer[j+2] = $C2) and (ResultBuffer[j+3] = $BB) and
+             (ResultBuffer[j+4] = $C2) and (ResultBuffer[j+5] = $BF) then
+          begin
+            var Tail6 := Length(ResultBuffer) - (j + 6);
+            if Tail6 > 0 then
+              System.Move(ResultBuffer[j+6], ResultBuffer[j], Tail6);
+            SetLength(ResultBuffer, Length(ResultBuffer) - 6);
+            Continue;
+          end;
+          Inc(j);
+        end;
+      end
+      // 目标为 UTF-8 with BOM：确保仅首部一个 BOM，清理内部 BOM
+      else if (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0) then
+      begin
+        // 确保首部有 BOM
+        var Leading := (Length(ResultBuffer) >= 3) and (ResultBuffer[0]=$EF) and (ResultBuffer[1]=$BB) and (ResultBuffer[2]=$BF);
+        if not Leading then
+          ResultBuffer := TEncodingBOMDetector_Improved.AddBOM(ResultBuffer, 1);
+        // 清除内部 BOM
+        var i := 3;
+        while i <= Length(ResultBuffer) - 3 do
+        begin
+          if (ResultBuffer[i] = $EF) and (ResultBuffer[i+1] = $BB) and (ResultBuffer[i+2] = $BF) then
+          begin
+            var Tail := Length(ResultBuffer) - (i + 3);
+            if Tail > 0 then
+              System.Move(ResultBuffer[i+3], ResultBuffer[i], Tail);
+            SetLength(ResultBuffer, Length(ResultBuffer) - 3);
+            Continue;
+          end;
+          Inc(i);
+        end;
+        Result.HasBOM := True;
+      end;
+
+      // 同时清除内部的 6 字节序列 C3 AF C2 BB C2 BF（从索引3开始）
+      var i6 := 3;
+      while i6 <= Length(ResultBuffer) - 6 do
+      begin
+        if (ResultBuffer[i6] = $C3) and (ResultBuffer[i6+1] = $AF) and
+           (ResultBuffer[i6+2] = $C2) and (ResultBuffer[i6+3] = $BB) and
+           (ResultBuffer[i6+4] = $C2) and (ResultBuffer[i6+5] = $BF) then
+        begin
+          var Tail6 := Length(ResultBuffer) - (i6 + 6);
+          if Tail6 > 0 then
+            System.Move(ResultBuffer[i6+6], ResultBuffer[i6], Tail6);
+          SetLength(ResultBuffer, Length(ResultBuffer) - 6);
+          Continue;
+        end;
+        Inc(i6);
+      end;
+
       Result.Success := True;
-      Result.BytesProcessed := Length(Buffer);
-      Result.OutputData := Buffer;
+      Result.BytesProcessed := Length(ResultBuffer);
+      Result.OutputData := ResultBuffer;
+      _Trace(Format('[ConvertBuffer] same-codepage normalized, outLen=%d', [Length(ResultBuffer)]));
       Exit;
     end;
 
@@ -347,15 +485,23 @@ begin
       else if (CompareText(ActualSourceEncoding, ENCODING_UTF8_BOM) = 0) and (CompareText(TargetEncoding, ENCODING_UTF8) = 0) then
       begin
         // 移除BOM
-        var BufferWithoutBOM := TEncodingBOMDetector_Improved.RemoveBOM(Buffer);
+        _Trace('[ConvertBuffer] Fast path: same codepage, direct copy (non-UTF8)');
+        Result.OutputData := Copy(Buffer);
         Result.Success := True;
-        Result.BytesProcessed := Length(BufferWithoutBOM);
-        Result.OutputData := BufferWithoutBOM;
+        Result.BytesProcessed := Length(Buffer);
         Exit;
       end;
+    end
+    else if (SourceCodePage = TargetCodePage) and not Options.AddBOM and IsUTF8Family then
+    begin
+      _Trace('[ConvertBuffer] UTF-8 same codepage: apply cleaning');
+      // UTF-8 同编码仍需清理内嵌 BOM
+      var BufferWithoutBOM := TEncodingBOMDetector_Improved.RemoveBOM(Buffer);
+      Result.OutputData := BufferWithoutBOM;
+      Exit;
     end;
 
-    // 准备源缓冲区，跳过BOM（如果有�?
+    // 准备源缓冲区，跳过BOM（如果有）
     if BOMResult.BOMType <> 0 then
     begin
       SetLength(SourceBuffer, Length(Buffer) - BOMResult.BOMLength);
@@ -371,18 +517,24 @@ begin
       // 尝试使用快速路径进行转换（无第三方依赖）
       var UseFast := TEncodingHelper.TryConvertFast(
         SourceBuffer, SourceCodePage, TargetCodePage, ResultBuffer);
-      
+      _Trace(Format('[ConvertBuffer] TryConvertFast=%s srcLen=%d outLen=%d', [BoolToStr(UseFast, True), Length(SourceBuffer), Length(ResultBuffer)]));
       if not UseFast then
       begin
         // 快速路径失败，使用标准转换方法
         // 从源编码转换为Unicode
         try
           WideStr := StringToUnicodeString(PAnsiChar(@SourceBuffer[0]), SourceCodePage, Length(SourceBuffer));
+          {$IFDEF DEBUG_CONVERT_TRACE}
+          AppendToFile('tmp_tests\convert_trace.txt', Format('ConvertBuffer: SourceCodePage=%d, Length(SourceBuffer)=%d, WideStr=%s', [SourceCodePage, Length(SourceBuffer), WideStr]));
+          {$ENDIF}
         except
           on E: Exception do
           begin
             // 记录错误但继续处理
             HandleConversionError(Result, ecetInvalidSequence, 0, 0, E.Message, Options.ErrorHandling);
+            {$IFDEF DEBUG_CONVERT_TRACE}
+            AppendToFile('tmp_tests\convert_trace.txt', Format('ConvertBuffer: Exception=%s', [E.Message]));
+            {$ENDIF}
 
             // 使用空字符串作为回退方案
             WideStr := '';
@@ -437,6 +589,7 @@ begin
       begin
         ResultBuffer := TEncodingBOMDetector_Improved.AddBOM(ResultBuffer, BOMType);
         Result.HasBOM := True;
+        _Trace(Format('[ConvertBuffer] AddBOM type=%d', [BOMType]));
       end;
     end;
 
@@ -455,15 +608,65 @@ begin
         Result.HasBOM := True;
     end;
 
+    // 规范化：当目标为 UTF-8 with BOM，确保BOM只出现在文件开头，移除其它位置的BOM（例如被错误插入到第一个字符之后）
+    if (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0) and (Length(ResultBuffer) > 0) then
+    begin
+      // 确保开头存在BOM
+      var HasLeadingBOM := (Length(ResultBuffer) >= 3) and
+                           (ResultBuffer[0] = $EF) and (ResultBuffer[1] = $BB) and (ResultBuffer[2] = $BF);
+      if not HasLeadingBOM then
+      begin
+        ResultBuffer := TEncodingBOMDetector_Improved.AddBOM(ResultBuffer, 1);
+      end;
+
+      // 移除除开头外的任何 UTF-8 BOM 片段，防止出现“u<EF BB BF>nit”这类显示异常
+      // 简单线性扫描：从索引3开始查找 EF BB BF，遇到则删除这3个字节
+      var i := 3; // 跳过文件开头的BOM
+      while i <= Length(ResultBuffer) - 3 do
+      begin
+        if (ResultBuffer[i] = $EF) and (ResultBuffer[i+1] = $BB) and (ResultBuffer[i+2] = $BF) then
+        begin
+          // 删除这3个字节
+          var TailLen := Length(ResultBuffer) - (i + 3);
+          if TailLen > 0 then
+            System.Move(ResultBuffer[i+3], ResultBuffer[i], TailLen);
+          SetLength(ResultBuffer, Length(ResultBuffer) - 3);
+          // 不递增 i，继续检查当前位置，直到无残留
+          Continue;
+        end;
+        Inc(i);
+      end;
+    end;
+
+    // 规范化：当目标为 UTF-8（无 BOM）时，移除内容中任何位置的 EF BB BF 片段，避免出现 "u<EF BB BF>nit"。
+    if (CompareText(TargetEncoding, ENCODING_UTF8) = 0) and (Length(ResultBuffer) > 0) then
+    begin
+      var j := 0;
+      while j <= Length(ResultBuffer) - 3 do
+      begin
+        if (ResultBuffer[j] = $EF) and (ResultBuffer[j+1] = $BB) and (ResultBuffer[j+2] = $BF) then
+        begin
+          var Tail := Length(ResultBuffer) - (j + 3);
+          if Tail > 0 then
+            System.Move(ResultBuffer[j+3], ResultBuffer[j], Tail);
+          SetLength(ResultBuffer, Length(ResultBuffer) - 3);
+          Continue;
+        end;
+        Inc(j);
+      end;
+    end;
+
     // 设置转换结果
     Result.Success := True;
     Result.BytesProcessed := Length(ResultBuffer);
     Result.OutputData := ResultBuffer;
+    _Trace(Format('[ConvertBuffer] end outLen=%d', [Length(ResultBuffer)]));
   except
     on E: Exception do
     begin
       Result.Success := False;
       AddError(Result, ecetUnknownError, 0, 0, E.Message);
+      _Trace('[ConvertBuffer] exception: ' + E.Message);
     end;
   end;
 end;
@@ -530,7 +733,9 @@ begin
     end;
 
     // 转换缓冲区
+    _Trace(Format('[ConvertStream] read src bytes=%d', [Length(Buffer)]));
     Result := ConvertBuffer(Buffer, ActualSourceEncoding, TargetEncoding, Options);
+    _Trace(Format('[ConvertStream] ConvertBuffer success=%s outLen=%d', [BoolToStr(Result.Success, True), Length(Result.OutputData)]));
 
     // 检查转换是否成功
     if not Result.Success then
@@ -538,6 +743,69 @@ begin
 
     // 直接使用 ConvertBuffer 返回的转换结果
     OutputBuffer := Result.OutputData;
+
+    // 最终保障：针对 UTF-8 目标，做一次文件级规范化，移除内部 BOM（以及可能的 "ï»¿" 六字节序列）
+    if (CompareText(TargetEncoding, ENCODING_UTF8) = 0) and (Length(OutputBuffer) > 0) then
+    begin
+      var k := 0;
+      while k <= Length(OutputBuffer) - 3 do
+      begin
+        if (OutputBuffer[k] = $EF) and (OutputBuffer[k+1] = $BB) and (OutputBuffer[k+2] = $BF) then
+        begin
+          var Tail := Length(OutputBuffer) - (k + 3);
+          if Tail > 0 then System.Move(OutputBuffer[k+3], OutputBuffer[k], Tail);
+          SetLength(OutputBuffer, Length(OutputBuffer) - 3);
+          Continue;
+        end;
+        Inc(k);
+      end;
+      // 移除可能的 C3 AF C2 BB C2 BF 序列
+      k := 0;
+      while k <= Length(OutputBuffer) - 6 do
+      begin
+        if (OutputBuffer[k] = $C3) and (OutputBuffer[k+1] = $AF) and (OutputBuffer[k+2] = $C2) and (OutputBuffer[k+3] = $BB) and (OutputBuffer[k+4] = $C2) and (OutputBuffer[k+5] = $BF) then
+        begin
+          var Tail6 := Length(OutputBuffer) - (k + 6);
+          if Tail6 > 0 then System.Move(OutputBuffer[k+6], OutputBuffer[k], Tail6);
+          SetLength(OutputBuffer, Length(OutputBuffer) - 6);
+          Continue;
+        end;
+        Inc(k);
+      end;
+    end
+    else if (CompareText(TargetEncoding, ENCODING_UTF8_BOM) = 0) and (Length(OutputBuffer) > 0) then
+    begin
+      // 确保首部保留一个 BOM
+      var Leading := (Length(OutputBuffer) >= 3) and (OutputBuffer[0]=$EF) and (OutputBuffer[1]=$BB) and (OutputBuffer[2]=$BF);
+      if not Leading then
+        OutputBuffer := TEncodingBOMDetector_Improved.AddBOM(OutputBuffer, 1);
+      // 清除内部 BOM（索引3开始）
+      var p := 3;
+      while p <= Length(OutputBuffer) - 3 do
+      begin
+        if (OutputBuffer[p] = $EF) and (OutputBuffer[p+1] = $BB) and (OutputBuffer[p+2] = $BF) then
+        begin
+          var TailB := Length(OutputBuffer) - (p + 3);
+          if TailB > 0 then System.Move(OutputBuffer[p+3], OutputBuffer[p], TailB);
+          SetLength(OutputBuffer, Length(OutputBuffer) - 3);
+          Continue;
+        end;
+        Inc(p);
+      end;
+      // 清除内部 "ï»¿" 六字节序列（索引3开始）
+      p := 3;
+      while p <= Length(OutputBuffer) - 6 do
+      begin
+        if (OutputBuffer[p] = $C3) and (OutputBuffer[p+1] = $AF) and (OutputBuffer[p+2] = $C2) and (OutputBuffer[p+3] = $BB) and (OutputBuffer[p+4] = $C2) and (OutputBuffer[p+5] = $BF) then
+        begin
+          var Tail6b := Length(OutputBuffer) - (p + 6);
+          if Tail6b > 0 then System.Move(OutputBuffer[p+6], OutputBuffer[p], Tail6b);
+          SetLength(OutputBuffer, Length(OutputBuffer) - 6);
+          Continue;
+        end;
+        Inc(p);
+      end;
+    end;
 
     // 【关键修复】仅当源非空而输出为空时阻止写入，避免丢失数据；允许空文件
     if (Length(Buffer) > 0) and (Length(OutputBuffer) = 0) then
@@ -864,6 +1132,7 @@ begin
     // 恢复流位�?
     SourceStream.Position := Position;
   end;
+  _Trace('[ConvertStream] end');
 end;
 
 class function TEncodingConverter_Improved.CreateDefaultOptions: TEncodingConversionOptions;
@@ -905,37 +1174,68 @@ begin
 end;
 
 class function TEncodingConverter_Improved.GetCodePage(const EncodingName: string): Integer;
+var
+  NameU: string;
+  Num: Integer;
+  i: Integer;
 begin
-  if CompareText(EncodingName, ENCODING_UTF8) = 0 then
+  NameU := Trim(EncodingName);
+  if NameU = '' then
+    Exit(GetACP());
+
+  // 查找缓存
+  for i := 0 to CodePageCacheCount - 1 do
+    if SameText(CodePageCache[i].Name, NameU) then
+      Exit(CodePageCache[i].CodePage);
+
+  // 兼容 'CPxxxx' 形式
+  if (Length(NameU) > 2) and SameText(Copy(NameU, 1, 2), 'CP') then
+  begin
+    if TryStrToInt(Copy(NameU, 3, MaxInt), Num) then
+      Exit(Num);
+  end;
+
+  if CompareText(NameU, ENCODING_UTF8) = 0 then
     Result := 65001
-  else if CompareText(EncodingName, ENCODING_UTF8_BOM) = 0 then
+  else if CompareText(NameU, ENCODING_UTF8_BOM) = 0 then
     Result := 65001
-  else if CompareText(EncodingName, ENCODING_UTF16_LE) = 0 then
+  else if CompareText(NameU, ENCODING_UTF16_LE) = 0 then
     Result := 1200
-  else if CompareText(EncodingName, ENCODING_UTF16_BE) = 0 then
+  else if CompareText(NameU, ENCODING_UTF16_BE) = 0 then
     Result := 1201
-  else if CompareText(EncodingName, ENCODING_UTF32_LE) = 0 then
+  else if CompareText(NameU, ENCODING_UTF32_LE) = 0 then
     Result := 12000
-  else if CompareText(EncodingName, ENCODING_UTF32_BE) = 0 then
+  else if CompareText(NameU, ENCODING_UTF32_BE) = 0 then
     Result := 12001
-  else if CompareText(EncodingName, ENCODING_GBK) = 0 then
+  else if CompareText(NameU, ENCODING_GBK) = 0 then
     Result := 936
-  else if CompareText(EncodingName, ENCODING_GB18030) = 0 then
+  else if CompareText(NameU, ENCODING_GB18030) = 0 then
     Result := 54936
-  else if CompareText(EncodingName, ENCODING_GB2312) = 0 then
+  else if CompareText(NameU, ENCODING_GB2312) = 0 then
     Result := 936
-  else if CompareText(EncodingName, ENCODING_BIG5) = 0 then
+  else if CompareText(NameU, ENCODING_BIG5) = 0 then
     Result := 950
-  else if CompareText(EncodingName, ENCODING_SHIFT_JIS) = 0 then
+  else if CompareText(NameU, ENCODING_SHIFT_JIS) = 0 then
     Result := 932
-  else if CompareText(EncodingName, ENCODING_EUC_JP) = 0 then
+  else if CompareText(NameU, ENCODING_EUC_JP) = 0 then
     Result := 20932
-  else if CompareText(EncodingName, ENCODING_EUC_KR) = 0 then
+  else if CompareText(NameU, ENCODING_EUC_KR) = 0 then
     Result := 51949
-  else if CompareText(EncodingName, ENCODING_ANSI) = 0 then
+  else if CompareText(NameU, ENCODING_ANSI) = 0 then
     Result := GetACP()
+  else if TryStrToInt(NameU, Num) then
+    Result := Num
   else
-    Result := GetACP();
+    // 统一回退到 UtilsTypes.GetEncodingCodePage 处理更多别名
+    Result := UtilsTypes.GetEncodingCodePage(NameU);
+
+  // 添加到缓存
+  if (Result <> 0) and (CodePageCacheCount < Length(CodePageCache)) then
+  begin
+    CodePageCache[CodePageCacheCount].Name := NameU;
+    CodePageCache[CodePageCacheCount].CodePage := Result;
+    Inc(CodePageCacheCount);
+  end;
 end;
 
 class function TEncodingConverter_Improved.HandleConversionError(var ConvResult: TEncodingConversionResult; ErrorType: TEncodingConversionErrorType; Position: Int64; ByteValue: Byte; const ErrorMessage: string; Strategy: TEncodingErrorHandlingStrategy): Boolean;

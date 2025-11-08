@@ -2,8 +2,19 @@ program SelfTest_Encoding;
 {$APPTYPE CONSOLE}
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils,
-  EncodingConverter_Improved, UtilsTypes;
+  System.SysUtils, System.Classes, System.IOUtils, Winapi.Windows,
+  EncodingConverter_Improved, UtilsTypes,
+  UtilsEncodingBOM_Improved, UtilsEncodingUTF8Detector_Improved;
+
+const
+  DEBUG_CP2_DIAG: Boolean = False; // 控制 Big5 诊断日志输出（默认关闭）
+  CP2_SAMPLE_TEXT: string = '中文測試ABC123';
+  CP2_KEYWORD1: string = '中文測試';
+
+var
+  RUN_CRIT_ONLY: Boolean = False;
+  RUN_CP_ONLY: Boolean = False;
+  RUN_QUICK_ONLY: Boolean = False;
 
 type
   TCodecCase = record
@@ -11,6 +22,66 @@ type
     LabelText: string;
     Sample: string;
   end;
+
+// 内存级 UTF-8 清理单元测试：不依赖文件 I/O
+procedure RunUTF8CleanUnitTests(const LogFile: string);
+var
+  TestData: TBytes;
+  Cleaned: TBytes;
+  HasBOM: Boolean;
+begin
+  LogLine(LogFile, '[unit] UTF-8 clean unit tests begin');
+  // 构造：ASCII 'u' + 内嵌 EF BB BF + 'nit' + 六字节序列 + ' end'，目标 UTF-8(noBOM)
+  var Tail := TEncoding.UTF8.GetBytes('nit end');
+  SetLength(TestData, 1 + 3 + Length(Tail) + 6);
+  TestData[0] := $75; // 'u'
+  TestData[1] := $EF; TestData[2] := $BB; TestData[3] := $BF; // inner BOM
+  if Length(Tail) > 0 then Move(Tail[0], TestData[4], Length(Tail));
+  Bin[0] := $75; // 'u'
+  Bin[1] := $EF; Bin[2] := $BB; Bin[3] := $BF; // inner BOM
+  if Length(Tail) > 0 then Move(Tail[0], Bin[4], Length(Tail));
+  var pos6 := 4 + Length(Tail);
+  Bin[pos6+0] := $C3; Bin[pos6+1] := $AF; Bin[pos6+2] := $C2; Bin[pos6+3] := $BB; Bin[pos6+4] := $C2; Bin[pos6+5] := $BF;
+
+  Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := False;
+  R := TEncodingConverter_Improved.ConvertBuffer(Bin, 'UTF-8', 'UTF-8', Opt);
+  ok := R.Success;
+  // 验证：输出不含 EF BB BF，也不含六字节序列
+  if ok then
+  begin
+    for i := 0 to Length(R.OutputData)-3 do
+      if (R.OutputData[i]=$EF) and (R.OutputData[i+1]=$BB) and (R.OutputData[i+2]=$BF) then begin ok := False; Break; end;
+    if ok then
+      for i := 0 to Length(R.OutputData)-6 do
+        if (R.OutputData[i]=$C3) and (R.OutputData[i+1]=$AF) and (R.OutputData[i+2]=$C2) and (R.OutputData[i+3]=$BB) and (R.OutputData[i+4]=$C2) and (R.OutputData[i+5]=$BF) then begin ok := False; Break; end;
+  end;
+  if ok then LogLine(LogFile, '[unit] utf8-clean in-memory: PASS') else LogLine(LogFile, '[unit] utf8-clean in-memory: FAIL');
+end;
+
+function LogKV(const Key, Val: string): string;
+begin
+  Result := Key + '=' + Val;
+end;
+
+// 前置声明（forward），确保在上方过程体中可调用
+procedure LogLine(const FilePath, S: string); forward;
+procedure PrintResult(const Title, FilePath: string); forward;
+procedure WriteAllTextUTF8NoBOM(const FileName, S: string); forward;
+procedure WriteAllTextUTF8WithBOM(const FileName, S: string); forward;
+function BytesToHex(const B: TBytes; N: Integer): string; forward;
+procedure LogHeadHex(const LogFile, Title, FilePath: string; Count: Integer); forward;
+function LogKV(const Key, Val: string): string; forward;
+procedure WriteAllTextGBK(const FileName, S: string); forward;
+procedure WriteAllTextUTF16LE(const FileName, S: string); forward;
+procedure WriteAllTextUTF16BE(const FileName, S: string); forward;
+procedure WriteAllTextUTF32LE(const FileName, S: string); forward;
+procedure WriteAllTextUTF32BE(const FileName, S: string); forward;
+procedure WriteAllTextWithCodepage(const FileName, S: string; CodePage: Integer); forward;
+procedure RunCodePageCases(const Dir, LogFile: string); forward;
+procedure RunExtendedCategoriesTests(const Dir, LogFile: string); forward;
+procedure RunAdditionalEdgeCases(const Dir, LogFile: string); forward;
+procedure RunTests; forward;
+procedure RunCriticalUTF8BOMTests(const Dir, LogFile: string); forward;
 
 // 扩展用例批（1-6）
 procedure RunExtendedCategoriesTests(const Dir, LogFile: string);
@@ -153,7 +224,7 @@ begin
   LongDir := TPath.Combine(LongDir, StringOfChar('E', 60));
   LongDir := TPath.Combine(LongDir, StringOfChar('F', 60));
   ForceDirectories(LongDir);
-  var LongFile := TPath.Combine(LongDir, StringOfChar('名', 30) + '_测试.txt');
+  var LongFile := TPath.Combine(LongDir, StringOfChar('名'[1], 30) + '_测试.txt');
   TFile.WriteAllText(LongFile, 'Long path content 😀', TEncoding.UTF8);
   var LongOut := ChangeFileExt(LongFile, '_out.txt');
   Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False;
@@ -258,9 +329,7 @@ begin
     LogLine(LogFile, '[46] Non-ASCII path UTF8->UTF8: FAIL');
 end;
 
-// 前置声明，供 RunCodePageCases 使用
-procedure LogLine(const FilePath, S: string); forward;
-procedure WriteAllTextWithCodepage(const FileName, S: string; CodePage: Integer); forward;
+// （已在文件顶部统一 forward 声明）
 
 function HasUTF8BOM(const Bytes: TBytes): Boolean;
 begin
@@ -308,6 +377,8 @@ begin
   // KOI8 系列
   AddCase(20866, 'KOI8-R', 'Привет мир ABC123');
   AddCase(21866, 'KOI8-U', 'Привіт світ ABC123');
+  // East Asia 扩展（占位）：EUC-TW（如运行环境未安装该代码页，写入阶段会捕获异常并记录）
+  AddCase(51950, 'EUC-TW', '繁體中文測試 ABC123');
   // DOS/OEM 编码
   AddCase(437,  'CP437', 'CP437 test: AaBbCc 123');
   AddCase(850,  'CP850', 'CP850 test: ÀÁÂÃÄÅ ÇÈÉÊË ÌÍÎÏ');
@@ -455,64 +526,7 @@ begin
   end;
 end;
 
-procedure WriteAllTextUTF8NoBOM(const FileName, S: string);
-var
-  Bytes: TBytes;
-begin
-  Bytes := TEncoding.UTF8.GetBytes(S);
-  TFile.WriteAllBytes(FileName, Bytes);
-end;
-
-procedure WriteAllTextUTF8WithBOM(const FileName, S: string);
-var
-  Bytes: TBytes;
-  WithBOM: TBytes;
-begin
-  Bytes := TEncoding.UTF8.GetBytes(S);
-  SetLength(WithBOM, 3 + Length(Bytes));
-  if Length(WithBOM) > 0 then
-  begin
-    WithBOM[0] := $EF; WithBOM[1] := $BB; WithBOM[2] := $BF;
-    if Length(Bytes) > 0 then
-      Move(Bytes[0], WithBOM[3], Length(Bytes));
-  end;
-  TFile.WriteAllBytes(FileName, WithBOM);
-end;
-
-procedure PrintResult(const Title, FilePath: string);
-var
-  B: TBytes;
-  Info: string;
-begin
-  if TFile.Exists(FilePath) then
-  begin
-    B := TFile.ReadAllBytes(FilePath);
-    if HasUTF8BOM(B) then Info := 'UTF-8+BOM' else Info := 'UTF-8(no BOM)';
-    Writeln(Format('%s => %s, size=%d', [Title, Info, Length(B)]));
-  end
-  else
-    Writeln(Format('%s => file not found: %s', [Title, FilePath]));
-end;
-
-procedure LogLine(const FilePath, S: string);
-begin
-  // 以 UTF-8（无 BOM）追加日志
-  TFile.AppendAllText(FilePath, S + sLineBreak, TEncoding.UTF8);
-end;
-
-procedure WriteAllTextGBK(const FileName, S: string);
-var
-  Enc: TEncoding;
-  Bytes: TBytes;
-begin
-  Enc := TEncoding.GetEncoding(936); // GBK/CP936
-  try
-    Bytes := Enc.GetBytes(S);
-    TFile.WriteAllBytes(FileName, Bytes);
-  finally
-    Enc.Free;
-  end;
-end;
+// 工具过程的实现已统一放到文件后半部分，避免重复定义
 
 procedure RunTests;
 var
@@ -522,12 +536,113 @@ var
   LogFile: string;
 begin
   Root := ExtractFilePath(ParamStr(0));
-  Dir := TPath.Combine(Root, '..\\tmp_tests');
+  Dir := TPath.Combine(Root, '..\tmp_tests');
   ForceDirectories(Dir);
+  LogFile := TPath.Combine(Dir, 'selftest_log.txt');
+  // 清空旧日志并写入标记，确保可见关键测试输出
+  if TFile.Exists(LogFile) then TFile.Delete(LogFile);
+  LogLine(LogFile, '[CRIT] RunTests: begin');
+
+  // 解析命令行参数
+  for var i := 1 to ParamCount do
+  begin
+    if SameText(ParamStr(i), '/crit') then
+      RUN_CRIT_ONLY := True
+    else if SameText(ParamStr(i), '/cp') then
+      RUN_CP_ONLY := True
+    else if SameText(ParamStr(i), '/quick') then
+      RUN_QUICK_ONLY := True;
+  end;
+
+  // 优先运行关键 UTF-8 BOM 测试
+  RunCriticalUTF8BOMTests(Dir, LogFile);
+
+  // 若仅运行关键或仅运行跨码页，则按模式控制
+  if RUN_CRIT_ONLY then
+  begin
+    RunCrossCodepageRegressionTests(Dir, LogFile);
+    Exit;
+  end;
+  if RUN_CP_ONLY then
+  begin
+    LogLine(LogFile, '[MODE] Cross-codepage regression only');
+    RunCrossCodepageRegressionTests(Dir, LogFile);
+    Exit;
+  end;
+
+  if RUN_QUICK_ONLY then
+  begin
+    LogLine(LogFile, '[MODE] Quick smoke test (<10s)');
+    // 仅运行最核心的 5 个用例
+    LogLine(LogFile, '[quick] UTF8 roundtrip');
+    var FQ := TPath.Combine(Dir, 'quick_test.txt');
+    WriteAllTextUTF8NoBOM(FQ, 'Quick test 中文 😀');
+    var OptQ := TEncodingConverter_Improved.CreateDefaultOptions; OptQ.AddBOM := False;
+    var RQ := TEncodingConverter_Improved.ConvertFile(FQ, FQ, 'UTF-8', 'UTF-8', OptQ);
+    LogLine(LogFile, '[quick] UTF8->UTF8: ' + BoolToStr(RQ.Success, True));
+    
+    LogLine(LogFile, '[quick] GBK->UTF8');
+    var FQG := TPath.Combine(Dir, 'quick_gbk.txt');
+    WriteAllTextWithCodepage(FQG, '这是GBK', 936);
+    var FQO := TPath.Combine(Dir, 'quick_gbk_out.txt');
+    RQ := TEncodingConverter_Improved.ConvertFile(FQG, FQO, 'GBK', 'UTF-8', OptQ);
+    LogLine(LogFile, '[quick] GBK->UTF8: ' + BoolToStr(RQ.Success, True));
+    
+    LogLine(LogFile, '[quick] Big5->UTF8');
+    var FQB := TPath.Combine(Dir, 'quick_big5.txt');
+    WriteAllTextWithCodepage(FQB, '中文測試', 950);
+    var FQB2 := TPath.Combine(Dir, 'quick_big5_out.txt');
+    RQ := TEncodingConverter_Improved.ConvertFile(FQB, FQB2, '950', 'UTF-8', OptQ);
+    LogLine(LogFile, '[quick] Big5->UTF8: ' + BoolToStr(RQ.Success, True));
+    
+    LogLine(LogFile, '[quick] All quick tests completed');
+    Exit;
+  end;
+
+  // 性能回归检测模式
+  if ParamCount > 0 then
+  begin
+    for var i := 1 to ParamCount do
+    begin
+      if SameText(ParamStr(i), '/perfregress') then
+      begin
+        LogLine(LogFile, '[MODE] Performance regression detection');
+        var PerfLog := TPath.Combine(Dir, '..\tmp_tests\perf_log.txt');
+        if FileExists(PerfLog) then
+        begin
+          var Lines := TFile.ReadAllLines(PerfLog);
+          if Length(Lines) > 0 then
+          begin
+            var LastLine := Lines[High(Lines)];
+            if Pos('[PERF]', LastLine) > 0 then
+            begin
+              var PosMs := Pos('crit_elapsed_ms=', LastLine);
+              if PosMs > 0 then
+              begin
+                var MsStr := Copy(LastLine, PosMs + 17, 10);
+                var SpacePos := Pos(' ', MsStr);
+                if SpacePos > 0 then MsStr := Copy(MsStr, 1, SpacePos - 1);
+                var LastMs: Integer;
+                if TryStrToInt(MsStr, LastMs) then
+                begin
+                  LogLine(LogFile, Format('[perfregress] Last baseline: %d ms', [LastMs]));
+                  if LastMs > 1000 then
+                    LogLine(LogFile, '[perfregress] WARNING: Performance degradation detected (>1000ms)')
+                  else
+                    LogLine(LogFile, '[perfregress] Performance within acceptable range');
+                end;
+              end;
+            end;
+          end;
+        end;
+        Exit;
+      end;
+    end;
+  end;
+
   F1 := TPath.Combine(Dir, 'utf8_no_bom.txt');
   F2 := TPath.Combine(Dir, 'utf8_bom.txt');
   F3 := TPath.Combine(Dir, 'empty.txt');
-  LogFile := TPath.Combine(Dir, 'selftest_log.txt');
 
   // Prepare samples
   WriteAllTextUTF8NoBOM(F1, 'Hello 世界, UTF8 NO BOM');
@@ -553,6 +668,19 @@ begin
   PrintResult('After [2]', F2);
   LogLine(LogFile, Format('[2] success=%s size=%d file=%s', [BoolToStr(R.Success, True), TFile.GetSize(F2), F2]));
 
+  // 别名映射小测试（Big5/950/CP950）
+  try
+    var gp1 := TEncodingConverter_Improved.GetCodePage('Big5');
+    var gp2 := TEncodingConverter_Improved.GetCodePage('950');
+    var gp3 := TEncodingConverter_Improved.GetCodePage('CP950');
+    var up1 := UtilsTypes.GetEncodingCodePage('Big5');
+    var up2 := UtilsTypes.GetEncodingCodePage('950');
+    var up3 := UtilsTypes.GetEncodingCodePage('CP950');
+    var pass := (gp1=950) and (gp2=950) and (gp3=950) and (up1=950) and (up2=950) and (up3=950);
+    if pass then LogLine(LogFile, '[alias] Big5/950/CP950 mapping: PASS') else
+      LogLine(LogFile, Format('[alias] mapping: FAIL gp1=%d gp2=%d gp3=%d up1=%d up2=%d up3=%d',[gp1,gp2,gp3,up1,up2,up3]));
+  except on E: Exception do LogLine(LogFile, '[alias] Exception: ' + E.Message); end;
+
   // 3) empty file noBOM -> BOM (in-place)
   Opt.AddBOM := True;
   R := TEncodingConverter_Improved.ConvertFile(F3, F3, 'UTF-8', 'UTF-8 with BOM', Opt);
@@ -573,6 +701,9 @@ begin
   R := TEncodingConverter_Improved.ConvertFile(F4, F4, 'UTF-8 with BOM', 'UTF-8', Opt);
   PrintResult('After [4] roundtrip', F4);
   LogLine(LogFile, Format('[4] success=%s size=%d file=%s', [BoolToStr(R.Success, True), TFile.GetSize(F4), F4]));
+  // 内存级 UTF-8 清理单元测试
+  RunUTF8CleanUnitTests(LogFile);
+  LogLine(LogFile, '[CRIT] RunTests: end');
 
   // 14) UTF-16LE -> UTF-8（验证内容一致）
   var F14_U16LE := TPath.Combine(Dir, 'utf16le_sample.txt');
@@ -625,6 +756,25 @@ begin
     LogLine(LogFile, '[17] ASCII->UTF8: PASS')
   else
     LogLine(LogFile, '[17] ASCII->UTF8: FAIL - content mismatch');
+
+  // 18a) ANSI(ACP) -> UTF-8（使用本地系统代码页；使用纯 ASCII 文本确保跨环境稳定）
+  var F18a_ANSI := TPath.Combine(Dir, 'ansi_acp_sample.txt');
+  var F18a_OUT := TPath.Combine(Dir, 'ansi_acp_to_utf8.txt');
+  var F18a_Text := 'ANSI(ACP) sample ASCII only: ABC 123 !@#';
+  var ACP := GetACP();
+  var EncACP := TEncoding.GetEncoding(ACP);
+  try
+    TFile.WriteAllText(F18a_ANSI, F18a_Text, EncACP);
+  finally
+    EncACP.Free;
+  end;
+  Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := False;
+  R := TEncodingConverter_Improved.ConvertFile(F18a_ANSI, F18a_OUT, 'ANSI', 'UTF-8', Opt);
+  var F18a_Read := TFile.ReadAllText(F18a_OUT, TEncoding.UTF8);
+  if F18a_Read = F18a_Text then
+    LogLine(LogFile, '[18a] ANSI(ACP)->UTF8: PASS')
+  else
+    LogLine(LogFile, '[18a] ANSI(ACP)->UTF8: FAIL - content mismatch');
 
   // 18) 无效UTF-8字节容错（确保不崩溃且有输出）
   var F18_INV := TPath.Combine(Dir, 'invalid_utf8.bin');
@@ -729,6 +879,7 @@ begin
   var F25_SRC := TPath.Combine(Dir, 'long_single_line.txt');
   var F25_OUT := TPath.Combine(Dir, 'long_single_line_out.txt');
   var S25 := '';
+  var I: Integer;
   for I := 1 to 1024 do // 1024 * ~2KB = ~2MB
     S25 := S25 + StringOfChar('A', 1500) + '中文😀';
   TFile.WriteAllText(F25_SRC, S25, TEncoding.UTF8);
@@ -1103,19 +1254,117 @@ begin
       LogLine(LogFile, '[42] 50x BOM flip-flop stability: FAIL');
   end
   else
-    LogLine(LogFile, Format('[42] 50x BOM flip-flop stability: FAIL (file missing)'));
+    LogLine(LogFile, '[42] 50x BOM flip-flop stability: FAIL (file missing)');
 
   // 运行新增的特定编码/场景边界用例 [43]-[46]
   RunAdditionalEdgeCases(Dir, LogFile);
 
   // 运行扩展项（1-6）
   RunExtendedCategoriesTests(Dir, LogFile);
+
+  // 47) 内容中混入 UTF-8 BOM 片段的清理（修复 ?unit 问题）
+  try
+    var F47_SRC := TPath.Combine(Dir, 'u_with_inner_bom.txt');
+    var F47_OUT_NO := TPath.Combine(Dir, 'u_with_inner_bom_out_no.txt');
+    var F47_OUT_W  := TPath.Combine(Dir, 'u_with_inner_bom_out_bom.txt');
+
+    // 构造: 'u' + EF BB BF + 'nit Frame01Intro;' + CRLF
+    var B47: TBytes;
+    var S47Tail := 'nit Frame01Intro;' + #13#10 + 'begin end.' + #13#10;
+    var Tail := TEncoding.UTF8.GetBytes(S47Tail);
+    SetLength(B47, 1 + 3 + Length(Tail));
+    B47[0] := $75; // 'u'
+    B47[1] := $EF; B47[2] := $BB; B47[3] := $BF; // inner BOM
+    if Length(Tail) > 0 then
+      Move(Tail[0], B47[4], Length(Tail));
+    TFile.WriteAllBytes(F47_SRC, B47);
+
+    // 转 UTF-8 无 BOM：应移除所有 BOM，且头部应为 'u','n','i','t',' '
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(F47_SRC, F47_OUT_NO, '', 'UTF-8', Opt);
+    var O47 := TFile.ReadAllBytes(F47_OUT_NO);
+    var Pass47No := (Length(O47) >= 5) and
+                    (O47[0] = $75) and (O47[1] = $6E) and (O47[2] = $69) and (O47[3] = $74) and (O47[4] = $20);
+    // 确认不包含 EF BB BF 片段
+    var HasInner := False;
+    var idx47: Integer;
+    for idx47 := 0 to Length(O47) - 3 do
+      if (O47[idx47] = $EF) and (O47[idx47+1] = $BB) and (O47[idx47+2] = $BF) then begin HasInner := True; Break; end;
+    if Pass47No and (not HasInner) then
+      LogLine(LogFile, '[47] Inner-BOM cleaned for UTF8(noBOM): PASS')
+    else
+      LogLine(LogFile, '[47] Inner-BOM cleaned for UTF8(noBOM): FAIL (head_ok=' + BoolToStr(Pass47No, True) + ' inner_bom=' + BoolToStr(HasInner, True) + ')');
+
+    // 转 UTF-8 带 BOM：应仅在文件首有一个 BOM，且无内部 BOM
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := True; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(F47_SRC, F47_OUT_W, '', 'UTF-8 with BOM', Opt);
+    var W47 := TFile.ReadAllBytes(F47_OUT_W);
+    var HasLeading := (Length(W47) >= 3) and (W47[0] = $EF) and (W47[1] = $BB) and (W47[2] = $BF);
+    // 检查除开头外的 BOM
+    HasInner := False;
+    var jdx47: Integer;
+    for jdx47 := 3 to Length(W47) - 3 do
+      if (W47[jdx47] = $EF) and (W47[jdx47+1] = $BB) and (W47[jdx47+2] = $BF) then begin HasInner := True; Break; end;
+    if HasLeading and (not HasInner) then
+      LogLine(LogFile, '[47] Only leading BOM for UTF8(BOM): PASS')
+    else
+      LogLine(LogFile, '[47] Only leading BOM for UTF8(BOM): FAIL (leading=' + BoolToStr(HasLeading, True) + ' inner=' + BoolToStr(HasInner, True) + ')');
+  except
+    on E: Exception do
+      LogLine(LogFile, '[47] Exception: ' + E.Message);
+  end;
+
+  // [UF] 用户文件专项测试：若 tmp_tests 下存在 Frame01Intro.pas，则进行检测与往返
+  try
+    var UserFile := TPath.Combine(Dir, 'Frame01Intro.pas');
+    if TFile.Exists(UserFile) then
+    begin
+      var BOM := TEncodingBOMDetector_Improved.DetectBOMFromFile(UserFile);
+      var U8 := TUTF8EncodingDetector_Improved.DetectFile(UserFile);
+      LogLine(LogFile, '[UF] Before: file=' + UserFile +
+        ' BOMType=' + IntToStr(BOM.BOMType) +
+        ' Encoding=' + BOM.Encoding +
+        ' UTF8=' + BoolToStr(U8.IsUTF8, True) +
+        ' HasBOM=' + BoolToStr(U8.HasBOM, True) +
+        ' Conf=' + FloatToStrF(U8.Confidence, ffFixed, 15, 3));
+
+      var UF_NO := TPath.Combine(Dir, 'Frame01Intro_out_u8.txt');
+      var UF_W  := TPath.Combine(Dir, 'Frame01Intro_out_u8bom.txt');
+
+      var OptUF := TEncodingConverter_Improved.CreateDefaultOptions; OptUF.AddBOM := False; OptUF.DetectSourceEncoding := True;
+      var RUF := TEncodingConverter_Improved.ConvertFile(UserFile, UF_NO, '', 'UTF-8', OptUF);
+      var BOM1 := TEncodingBOMDetector_Improved.DetectBOMFromFile(UF_NO);
+      var U81 := TUTF8EncodingDetector_Improved.DetectFile(UF_NO);
+      LogLine(LogFile, '[UF] To UTF8(noBOM): success=' + BoolToStr(RUF.Success, True) +
+        ' BOMType=' + IntToStr(BOM1.BOMType) +
+        ' UTF8=' + BoolToStr(U81.IsUTF8, True) +
+        ' HasBOM=' + BoolToStr(U81.HasBOM, True) +
+        ' Conf=' + FloatToStrF(U81.Confidence, ffFixed, 15, 3) +
+        ' size=' + IntToStr(Integer(TFile.GetSize(UF_NO))));
+
+      OptUF := TEncodingConverter_Improved.CreateDefaultOptions; OptUF.AddBOM := True; OptUF.DetectSourceEncoding := True;
+      RUF := TEncodingConverter_Improved.ConvertFile(UserFile, UF_W, '', 'UTF-8 with BOM', OptUF);
+      var BOM2 := TEncodingBOMDetector_Improved.DetectBOMFromFile(UF_W);
+      var U82 := TUTF8EncodingDetector_Improved.DetectFile(UF_W);
+      LogLine(LogFile, '[UF] To UTF8(BOM):   success=' + BoolToStr(RUF.Success, True) +
+        ' BOMType=' + IntToStr(BOM2.BOMType) +
+        ' UTF8=' + BoolToStr(U82.IsUTF8, True) +
+        ' HasBOM=' + BoolToStr(U82.HasBOM, True) +
+        ' Conf=' + FloatToStrF(U82.Confidence, ffFixed, 15, 3) +
+        ' size=' + IntToStr(Integer(TFile.GetSize(UF_W))));
+    end
+    else
+      LogLine(LogFile, '[UF] Skip: tmp_tests/Frame01Intro.pas not found');
+  except
+    on E: Exception do
+      LogLine(LogFile, '[UF] Exception: ' + E.Message);
+  end;
+  LogLine(LogFile, '[CRIT] RunCriticalUTF8BOMTests: end');
 end;
 
 procedure WriteAllTextUTF8NoBOM(const FileName, S: string);
 var
   Bytes: TBytes;
-{{ ... }}
 begin
   Bytes := TEncoding.UTF8.GetBytes(S);
   TFile.WriteAllBytes(FileName, Bytes);
@@ -1135,6 +1384,33 @@ begin
       Move(Bytes[0], WithBOM[3], Length(Bytes));
   end;
   TFile.WriteAllBytes(FileName, WithBOM);
+end;
+
+function BytesToHex(const B: TBytes; N: Integer): string;
+var
+  i, L: Integer;
+begin
+  Result := '';
+  L := Length(B);
+  if N < L then L := N;
+  for i := 0 to L-1 do
+  begin
+    Result := Result + IntToHex(B[i], 2);
+    if i < L-1 then Result := Result + ' ';
+  end;
+end;
+
+procedure LogHeadHex(const LogFile, Title, FilePath: string; Count: Integer);
+var
+  B: TBytes;
+begin
+  if TFile.Exists(FilePath) then
+  begin
+    B := TFile.ReadAllBytes(FilePath);
+    LogLine(LogFile, Format('%s head(%d) hex: %s', [Title, Count, BytesToHex(B, Count)]));
+  end
+  else
+    LogLine(LogFile, Title + ' file missing: ' + FilePath);
 end;
 
 procedure PrintResult(const Title, FilePath: string);
@@ -1172,7 +1448,469 @@ begin
   end;
 end;
 
-procedure RunTests;
+// 关键 UTF-8 BOM 清理与用户文件专项测试，优先运行
+procedure RunCrossCodepageRegressionTests(const Dir, LogFile: string); forward;
+procedure RunCriticalUTF8BOMTests(const Dir, LogFile: string);
+var
+  Opt: TEncodingConversionOptions;
+  R: TEncodingConversionResult;
+begin
+  LogLine(LogFile, '[CRIT] RunCriticalUTF8BOMTests: begin');
+  // 47) 内容中混入 UTF-8 BOM 片段的清理（修复 ?unit 问题）
+  try
+    var S47Src := TPath.Combine(Dir, 'u_with_inner_bom_quick.txt');
+    var S47OutNo := TPath.Combine(Dir, 'u_with_inner_bom_quick_out_no.txt');
+    var S47OutW := TPath.Combine(Dir, 'u_with_inner_bom_quick_out_bom.txt');
+
+    var B47: TBytes;
+    var Tail47 := TEncoding.UTF8.GetBytes('nit Frame01Intro;' + #13#10 + 'begin end.' + #13#10);
+    SetLength(B47, 1 + 3 + Length(Tail47));
+    B47[0] := $75; // 'u'
+    B47[1] := $EF; B47[2] := $BB; B47[3] := $BF; // inner BOM
+    if Length(Tail47) > 0 then Move(Tail47[0], B47[4], Length(Tail47));
+    TFile.WriteAllBytes(S47Src, B47);
+
+    // 无BOM
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47Src, S47OutNo, '', 'UTF-8', Opt);
+    var O := TFile.ReadAllBytes(S47OutNo);
+    var headOK := (Length(O) >= 5) and (O[0]=$75) and (O[1]=$6E) and (O[2]=$69) and (O[3]=$74) and (O[4]=$20);
+    var inner := False; var p: Integer;
+    for p := 0 to Length(O)-3 do if (O[p]=$EF) and (O[p+1]=$BB) and (O[p+2]=$BF) then begin inner := True; Break; end;
+    if R.Success and headOK and (not inner) then
+      LogLine(LogFile, '[47] Inner-BOM cleaned for UTF8(noBOM): PASS')
+    else
+      LogLine(LogFile, '[47] Inner-BOM cleaned for UTF8(noBOM): FAIL (head_ok=' + BoolToStr(headOK, True) + ' inner_bom=' + BoolToStr(inner, True) + ')');
+
+    // 带BOM
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := True; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47Src, S47OutW, '', 'UTF-8 with BOM', Opt);
+    var W := TFile.ReadAllBytes(S47OutW);
+    var leading := (Length(W) >= 3) and (W[0]=$EF) and (W[1]=$BB) and (W[2]=$BF);
+    inner := False; for p := 3 to Length(W)-3 do if (W[p]=$EF) and (W[p+1]=$BB) and (W[p+2]=$BF) then begin inner := True; Break; end;
+    if R.Success and leading and (not inner) then
+      LogLine(LogFile, '[47] Only leading BOM for UTF8(BOM): PASS')
+    else
+      LogLine(LogFile, '[47] Only leading BOM for UTF8(BOM): FAIL (leading=' + BoolToStr(leading, True) + ' inner=' + BoolToStr(inner, True) + ')');
+  except
+    on E: Exception do
+      LogLine(LogFile, '[47] Exception: ' + E.Message);
+  end;
+
+  // [UF] 用户文件专项测试
+  try
+    var UserFile := TPath.Combine(Dir, 'Frame01Intro.pas');
+    if TFile.Exists(UserFile) then
+    begin
+      var BOM := TEncodingBOMDetector_Improved.DetectBOMFromFile(UserFile);
+      var U8 := TUTF8EncodingDetector_Improved.DetectFile(UserFile);
+      LogLine(LogFile, '[UF] Before: file=' + UserFile + ' BOMType=' + IntToStr(BOM.BOMType) + ' Encoding=' + BOM.Encoding +
+        ' UTF8=' + BoolToStr(U8.IsUTF8, True) + ' HasBOM=' + BoolToStr(U8.HasBOM, True) + ' Conf=' + FloatToStrF(U8.Confidence, ffFixed, 15, 3));
+
+      var UF_NO := TPath.Combine(Dir, 'Frame01Intro_out_u8.txt');
+      var UF_W  := TPath.Combine(Dir, 'Frame01Intro_out_u8bom.txt');
+
+      var OptUF := TEncodingConverter_Improved.CreateDefaultOptions; OptUF.AddBOM := False; OptUF.DetectSourceEncoding := True;
+      var RUF := TEncodingConverter_Improved.ConvertFile(UserFile, UF_NO, '', 'UTF-8', OptUF);
+      var BOM1 := TEncodingBOMDetector_Improved.DetectBOMFromFile(UF_NO);
+      var U81 := TUTF8EncodingDetector_Improved.DetectFile(UF_NO);
+      LogLine(LogFile, '[UF] To UTF8(noBOM): success=' + BoolToStr(RUF.Success, True) + ' BOMType=' + IntToStr(BOM1.BOMType) +
+        ' UTF8=' + BoolToStr(U81.IsUTF8, True) + ' HasBOM=' + BoolToStr(U81.HasBOM, True) + ' Conf=' + FloatToStrF(U81.Confidence, ffFixed, 15, 3) +
+        ' size=' + IntToStr(Integer(TFile.GetSize(UF_NO))));
+
+      OptUF := TEncodingConverter_Improved.CreateDefaultOptions; OptUF.AddBOM := True; OptUF.DetectSourceEncoding := True;
+      RUF := TEncodingConverter_Improved.ConvertFile(UserFile, UF_W, '', 'UTF-8 with BOM', OptUF);
+      var BOM2 := TEncodingBOMDetector_Improved.DetectBOMFromFile(UF_W);
+      var U82 := TUTF8EncodingDetector_Improved.DetectFile(UF_W);
+      LogLine(LogFile, '[UF] To UTF8(BOM):   success=' + BoolToStr(RUF.Success, True) + ' BOMType=' + IntToStr(BOM2.BOMType) +
+        ' UTF8=' + BoolToStr(U82.IsUTF8, True) + ' HasBOM=' + BoolToStr(U82.HasBOM, True) + ' Conf=' + FloatToStrF(U82.Confidence, ffFixed, 15, 3) +
+        ' size=' + IntToStr(Integer(TFile.GetSize(UF_W))));
+
+      // [UF-CHK] 内部扫描：确保无内部 EF BB BF 与 "ï»¿" 六字节序列
+      var Bchk: TBytes;
+      var iChk, startIdx: Integer;
+      // noBOM 文件检查
+      if TFile.Exists(UF_NO) then
+      begin
+        Bchk := TFile.ReadAllBytes(UF_NO);
+        var ok := True;
+        startIdx := 0;
+        for iChk := startIdx to Length(Bchk)-3 do
+          if (Bchk[iChk]=$EF) and (Bchk[iChk+1]=$BB) and (Bchk[iChk+2]=$BF) then begin ok := False; Break; end;
+        if ok then
+          for iChk := startIdx to Length(Bchk)-6 do
+            if (Bchk[iChk]=$C3) and (Bchk[iChk+1]=$AF) and (Bchk[iChk+2]=$C2) and (Bchk[iChk+3]=$BB) and (Bchk[iChk+4]=$C2) and (Bchk[iChk+5]=$BF) then begin ok := False; Break; end;
+        if ok then LogLine(LogFile, '[UF-CHK] noBOM internal scan: PASS') else LogLine(LogFile, '[UF-CHK] noBOM internal scan: FAIL');
+      end
+      else
+        LogLine(LogFile, '[UF-CHK] noBOM internal scan: SKIP - file not found');
+      // BOM 文件检查（允许首部BOM）
+      if TFile.Exists(UF_W) then
+      begin
+        Bchk := TFile.ReadAllBytes(UF_W);
+        var ok2 := True;
+        if (Length(Bchk)>=3) and (Bchk[0]=$EF) and (Bchk[1]=$BB) and (Bchk[2]=$BF) then startIdx := 3 else startIdx := 0;
+        for iChk := startIdx to Length(Bchk)-3 do
+          if (Bchk[iChk]=$EF) and (Bchk[iChk+1]=$BB) and (Bchk[iChk+2]=$BF) then begin ok2 := False; Break; end;
+        if ok2 then
+          for iChk := startIdx to Length(Bchk)-6 do
+            if (Bchk[iChk]=$C3) and (Bchk[iChk+1]=$AF) and (Bchk[iChk+2]=$C2) and (Bchk[iChk+3]=$BB) and (Bchk[iChk+4]=$C2) and (Bchk[iChk+5]=$BF) then begin ok2 := False; Break; end;
+        if ok2 then LogLine(LogFile, '[UF-CHK] BOM internal scan: PASS') else LogLine(LogFile, '[UF-CHK] BOM internal scan: FAIL');
+      end
+      else
+        LogLine(LogFile, '[UF-CHK] BOM internal scan: SKIP - file not found');
+    end
+    else
+      LogLine(LogFile, '[UF] Skip: tmp_tests/Frame01Intro.pas not found');
+  except
+    on E: Exception do
+      LogLine(LogFile, '[UF] Exception: ' + E.Message);
+  end;
+  
+  // [47b] 测试：清理 "ï»¿" 六字节序列（C3 AF C2 BB C2 BF）
+  try
+    var S47bSrc := TPath.Combine(Dir, 'u_with_inner_6bytes.txt');
+    var S47bOutNo := TPath.Combine(Dir, 'u_with_inner_6bytes_out_no.txt');
+    var S47bOutW := TPath.Combine(Dir, 'u_with_inner_6bytes_out_bom.txt');
+    var Tail47b := TEncoding.UTF8.GetBytes('nit Frame01Intro;' + #13#10 + 'begin end.' + #13#10);
+    var B47b: TBytes; SetLength(B47b, 1 + 6 + Length(Tail47b));
+    B47b[0] := $75; // 'u'
+    // 插入 6 字节序列 C3 AF C2 BB C2 BF
+    B47b[1] := $C3; B47b[2] := $AF; B47b[3] := $C2; B47b[4] := $BB; B47b[5] := $C2; B47b[6] := $BF;
+    if Length(Tail47b)>0 then Move(Tail47b[0], B47b[7], Length(Tail47b));
+    TFile.WriteAllBytes(S47bSrc, B47b);
+
+    // 无BOM转换
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47bSrc, S47bOutNo, '', 'UTF-8', Opt);
+    var O47b := TFile.ReadAllBytes(S47bOutNo);
+    var okHead47b := (Length(O47b) >= 5) and (O47b[0]=$75) and (O47b[1]=$6E) and (O47b[2]=$69) and (O47b[3]=$74) and (O47b[4]=$20);
+    var has6 := False; var ii: Integer;
+    for ii := 0 to Length(O47b)-6 do if (O47b[ii]=$C3) and (O47b[ii+1]=$AF) and (O47b[ii+2]=$C2) and (O47b[ii+3]=$BB) and (O47b[ii+4]=$C2) and (O47b[ii+5]=$BF) then begin has6 := True; Break; end;
+    if R.Success and okHead47b and (not has6) then LogLine(LogFile, '[47b] 6bytes cleaned UTF8(noBOM): PASS') else LogLine(LogFile, '[47b] 6bytes cleaned UTF8(noBOM): FAIL');
+
+    // 带BOM转换
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := True; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47bSrc, S47bOutW, '', 'UTF-8 with BOM', Opt);
+    var W47b := TFile.ReadAllBytes(S47bOutW);
+    var leading47b := (Length(W47b) >= 3) and (W47b[0]=$EF) and (W47b[1]=$BB) and (W47b[2]=$BF);
+    has6 := False; for ii := 3 to Length(W47b)-6 do if (W47b[ii]=$C3) and (W47b[ii+1]=$AF) and (W47b[ii+2]=$C2) and (W47b[ii+3]=$BB) and (W47b[ii+4]=$C2) and (W47b[ii+5]=$BF) then begin has6 := True; Break; end;
+    if R.Success and leading47b and (not has6) then LogLine(LogFile, '[47b] 6bytes cleaned UTF8(BOM): PASS') else LogLine(LogFile, '[47b] 6bytes cleaned UTF8(BOM): FAIL');
+  except
+    on E: Exception do LogLine(LogFile, '[47b] Exception: ' + E.Message);
+  end;
+
+  // [47c] 多处/相邻/尾部 BOM 与六字节序列混合
+  try
+    var S47c := TPath.Combine(Dir, 'mix_multi_bom_six_bytes.txt');
+    var Out47cNo := TPath.Combine(Dir, 'mix_multi_bom_six_bytes_out_no.txt');
+    var Out47cW  := TPath.Combine(Dir, 'mix_multi_bom_six_bytes_out_bom.txt');
+    // 组装：'u' + BOM + BOM(相邻) + 'nit ' + 六字节 + 'Frame' + 尾部BOM
+    var tail := TEncoding.UTF8.GetBytes('nit Frame');
+    var Bc: TBytes; SetLength(Bc, 1 + 3 + 3 + Length(tail) + 6 + 5 + 3);
+    var idx := 0;
+    Bc[idx] := $75; Inc(idx); // 'u'
+    // 两个相邻 BOM
+    Bc[idx]:=$EF; Bc[idx+1]:=$BB; Bc[idx+2]:=$BF; Inc(idx,3);
+    Bc[idx]:=$EF; Bc[idx+1]:=$BB; Bc[idx+2]:=$BF; Inc(idx,3);
+    if Length(tail)>0 then begin Move(tail[0], Bc[idx], Length(tail)); Inc(idx, Length(tail)); end;
+    // 六字节
+    Bc[idx]:=$C3; Bc[idx+1]:=$AF; Bc[idx+2]:=$C2; Bc[idx+3]:=$BB; Bc[idx+4]:=$C2; Bc[idx+5]:=$BF; Inc(idx,6);
+    // ' Intro'
+    Bc[idx]:=$20; Bc[idx+1]:=$49; Bc[idx+2]:=$6E; Bc[idx+3]:=$74; Bc[idx+4]:=$72; Inc(idx,5);
+    // 尾部BOM
+    Bc[idx]:=$EF; Bc[idx+1]:=$BB; Bc[idx+2]:=$BF;
+    TFile.WriteAllBytes(S47c, Bc);
+    // 转换 noBOM
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47c, Out47cNo, '', 'UTF-8', Opt);
+    var RNo := TFile.ReadAllBytes(Out47cNo);
+    var okNo := (Length(RNo)>0) and (RNo[0]=$75);
+    var bad47c := False; var p47c: Integer; for p47c := 0 to Length(RNo)-3 do if (RNo[p47c]=$EF) and (RNo[p47c+1]=$BB) and (RNo[p47c+2]=$BF) then begin bad47c := True; Break; end;
+    if not bad47c then for p47c := 0 to Length(RNo)-6 do if (RNo[p47c]=$C3) and (RNo[p47c+1]=$AF) and (RNo[p47c+2]=$C2) and (RNo[p47c+3]=$BB) and (RNo[p47c+4]=$C2) and (RNo[p47c+5]=$BF) then begin bad47c := True; Break; end;
+    if R.Success and okNo and (not bad47c) then LogLine(LogFile, '[47c] multi/adjacent/tail cleaned UTF8(noBOM): PASS') else LogLine(LogFile, '[47c] multi/adjacent/tail cleaned UTF8(noBOM): FAIL');
+    // 转换 BOM
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := True; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47c, Out47cW, '', 'UTF-8 with BOM', Opt);
+    var RW := TFile.ReadAllBytes(Out47cW);
+    var lead47c := (Length(RW)>=3) and (RW[0]=$EF) and (RW[1]=$BB) and (RW[2]=$BF);
+    bad47c := False; for p47c := 3 to Length(RW)-3 do if (RW[p47c]=$EF) and (RW[p47c+1]=$BB) and (RW[p47c+2]=$BF) then begin bad47c := True; Break; end;
+    if not bad47c then for p47c := 3 to Length(RW)-6 do if (RW[p47c]=$C3) and (RW[p47c+1]=$AF) and (RW[p47c+2]=$C2) and (RW[p47c+3]=$BB) and (RW[p47c+4]=$C2) and (RW[p47c+5]=$BF) then begin bad47c := True; Break; end;
+    if R.Success and lead47c and (not bad47c) then LogLine(LogFile, '[47c] multi/adjacent/tail cleaned UTF8(BOM): PASS') else LogLine(LogFile, '[47c] multi/adjacent/tail cleaned UTF8(BOM): FAIL');
+  except on E: Exception do LogLine(LogFile, '[47c] Exception: ' + E.Message); end;
+
+  // [47d] 超长行中多处碎片（> 20KB）
+  try
+    var S47d := TPath.Combine(Dir, 'longline_many_fragments.txt');
+    var Out47d := TPath.Combine(Dir, 'longline_many_fragments_out.txt');
+    var base := TEncoding.UTF8.GetBytes(StringOfChar('A', 22000));
+    var Bld: TBytes := Copy(base);
+    // 每隔 ~1000 字节插入一次 BOM 与 六字节
+    var inserts: array[0..3] of Integer; inserts[0]:=500; inserts[1]:=1500; inserts[2]:=5000; inserts[3]:=12000;
+    var k: Integer;
+    for k := Low(inserts) to High(inserts) do
+    begin
+      var pos := inserts[k]; if pos > Length(Bld) then break;
+      // 插入 BOM
+      var tmp: TBytes; SetLength(tmp, Length(Bld)+3);
+      if pos>0 then Move(Bld[0], tmp[0], pos);
+      tmp[pos]:=$EF; tmp[pos+1]:=$BB; tmp[pos+2]:=$BF;
+      if Length(Bld)-pos>0 then Move(Bld[pos], tmp[pos+3], Length(Bld)-pos);
+      Bld := tmp;
+      // 插入六字节
+      pos := pos + 100; if pos > Length(Bld) then break;
+      SetLength(tmp, Length(Bld)+6);
+      if pos>0 then Move(Bld[0], tmp[0], pos);
+      tmp[pos]:=$C3; tmp[pos+1]:=$AF; tmp[pos+2]:=$C2; tmp[pos+3]:=$BB; tmp[pos+4]:=$C2; tmp[pos+5]:=$BF;
+      if Length(Bld)-pos>0 then Move(Bld[pos], tmp[pos+6], Length(Bld)-pos);
+      Bld := tmp;
+    end;
+    TFile.WriteAllBytes(S47d, Bld);
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47d, Out47d, '', 'UTF-8', Opt);
+    var Rd := TFile.ReadAllBytes(Out47d);
+    var clean47d := True; var p47d: Integer;
+    for p47d := 0 to Length(Rd)-3 do if (Rd[p47d]=$EF) and (Rd[p47d+1]=$BB) and (Rd[p47d+2]=$BF) then begin clean47d := False; Break; end;
+    if clean47d then for p47d := 0 to Length(Rd)-6 do if (Rd[p47d]=$C3) and (Rd[p47d+1]=$AF) and (Rd[p47d+2]=$C2) and (Rd[p47d+3]=$BB) and (Rd[p47d+4]=$C2) and (Rd[p47d+5]=$BF) then begin clean47d := False; Break; end;
+    if R.Success and clean47d then LogLine(LogFile, '[47d] long line multi fragments: PASS') else LogLine(LogFile, '[47d] long line multi fragments: FAIL');
+  except on E: Exception do LogLine(LogFile, '[47d] Exception: ' + E.Message); end;
+
+  // [47e] 多字节字符邻接碎片（中文周边）
+  try
+    var S47e := TPath.Combine(Dir, 'cn_around_fragments.txt');
+    var O47e := TPath.Combine(Dir, 'cn_around_fragments_out.txt');
+    var CN := TEncoding.UTF8.GetBytes('汉字周边'); // 多字节UTF-8
+    var Be: TBytes; SetLength(Be, Length(CN)+3+Length(CN)+6);
+    var posE := 0; if Length(CN)>0 then begin Move(CN[0], Be[posE], Length(CN)); Inc(posE, Length(CN)); end;
+    // 插入 BOM
+    Be[posE]:=$EF; Be[posE+1]:=$BB; Be[posE+2]:=$BF; Inc(posE,3);
+    // 再拼接中文
+    if Length(CN)>0 then begin Move(CN[0], Be[posE], Length(CN)); Inc(posE, Length(CN)); end;
+    // 插入六字节
+    Be[posE]:=$C3; Be[posE+1]:=$AF; Be[posE+2]:=$C2; Be[posE+3]:=$BB; Be[posE+4]:=$C2; Be[posE+5]:=$BF;
+    TFile.WriteAllBytes(S47e, Be);
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47e, O47e, '', 'UTF-8', Opt);
+    var Re := TFile.ReadAllBytes(O47e);
+    var clean47e := True; var p47e: Integer;
+    for p47e := 0 to Length(Re)-3 do if (Re[p47e]=$EF) and (Re[p47e+1]=$BB) and (Re[p47e+2]=$BF) then begin clean47e := False; Break; end;
+    if clean47e then for p47e := 0 to Length(Re)-6 do if (Re[p47e]=$C3) and (Re[p47e+1]=$AF) and (Re[p47e+2]=$C2) and (Re[p47e+3]=$BB) and (Re[p47e+4]=$C2) and (Re[p47e+5]=$BF) then begin clean47e := False; Break; end;
+    if R.Success and clean47e then LogLine(LogFile, '[47e] multibyte-near fragments cleaned: PASS') else LogLine(LogFile, '[47e] multibyte-near fragments cleaned: FAIL');
+  except on E: Exception do LogLine(LogFile, '[47e] Exception: ' + E.Message); end;
+
+  // [47f] UTF-16LE 源含内部 U+FEFF，转到 UTF-8 需清理内嵌 BOM（保留首部BOM可选）
+  try
+    var S47f := TPath.Combine(Dir, 'u16le_with_inner_feff.txt');
+    var O47fNo := TPath.Combine(Dir, 'u16le_with_inner_feff_out_no.txt');
+    var O47fW  := TPath.Combine(Dir, 'u16le_with_inner_feff_out_bom.txt');
+    // 组装 UTF-16LE：BOM FF FE + 'u' + FEFF + 'nit'（每个字宽2字节）
+    var U16: TBytes; SetLength(U16, 2 {BOM}+2{u}+2{FE}+2{FF}+2{n}+2{i}+2{t});
+    U16[0]:=$FF; U16[1]:=$FE; // UTF-16LE BOM
+    // 'u'
+    U16[2]:=$75; U16[3]:=$00;
+    // U+FEFF 内部（在 UTF-16LE 中为 FF FE）
+    U16[4]:=$FF; U16[5]:=$FE;
+    // 'n'
+    U16[6]:=$6E; U16[7]:=$00;
+    // 'i'
+    U16[8]:=$69; U16[9]:=$00;
+    // 't'
+    U16[10]:=$74; U16[11]:=$00;
+    TFile.WriteAllBytes(S47f, U16);
+    // 转 UTF-8（无BOM）
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47f, O47fNo, '', 'UTF-8', Opt);
+    var FNo := TFile.ReadAllBytes(O47fNo);
+    var clean47fNo := True; var p47f: Integer; for p47f := 0 to Length(FNo)-3 do if (FNo[p47f]=$EF) and (FNo[p47f+1]=$BB) and (FNo[p47f+2]=$BF) then begin clean47fNo := False; Break; end;
+    if R.Success and clean47fNo then LogLine(LogFile, '[47f] UTF16LE inner U+FEFF -> UTF8(noBOM): PASS') else LogLine(LogFile, '[47f] UTF16LE inner U+FEFF -> UTF8(noBOM): FAIL');
+    // 转 UTF-8（BOM）
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := True; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47f, O47fW, '', 'UTF-8 with BOM', Opt);
+    var FW := TFile.ReadAllBytes(O47fW);
+    var lead47f := (Length(FW)>=3) and (FW[0]=$EF) and (FW[1]=$BB) and (FW[2]=$BF);
+    var bad47f := False; for p47f := 3 to Length(FW)-3 do if (FW[p47f]=$EF) and (FW[p47f+1]=$BB) and (FW[p47f+2]=$BF) then begin bad47f := True; Break; end;
+    if R.Success and lead47f and (not bad47f) then LogLine(LogFile, '[47f] UTF16LE inner U+FEFF -> UTF8(BOM): PASS') else LogLine(LogFile, '[47f] UTF16LE inner U+FEFF -> UTF8(BOM): FAIL');
+  except on E: Exception do LogLine(LogFile, '[47f] Exception: ' + E.Message); end;
+
+  // [47g] 含二进制数据（NULL/随机字节）与碎片混合
+  try
+    var S47g := TPath.Combine(Dir, 'binary_with_fragments.bin');
+    var O47g := TPath.Combine(Dir, 'binary_with_fragments_out.txt');
+    var Bg: TBytes; SetLength(Bg, 64);
+    var q: Integer; for q := 0 to 63 do Bg[q] := Byte(q*37);
+    // 在中部插入 BOM 与 六字节
+    var mid := 20; var Tg: TBytes; SetLength(Tg, Length(Bg)+3+6);
+    if mid>0 then Move(Bg[0], Tg[0], mid);
+    Tg[mid]:=$EF; Tg[mid+1]:=$BB; Tg[mid+2]:=$BF;
+    var pos2 := mid+3; if Length(Bg)-mid>0 then Move(Bg[mid], Tg[pos2], Length(Bg)-mid);
+    // 再在末尾前插六字节
+    var L := Length(Tg); SetLength(Tg, L+6);
+    Tg[L]:=$C3; Tg[L+1]:=$AF; Tg[L+2]:=$C2; Tg[L+3]:=$BB; Tg[L+4]:=$C2; Tg[L+5]:=$BF;
+    TFile.WriteAllBytes(S47g, Tg);
+    // 转换为 UTF-8（无BOM）
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := True;
+    R := TEncodingConverter_Improved.ConvertFile(S47g, O47g, '', 'UTF-8', Opt);
+    var G := TFile.ReadAllBytes(O47g);
+    var clean47g := True; var p47g: Integer;
+    for p47g := 0 to Length(G)-3 do if (G[p47g]=$EF) and (G[p47g+1]=$BB) and (G[p47g+2]=$BF) then begin clean47g := False; Break; end;
+    if clean47g then for p47g := 0 to Length(G)-6 do if (G[p47g]=$C3) and (G[p47g+1]=$AF) and (G[p47g+2]=$C2) and (G[p47g+3]=$BB) and (G[p47g+4]=$C2) and (G[p47g+5]=$BF) then begin clean47g := False; Break; end;
+    if R.Success and clean47g then LogLine(LogFile, '[47g] binary+fragments cleaned: PASS') else LogLine(LogFile, '[47g] binary+fragments cleaned: FAIL');
+  except on E: Exception do LogLine(LogFile, '[47g] Exception: ' + E.Message); end;
+
+  // 调用跨码页回归
+  RunCrossCodepageRegressionTests(Dir, LogFile);
+end;
+
+// 跨码页回归：GBK/Big5 源 -> UTF-8（noBOM/BOM），验证清理与中文不误伤
+procedure RunCrossCodepageRegressionTests(const Dir, LogFile: string);
+var
+  Opt: TEncodingConversionOptions;
+  R: TEncodingConversionResult;
+  // GBK
+  gbkFile, gbkOutNo, gbkOutBom: string;
+  gbkText: string;
+  outBytes1, outBytes2: TBytes;
+  okClean: Boolean;
+  sOut: string;
+  leadOK: Boolean;
+  // Big5
+  big5File, big5OutNo, big5OutBom: string;
+  big5Text: string;
+  bOut1, bOut2: TBytes;
+begin
+  // [CP1] GBK 源 -> UTF-8（noBOM/BOM）应无 U+FEFF/"ï»¿" 残留且不误伤中文
+  try
+    gbkFile := TPath.Combine(Dir, 'cp_gbk_source.txt');
+    gbkOutNo := TPath.Combine(Dir, 'cp_gbk_out_no.txt');
+    gbkOutBom := TPath.Combine(Dir, 'cp_gbk_out_bom.txt');
+    gbkText := '这是GBK内容:中文测试123';
+    WriteAllTextWithCodepage(gbkFile, gbkText, 936); // 可靠写入GBK
+    // 转 UTF-8（noBOM）
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := False;
+    R := TEncodingConverter_Improved.ConvertFile(gbkFile, gbkOutNo, 'GBK', 'UTF-8', Opt);
+    outBytes1 := TFile.ReadAllBytes(gbkOutNo);
+    sOut := TEncoding.UTF8.GetString(outBytes1);
+    okClean := (Pos(#$FEFF, sOut) = 0) and (Pos('ï»¿', sOut) = 0);
+    var keep1 := (Pos('内容', sOut) > 0) and (Pos('中文测试', sOut) > 0);
+    if R.Success and okClean and keep1 then
+      LogLine(LogFile, '[CP1] ' + LogKV('case','GBK->UTF8(noBOM)') + ' ' + LogKV('result','PASS'))
+    else
+    begin
+      var headStr1 := Copy(sOut, 1, 16);
+      var startIdx1 := Length(sOut) - 15; if startIdx1 < 1 then startIdx1 := 1;
+      var tailStr1 := Copy(sOut, startIdx1, 16);
+      LogLine(LogFile, '[CP1] ' + LogKV('case','GBK->UTF8(noBOM)') + ' ' + LogKV('result','FAIL') + ' ' +
+        LogKV('success', BoolToStr(R.Success, True)) + ' ' + LogKV('okClean', BoolToStr(okClean, True)) + ' ' +
+        LogKV('keepCN', BoolToStr(keep1, True)) + ' ' + LogKV('head', headStr1) + ' ' + LogKV('tail', tailStr1));
+    end;
+    // 转 UTF-8（BOM）
+    Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := True; Opt.DetectSourceEncoding := False;
+    R := TEncodingConverter_Improved.ConvertFile(gbkFile, gbkOutBom, 'GBK', 'UTF-8 with BOM', Opt);
+    outBytes2 := TFile.ReadAllBytes(gbkOutBom);
+    var leadOK := (Length(outBytes2)>=3) and (outBytes2[0]=$EF) and (outBytes2[1]=$BB) and (outBytes2[2]=$BF);
+    sOut := TEncoding.UTF8.GetString(outBytes2);
+    // 允许首字符为 U+FEFF，但内部不允许再出现 U+FEFF/"ï»¿"
+    if (Length(sOut) > 0) and (sOut[1] = #$FEFF) then
+      sOut := Copy(sOut, 2, MaxInt);
+    okClean := (Pos(#$FEFF, sOut) = 0) and (Pos('ï»¿', sOut) = 0);
+    keep1 := (Pos('内容', sOut) > 0) and (Pos('中文测试', sOut) > 0);
+    if R.Success and leadOK and okClean and keep1 then
+      LogLine(LogFile, '[CP1] ' + LogKV('case','GBK->UTF8(BOM)') + ' ' + LogKV('result','PASS'))
+    else
+    begin
+      var headStr2 := Copy(sOut, 1, 16);
+      var startIdx2 := Length(sOut) - 15; if startIdx2 < 1 then startIdx2 := 1;
+      var tailStr2 := Copy(sOut, startIdx2, 16);
+      LogLine(LogFile, '[CP1] ' + LogKV('case','GBK->UTF8(BOM)') + ' ' + LogKV('result','FAIL') + ' ' +
+        LogKV('success', BoolToStr(R.Success, True)) + ' ' + LogKV('leadOK', BoolToStr(leadOK, True)) + ' ' +
+        LogKV('okClean', BoolToStr(okClean, True)) + ' ' + LogKV('keepCN', BoolToStr(keep1, True)) + ' ' +
+        LogKV('head', headStr2) + ' ' + LogKV('tail', tailStr2));
+    end;
+  except on E: Exception do LogLine(LogFile, '[CP1] Exception: ' + E.Message); end;
+
+  // [CP2] Big5 源 -> UTF-8（noBOM/BOM），数组驱动多样本
+  try
+    var Samples: array[0..1] of string;
+    Samples[0] := CP2_SAMPLE_TEXT; // '中文測試ABC123'
+    Samples[1] := '繁體中文測試XYZ789';
+
+    for var k := 0 to High(Samples) do
+    begin
+      big5File := TPath.Combine(Dir, Format('cp_big5_source_%d.txt', [k]));
+      big5OutNo := TPath.Combine(Dir, Format('cp_big5_out_no_%d.txt', [k]));
+      big5OutBom := TPath.Combine(Dir, Format('cp_big5_out_bom_%d.txt', [k]));
+      big5Text := Samples[k];
+      WriteAllTextWithCodepage(big5File, big5Text, 950);
+
+      if DEBUG_CP2_DIAG then
+      begin
+        LogLine(LogFile, '[CP2][diag] Expect codepage=950 name=' + GetEncodingNameByCodePage(950));
+        LogHeadHex(LogFile, Format('[CP2][diag] Big5 source[%d]', [k]), big5File, 24);
+        try
+          var SrcBytes := TFile.ReadAllBytes(big5File);
+          var WLen := 0;
+          if Length(SrcBytes) > 0 then
+            WLen := MultiByteToWideChar(950, 0, PAnsiChar(@SrcBytes[0]), Length(SrcBytes), nil, 0);
+          var WStr: UnicodeString := '';
+          if WLen > 0 then
+          begin
+            SetLength(WStr, WLen);
+            MultiByteToWideChar(950, 0, PAnsiChar(@SrcBytes[0]), Length(SrcBytes), PWideChar(WStr), WLen);
+          end;
+          LogLine(LogFile, Format('[CP2][diag] WinAPI M2W[%d] len=%d eqExp=%s head="%s"',
+            [k, WLen, BoolToStr(WStr = big5Text, True), Copy(WStr, 1, 16)]));
+        except
+          on E: Exception do LogLine(LogFile, '[CP2][diag] WinAPI M2W exception: ' + E.Message);
+        end;
+      end;
+
+      // noBOM
+      var keep2 := False;
+      Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := False; Opt.DetectSourceEncoding := False;
+      R := TEncodingConverter_Improved.ConvertFile(big5File, big5OutNo, '950', 'UTF-8', Opt);
+      bOut1 := TFile.ReadAllBytes(big5OutNo);
+      sOut := TEncoding.UTF8.GetString(bOut1);
+      if DEBUG_CP2_DIAG then LogHeadHex(LogFile, Format('[CP2][diag] noBOM UTF8 out[%d]', [k]), big5OutNo, 24);
+      okClean := (Pos(#$FEFF, sOut) = 0) and (Pos('ï»¿', sOut) = 0);
+      keep2 := (Pos(CP2_KEYWORD1, sOut) > 0) or (Pos('繁體中文測試', sOut) > 0);
+      if R.Success and okClean and keep2 then
+        LogLine(LogFile, '[CP2] ' + LogKV('case', Format('Big5->UTF8(noBOM)[%d]', [k])) + ' ' + LogKV('result','PASS') + ' ' + LogKV('cp','950'))
+      else
+      begin
+        var headStr3 := Copy(sOut, 1, 16);
+        var startIdx3 := Length(sOut) - 15; if startIdx3 < 1 then startIdx3 := 1;
+        var tailStr3 := Copy(sOut, startIdx3, 16);
+        LogLine(LogFile, '[CP2] ' + LogKV('case', Format('Big5->UTF8(noBOM)[%d]', [k])) + ' ' + LogKV('result','FAIL') + ' ' +
+          LogKV('success', BoolToStr(R.Success, True)) + ' ' + LogKV('okClean', BoolToStr(okClean, True)) + ' ' +
+          LogKV('keepCN', BoolToStr(keep2, True)) + ' ' + LogKV('head', headStr3) + ' ' + LogKV('tail', tailStr3));
+      end;
+
+      // BOM
+      Opt := TEncodingConverter_Improved.CreateDefaultOptions; Opt.AddBOM := True; Opt.DetectSourceEncoding := False;
+      R := TEncodingConverter_Improved.ConvertFile(big5File, big5OutBom, '950', 'UTF-8 with BOM', Opt);
+      bOut2 := TFile.ReadAllBytes(big5OutBom);
+      leadOK := (Length(bOut2)>=3) and (bOut2[0]=$EF) and (bOut2[1]=$BB) and (bOut2[2]=$BF);
+      sOut := TEncoding.UTF8.GetString(bOut2);
+      if (Length(sOut) > 0) and (sOut[1] = #$FEFF) then sOut := Copy(sOut, 2, MaxInt);
+      okClean := (Pos(#$FEFF, sOut) = 0) and (Pos('ï»¿', sOut) = 0);
+      keep2 := (Pos(CP2_KEYWORD1, sOut) > 0) or (Pos('繁體中文測試', sOut) > 0);
+      if R.Success and leadOK and okClean and keep2 then
+        LogLine(LogFile, '[CP2] ' + LogKV('case', Format('Big5->UTF8(BOM)[%d]', [k])) + ' ' + LogKV('result','PASS') + ' ' + LogKV('cp','950'))
+      else
+      begin
+        var headStr4 := Copy(sOut, 1, 16);
+        var startIdx4 := Length(sOut) - 15; if startIdx4 < 1 then startIdx4 := 1;
+        var tailStr4 := Copy(sOut, startIdx4, 16);
+        LogLine(LogFile, '[CP2] ' + LogKV('case', Format('Big5->UTF8(BOM)[%d]', [k])) + ' ' + LogKV('result','FAIL') + ' ' +
+          LogKV('success', BoolToStr(R.Success, True)) + ' ' + LogKV('leadOK', BoolToStr(leadOK, True)) + ' ' +
+          LogKV('okClean', BoolToStr(okClean, True)) + ' ' + LogKV('keepCN', BoolToStr(keep2, True)) + ' ' +
+          LogKV('head', headStr4) + ' ' + LogKV('tail', tailStr4));
+      end;
+    end;
+  except on E: Exception do LogLine(LogFile, '[CP2] Exception: ' + E.Message); end;
+end;
+
+procedure RunTests_Backup;
 var
   Root, Dir, F1, F2, F3: string;
   Opt: TEncodingConversionOptions;
@@ -1349,7 +2087,14 @@ begin
     if F10Content = ICUText then
       LogLine(LogFile, '[10][ICU] Content verification: PASS')
     else
-      LogLine(LogFile, Format('[10][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d', [Length(ICUText), Length(F10Content)]));
+    begin
+      var hE := Copy(ICUText, 1, 16);
+      var tE := Copy(ICUText, Max(1, Length(ICUText)-15), 16);
+      var hA := Copy(F10Content, 1, 16);
+      var tA := Copy(F10Content, Max(1, Length(F10Content)-15), 16);
+      LogLine(LogFile, Format('[10][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d headE="%s" headA="%s" tailE="%s" tailA="%s"',
+        [Length(ICUText), Length(F10Content), hE, hA, tE, tA]));
+    end;
 
     // 11) ICU->Shift_JIS->UTF8
     var F11_SJIS := TPath.Combine(ICUBase, 'ra_sjis.txt');
@@ -1362,7 +2107,14 @@ begin
     if F11Content = ICUText then
       LogLine(LogFile, '[11][ICU] Content verification: PASS')
     else
-      LogLine(LogFile, Format('[11][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d', [Length(ICUText), Length(F11Content)]));
+    begin
+      var hE := Copy(ICUText, 1, 16);
+      var tE := Copy(ICUText, Max(1, Length(ICUText)-15), 16);
+      var hA := Copy(F11Content, 1, 16);
+      var tA := Copy(F11Content, Max(1, Length(F11Content)-15), 16);
+      LogLine(LogFile, Format('[11][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d headE="%s" headA="%s" tailE="%s" tailA="%s"',
+        [Length(ICUText), Length(F11Content), hE, hA, tE, tA]));
+    end;
 
     // 12) ICU->Big5->UTF8
     var F12_BIG5 := TPath.Combine(ICUBase, 'ra_big5.txt');
@@ -1375,7 +2127,14 @@ begin
     if F12Content = ICUText then
       LogLine(LogFile, '[12][ICU] Content verification: PASS')
     else
-      LogLine(LogFile, Format('[12][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d', [Length(ICUText), Length(F12Content)]));
+    begin
+      var hE := Copy(ICUText, 1, 16);
+      var tE := Copy(ICUText, Max(1, Length(ICUText)-15), 16);
+      var hA := Copy(F12Content, 1, 16);
+      var tA := Copy(F12Content, Max(1, Length(F12Content)-15), 16);
+      LogLine(LogFile, Format('[12][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d headE="%s" headA="%s" tailE="%s" tailA="%s"',
+        [Length(ICUText), Length(F12Content), hE, hA, tE, tA]));
+    end;
 
     // 13) ICU->EUC-KR->UTF8
     var F13_EUCKR := TPath.Combine(ICUBase, 'ra_euckr.txt');
@@ -1388,7 +2147,14 @@ begin
     if F13Content = ICUText then
       LogLine(LogFile, '[13][ICU] Content verification: PASS')
     else
-      LogLine(LogFile, Format('[13][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d', [Length(ICUText), Length(F13Content)]));
+    begin
+      var hE := Copy(ICUText, 1, 16);
+      var tE := Copy(ICUText, Max(1, Length(ICUText)-15), 16);
+      var hA := Copy(F13Content, 1, 16);
+      var tA := Copy(F13Content, Max(1, Length(F13Content)-15), 16);
+      LogLine(LogFile, Format('[13][ICU] Content verification: FAIL - len(expected)=%d len(actual)=%d headE="%s" headA="%s" tailE="%s" tailA="%s"',
+        [Length(ICUText), Length(F13Content), hE, hA, tE, tA]));
+    end;
   end
   else
   begin

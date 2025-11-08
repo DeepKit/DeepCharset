@@ -1,4 +1,4 @@
-Unit ViewMainCode;
+﻿Unit ViewMainCode;
 
 interface
 
@@ -187,7 +187,6 @@ Type
     class procedure Initialize;
     procedure InitializeUI;
   end;
-
 var
   Form1: TForm1;
 
@@ -1113,7 +1112,7 @@ begin
         begin
           if (StringGrid1.Cells[2, j] <> '') and
              (FilePath = IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, j]) and
-             (StringGrid1.Cells[0, j] = '√') then
+             (StringGrid1.Cells[0, j] = TUIHelper.GetCheckMark) then
           begin
             Result := True;
             Break;
@@ -1242,10 +1241,10 @@ begin
     if Col = 0 then
     begin
       // 切换Checkbox状态
-      if Grid.Cells[Col, Row] = '√' then
+      if Grid.Cells[Col, Row] = TUIHelper.GetCheckMark then
         Grid.Cells[Col, Row] := ''
       else
-        Grid.Cells[Col, Row] := '√';
+        Grid.Cells[Col, Row] := TUIHelper.GetCheckMark;
     end;
   end;
 end;
@@ -1458,8 +1457,9 @@ begin
     // 获取当前选中的文件名
     for i := 1 to StringGrid1.RowCount - 1 do
     begin
-      if (StringGrid1.Cells[0, i] = '√') and (StringGrid1.Cells[2, i] <> '') then
+      if (StringGrid1.Cells[0, i] = TUIHelper.GetCheckMark) and (StringGrid1.Cells[2, i] <> '') then
         SelectedFileNames.Add(StringGrid1.Cells[2, i]);
+
     end;
 
     // 清空表格
@@ -3355,6 +3355,62 @@ begin
   
   if CBoxDirHistory.Items.Count = 0 then
     CBoxDirHistory.Text := '无历史记录';
+end;
+
+// 批量将选中文件转换为 UTF-8（可选是否带 BOM）
+procedure TForm1.ConvertSelectedFilesToUTF8(const WithBOM: Boolean);
+var
+  SelectedFiles: TArray<string>;
+  SuccessCount, i: Integer;
+  FilePath: string;
+begin
+  // 获取选中的文件
+  SelectedFiles := FUIHelper.GetSelectedFiles(StringGrid1, FSelectedFolder);
+  if Length(SelectedFiles) = 0 then
+  begin
+    ShowLocalizedMessage('MsgSelectFiles');
+    Exit;
+  end;
+
+  Log(Format('开始批量%s UTF-8 BOM，共 %d 个文件...', [IfThen(WithBOM, '添加', '移除'), Length(SelectedFiles)]));
+  StartLogBuffering;
+  Screen.Cursor := crHourGlass;
+  SuccessCount := 0;
+  try
+    for i := 0 to High(SelectedFiles) do
+    begin
+      FilePath := SelectedFiles[i];
+      if FEncodingController.ConvertSingleFile(FilePath, 'UTF-8', WithBOM) then
+      begin
+        Inc(SuccessCount);
+        UpdateSingleFileInGrid(FilePath);
+      end
+      else
+        Log('- 转换失败: ' + FilePath);
+    end;
+
+    Log(Format('完成：成功 %d/%d 个文件（目标：%s）',
+      [SuccessCount, Length(SelectedFiles), IfThen(WithBOM, 'UTF-8 with BOM', 'UTF-8 (no BOM)')]));
+
+    // 刷新文件网格
+    if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
+      UpdateFileGrid(DirectoryListBox1.Directory);
+  finally
+    Screen.Cursor := crDefault;
+    EndLogBuffering;
+  end;
+end;
+
+// 右键菜单：添加 UTF-8 BOM
+procedure TForm1.MenuItemAddUTF8BOMClick(Sender: TObject);
+begin
+  ConvertSelectedFilesToUTF8(True);
+end;
+
+// 右键菜单：移除 UTF-8 BOM
+procedure TForm1.MenuItemRemoveUTF8BOMClick(Sender: TObject);
+begin
+  ConvertSelectedFilesToUTF8(False);
 end;
 
 end.

@@ -31,13 +31,23 @@ jobs:
           call build.bat --clean
         shell: cmd
       
-      - name: Run tests
+      - name: Run quick smoke tests
         run: |
-          cd bin
-          .\EncodingTestRunner.exe -category:Basic -xml:..\testresults\basic.xml
-          .\EncodingTestRunner.exe -category:Performance -xml:..\testresults\performance.xml
-          .\EncodingTestRunner.exe -category:Security -xml:..\testresults\security.xml
+          call tests_run.bat /quick
         shell: cmd
+        continue-on-error: false
+      
+      - name: Run critical tests with performance measurement
+        run: |
+          call tests_run.bat /crit /perf
+        shell: cmd
+        continue-on-error: false
+      
+      - name: Run cross-codepage regression tests
+        run: |
+          call tests_run.bat /cp
+        shell: cmd
+        continue-on-error: false
       
       - name: Upload test results
         uses: actions/upload-artifact@v3

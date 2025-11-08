@@ -31,7 +31,7 @@ type
     class function DetectBOM(const Buffer: TBytes): TBOMDetectionResult;
 
     /// <summary>
-    /// 检测文件中的BOM
+    /// 检测文件中的BOM（优化：仅读取文件头部）
     /// </summary>
     class function DetectBOMFromFile(const FileName: string): TBOMDetectionResult;
 
@@ -219,30 +219,23 @@ var
   FileStream: TFileStream;
   Buffer: TBytes;
   BytesRead: Integer;
-const
-  MAX_BOM_LENGTH = 4;
 begin
-  // 初始化结�?
-  Result.BOMType := 0;
-  Result.BOMLength := 0;
-  Result.Encoding := ENCODING_UNKNOWN;
-  Result.CodePage := 0;
-
-  // 检查文件是否存�?
+  // 检查文件是否存在
   if not FileExists(FileName) then
+  begin
+    Result.BOMType := 0;
+    Result.BOMLength := 0;
+    Result.Encoding := ENCODING_UNKNOWN;
+    Result.CodePage := 0;
     Exit;
+  end;
 
+  // 优化：仅读取文件头部 4 字节用于 BOM 检测
   FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
   try
-    // 读取足够检测BOM的字�?
-    SetLength(Buffer, MAX_BOM_LENGTH);
-    BytesRead := FileStream.Read(Buffer[0], MAX_BOM_LENGTH);
-
-    // 如果文件太小，调整缓冲区大小
-    if BytesRead < MAX_BOM_LENGTH then
-      SetLength(Buffer, BytesRead);
-
-    // 检测BOM
+    SetLength(Buffer, 4);
+    BytesRead := FileStream.Read(Buffer[0], 4);
+    SetLength(Buffer, BytesRead);
     Result := DetectBOM(Buffer);
   finally
     FileStream.Free;

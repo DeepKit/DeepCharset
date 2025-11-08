@@ -13,6 +13,22 @@ uses
 
 type
   /// <summary>
+  /// 批量文件转换进度回调
+  /// </summary>
+  TBatchConversionProgressProc = reference to procedure(const CurrentFile: string; Current, Total: Integer; var Cancel: Boolean);
+
+  /// <summary>
+  /// 批量文件转换结果
+  /// </summary>
+  TBatchConversionResult = record
+    TotalFiles: Integer;
+    SuccessCount: Integer;
+    FailedCount: Integer;
+    SkippedCount: Integer;
+    FailedFiles: TArray<string>;
+  end;
+
+  /// <summary>
   /// 编码转换辅助类（无第三方依赖）
   /// </summary>
   TEncodingHelper = class
@@ -36,12 +52,30 @@ type
 
     /// <summary>Unicode 转 ANSI</summary>
     class function UnicodeToAnsi(const Str: UnicodeString; CodePage: Integer): TBytes;
+
+    /// <summary>
+    /// 批量转换目录下的文件
+    /// </summary>
+    class function BatchConvertFiles(
+      const SourceDir: string;
+      const FilePattern: string;
+      const SourceEncoding, TargetEncoding: string;
+      Recursive: Boolean;
+      const ProgressProc: TBatchConversionProgressProc = nil): TBatchConversionResult;
+
+    /// <summary>
+    /// 批量转换指定文件列表
+    /// </summary>
+    class function BatchConvertFileList(
+      const FileList: TArray<string>;
+      const SourceEncoding, TargetEncoding: string;
+      const ProgressProc: TBatchConversionProgressProc = nil): TBatchConversionResult;
   end;
 
 implementation
 
 uses
-  Winapi.Windows;
+  Winapi.Windows, System.IOUtils, EncodingConverter_Improved, System.Masks;
 
 { TEncodingHelper }
 
@@ -191,6 +225,93 @@ begin
   end
   else
     SetLength(Result, 0);
+end;
+
+class function TEncodingHelper.BatchConvertFiles(
+  const SourceDir: string;
+  const FilePattern: string;
+  const SourceEncoding, TargetEncoding: string;
+  Recursive: Boolean;
+  const ProgressProc: TBatchConversionProgressProc): TBatchConversionResult;
+var
+  Files: TArray<string>;
+  SearchOption: TSearchOption;
+begin
+  Result.TotalFiles := 0;
+  Result.SuccessCount := 0;
+  Result.FailedCount := 0;
+  Result.SkippedCount := 0;
+  SetLength(Result.FailedFiles, 0);
+
+  if not TDirectory.Exists(SourceDir) then
+    Exit;
+
+  if Recursive then
+    SearchOption := TSearchOption.soAllDirectories
+  else
+    SearchOption := TSearchOption.soTopDirectoryOnly;
+
+  Files := TDirectory.GetFiles(SourceDir, FilePattern, SearchOption);
+  Result := BatchConvertFileList(Files, SourceEncoding, TargetEncoding, ProgressProc);
+end;
+
+class function TEncodingHelper.BatchConvertFileList(
+  const FileList: TArray<string>;
+  const SourceEncoding, TargetEncoding: string;
+  const ProgressProc: TBatchConversionProgressProc): TBatchConversionResult;
+var
+  i: Integer;
+  Cancel: Boolean;
+  Options: TEncodingConversionOptions;
+  ConvResult: TEncodingConversionResult;
+begin
+  Result.TotalFiles := Length(FileList);
+  Result.SuccessCount := 0;
+  Result.FailedCount := 0;
+  Result.SkippedCount := 0;
+  SetLength(Result.FailedFiles, 0);
+
+  Cancel := False;
+  Options := TEncodingConverter_Improved.CreateDefaultOptions;
+  Options.DetectSourceEncoding := (SourceEncoding = '') or (SourceEncoding = 'auto');
+
+  for i := 0 to High(FileList) do
+  begin
+    if Assigned(ProgressProc) then
+    begin
+      ProgressProc(FileList[i], i + 1, Result.TotalFiles, Cancel);
+      if Cancel then
+      begin
+        Result.SkippedCount := Result.TotalFiles - i;
+        Break;
+      end;
+    end;
+
+    try
+      ConvResult := TEncodingConverter_Improved.ConvertFile(
+        FileList[i],
+        FileList[i],
+        SourceEncoding,
+        TargetEncoding,
+        Options);
+
+      if ConvResult.Success then
+        Inc(Result.SuccessCount)
+      else
+      begin
+        Inc(Result.FailedCount);
+        SetLength(Result.FailedFiles, Length(Result.FailedFiles) + 1);
+        Result.FailedFiles[High(Result.FailedFiles)] := FileList[i];
+      end;
+    except
+      on E: Exception do
+      begin
+        Inc(Result.FailedCount);
+        SetLength(Result.FailedFiles, Length(Result.FailedFiles) + 1);
+        Result.FailedFiles[High(Result.FailedFiles)] := FileList[i] + ' (' + E.Message + ')';
+      end;
+    end;
+  end;
 end;
 
 end.

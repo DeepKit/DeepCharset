@@ -54,11 +54,20 @@ type
 
     // 内部静态方法
     class procedure FlushLogBufferInternal;
+
+    // 提供统一的勾选标记（Unicode U+2713），避免源码中直接使用非 ASCII 字符
+    class function GetCheckMark: string; static;
   end;
 
 
 
 implementation
+
+// 统一的勾选标记实现（U+2713），避免源码直接写入非 ASCII 字符导致的乱码
+class function TUIHelper.GetCheckMark: string;
+begin
+  Result := string(WideChar($2713));
+end;
 
 { TUIHelper }
 
@@ -356,7 +365,7 @@ begin
   for i := 1 to Grid.RowCount - 1 do
   begin
     // 检查是否选中且文件名不为空
-    if (Grid.Cells[0, i] = '√') and (Grid.Cells[2, i] <> '') then
+    if ((Grid.Cells[0, i] = TUIHelper.GetCheckMark) or (Grid.Cells[0, i] = '√')) and (Grid.Cells[2, i] <> '') then
     begin
       // 获取文件名（从第3列，索引为2）
       FileName := Grid.Cells[2, i];
@@ -408,6 +417,10 @@ begin
   Grid.Cells[1, 0] := '当前编码';
   Grid.Cells[2, 0] := '文件名';
 
+  // 采用系统通用字体与默认字符集，确保 Unicode 符号（如勾选标记）正确显示
+  Grid.Font.Name := 'Segoe UI';
+  Grid.Font.Charset := DEFAULT_CHARSET;
+
   // 清空数据行
   Grid.Rows[1].Clear;
 end;
@@ -429,7 +442,7 @@ begin
 
   // 设置单元格内容
   if Selected then
-    Grid.Cells[0, RowIndex] := '√'
+    Grid.Cells[0, RowIndex] := TUIHelper.GetCheckMark
   else
     Grid.Cells[0, RowIndex] := '';
 
@@ -450,7 +463,7 @@ begin
 
   // 设置单元格内容
   if Selected then
-    Grid.Cells[0, RowIndex] := '√'
+    Grid.Cells[0, RowIndex] := TUIHelper.GetCheckMark
   else
     Grid.Cells[0, RowIndex] := '';
 
@@ -595,7 +608,7 @@ begin
   HasChecked := False;
   for i := 1 to Grid.RowCount - 1 do
   begin
-    if (Grid.Cells[2, i] <> '') and (Grid.Cells[0, i] = '√') then
+    if (Grid.Cells[2, i] <> '') and (Grid.Cells[0, i] = TUIHelper.GetCheckMark) then
     begin
       HasChecked := True;
       Break;
@@ -610,7 +623,7 @@ begin
       if HasChecked then
         Grid.Cells[0, i] := ''
       else
-        Grid.Cells[0, i] := string('√');
+        Grid.Cells[0, i] := TUIHelper.GetCheckMark;
     end;
   end;
 end;
