@@ -27,12 +27,6 @@ type
     // 记录日志
     procedure Log(const Msg: string);
 
-    // 获取临时文件路径
-    function GetTempFilePath: string;
-
-    // 检查文件是否可以访问
-    function IsFileAccessible(const FileName: string): Boolean;
-
     // 检测文件编码
     function DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
 
@@ -53,6 +47,8 @@ type
   end;
 
 implementation
+
+{$WARN IMPLICIT_STRING_CAST OFF}
 
 const
   // 不支持的文件列表
@@ -88,31 +84,6 @@ procedure TEncodingController.Log(const Msg: string);
 begin
   if Assigned(FLogCallback) then
     FLogCallback(Msg);
-end;
-
-function TEncodingController.GetTempFilePath: string;
-begin
-  Result := TPath.Combine(FTempPath, 'TransSuccess_' + FormatDateTime('yyyymmddhhnnsszzz', Now) + '.tmp');
-end;
-
-function TEncodingController.IsFileAccessible(const FileName: string): Boolean;
-var
-  FileHandle: THandle;
-begin
-  Result := False;
-
-  try
-    // 尝试以只读方式打开文件
-    FileHandle := FileOpen(FileName, fmOpenRead or fmShareDenyNone);
-    if FileHandle <> INVALID_HANDLE_VALUE then
-    begin
-      FileClose(FileHandle);
-      Result := True;
-    end;
-  except
-    // 如果发生异常，文件不可访问
-    Result := False;
-  end;
 end;
 
 function TEncodingController.DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;

@@ -141,8 +141,10 @@ type
 
 implementation
 
+{$WARN IMPLICIT_STRING_CAST OFF}
+
 const
-  DEBUG_CONVERT_TRACE: Boolean = False; // 控制转换器内部 trace 输出（默认关闭）
+  DEBUG_CONVERT_TRACE: Boolean = False;
 
 var
   CodePageCache: array[0..31] of record

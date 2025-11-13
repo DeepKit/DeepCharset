@@ -1,0 +1,195 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Delphi全栈开发超级规则集
+globs: **/*
+version: 2025.03.28
+priority: 1000
+---
+
+# 一、架构与目录规范
+## 项目结构
+- **目录层级**  
+  - 允许目录：`/assets`, `/Packages`, `/backup`, `/tests`, `/config`  
+  - 禁止创建其他子目录，所有业务代码必须放在根目录
+
+- **文件命名**  
+  ```delphi
+  // 主窗体文件
+  [项目名]MainForm.dfm  // 如AudioRecorderMainForm.dfm
+  [项目名]MainForm.pas  // 单元名必须匹配
+
+  // 分类前缀规则
+  Model*     : 数据模型（ModelConfig.pas）
+  View*      : 界面单元（ViewEditor.pas）
+  Controller*: 业务逻辑（ControllerRecord.pas）
+  Helper*    : 功能辅助（HelperAudio.pas）
+  Utils*     : 工具类（UtilsLog.pas）
+  ```
+
+# 二、编码与命名规范
+## 命名规则
+- **变量/参数**  
+  ```delphi
+  FIsRecording: Boolean;  // 类成员变量（F前缀）
+  GConfig: TObject;       // 全局变量（G前缀）
+  procedure SetName(aName: string); // 参数（a前缀）
+  ```
+
+- **类型定义**  
+  ```delphi
+  type
+    TAudioFormat = (afWAV, afMP3); // 类（T前缀）+ 枚举值前缀
+    IPlayback = interface          // 接口（I前缀）
+    end;
+  ```
+
+## 代码质量
+- **异常处理模板**  
+  ```delphi
+  Obj := TObject.Create;
+  try
+    try
+      // 业务代码
+    except
+      on E: Exception do
+        AddLog('操作失败: ' + E.Message);
+    end;
+  finally
+    FreeAndNil(Obj); // 必须用FreeAndNil
+  end;
+  ```
+
+# 三、开发流程控制
+## Yoyo自主模式
+- **静默开发协议**  
+  ```powershell
+  # 编译测试流程（分号分隔命令）
+  dcc32 Project.dpr; if ($?) { .\run_tests.ps1 }
+  ```
+- **熔断条件**  
+  ```text
+  1) 用户回复含"不对"/"不是"等否定词
+  2) 同一问题修复尝试≥3次
+  3) 单次生成代码超过200行
+  ```
+
+## 文档同步
+- **实时更新要求**  
+  ```text
+  dev.md     : 需求变更后15分钟内更新
+  progress.md: 每完成1个功能点更新
+  bugfix.md  : bug出现/解决时记录
+  ```
+
+# 四、技术栈约束
+## 白名单库
+```delphi
+// 核心库
+skia, superjson, VirtualStringTree
+// UI组件
+Mustangpeak.Common.Lib, SVGIconImageList
+// 工具库
+QuickLogger, DOSCommand
+```
+
+## 关键代码模板
+- **SkSVG使用**  
+  ```delphi
+  SkSVG.Svg.Source := TFile.ReadAllText('assets/icon.svg');
+  ```
+- **Supabase集成**  
+  ```delphi
+  // 配置读取必须用TMemIniFile防乱码
+  Ini := TMemIniFile.Create('config.ini');
+  try
+    FClient := TSupabaseClient.Create(
+      Ini.ReadString('Supabase', 'URL'), 
+      Ini.ReadString('Supabase', 'Key')
+    );
+  finally
+    Ini.Free;
+  end;
+  ```
+
+# 五、质量门禁
+## 编译前检查
+1. **DFM-PAS一致性**  
+   ```delphi
+   // PAS中声明的控件必须在DFM中存在对应定义
+   TMainForm = class(TForm)
+     btnStart: TButton; // 必须对应DFM中的object定义
+   ```
+
+2. **零容忍策略**  
+   ```text
+   □ 所有编译器警告必须解决（包括Hint）
+   □ 控件事件处理程序必须在DFM中显式绑定
+   ```
+
+# 六、调试规范
+## 问题分级处理
+```mermaid
+graph TD
+  A[简单错误] --> B[直接修复（≤2次尝试）]
+  A --> C[复杂错误] --> D[绘制流程图]
+  D --> E[提供算法纲要] --> F{用户确认}
+```
+
+## 日志规范
+- **必须记录项**  
+  ```delphi
+  // 状态变更
+  FIsPlaying := True;
+  AddLog('播放状态变更->开始', [FormatDateTime('yyyy-mm-dd hh:nn:ss', Now)]);
+
+  // API调用
+  AddLog('调用Supabase', ['Endpoint', Endpoint, 'Code', ResponseCode]);
+  ```
+
+# 七、紧急干预通道
+- **强制交互标记**  
+  ```delphi
+  procedure TController.DoSomething;
+  begin
+    // [!INTERRUPT] 需要人工确认
+    if NeedsConfirm then begin
+      AddLog('等待用户决策...', lcWarning);
+      Exit;
+    end;
+  end;
+  ```
+
+# 版本控制
+[//]: # (Compatible: Cursor 2024.6+)
+[//]: # (Depends: No)
+```
+
+### 部署说明
+1. **保存文件**  
+   ```cmd
+   echo [粘贴上方内容] > .cursor/rules/delphi_super_rule.mdc
+   ```
+
+2. **配置激活**  
+   修改 `config.json` 仅保留此规则：  
+   ```json
+   {
+     "rules": {
+       "active": ["rules/delphi_super_rule.mdc"]
+     }
+   }
+   ```
+
+3. **验证生效**  
+   ```cmd
+   cursor rules list --verbose
+   ```
+   应输出：  
+   ```
+   ACTIVE RULES:
+   - delphi_super_rule.mdc (Priority: 1000, Globs: **/*)
+   ```

@@ -50,6 +50,8 @@ var
 
 implementation
 
+{$WARN IMPLICIT_STRING_CAST OFF}
+
 uses
   Vcl.Clipbrd, System.IOUtils, UtilsJclException;
 
@@ -65,7 +67,7 @@ begin
   Height := 500;
   
   // 设置控件
-  LabelTitle.Caption := '程序发生了一个未处理的异常';
+  LabelTitle.Caption := '程序发生了一个未处理的上常';
   LabelTitle.Font.Size := 12;
   LabelTitle.Font.Style := [fsBold];
   
@@ -74,7 +76,7 @@ begin
   btnSaveToFile.Caption := '保存到文件...';
   
   // 设置 PageControl
-  TabSheetException.Caption := '异常信息';
+  TabSheetException.Caption := '上常信息';
   TabSheetStackTrace.Caption := '调用栈';
   TabSheetSystem.Caption := '系统信息';
   
@@ -97,7 +99,9 @@ begin
   // 设置保存对话框
   SaveDialog1.Filter := '文本文件 (*.txt)|*.txt|日志文件 (*.log)|*.log|所有文件 (*.*)|*.*';
   SaveDialog1.DefaultExt := 'txt';
+  {$WARN IMPLICIT_STRING_CAST OFF}
   SaveDialog1.FileName := 'ExceptionReport_' + FormatDateTime('yyyymmdd_hhnnss', Now) + '.txt';
+  {$WARN IMPLICIT_STRING_CAST ON}
 end;
 
 procedure TExceptionReportForm.SetExceptionInfo(const ExceptionMsg, StackTrace, SystemInfo: string);
@@ -107,8 +111,9 @@ begin
   FSystemInfo := SystemInfo;
   
   // 组合完整报告
+  {$WARN IMPLICIT_STRING_CAST OFF}
   FFullReport := '========================================' + sLineBreak +
-                 '异常报告' + sLineBreak +
+                 '上常报告' + sLineBreak +
                  '========================================' + sLineBreak +
                  '时间: ' + DateTimeToStr(Now) + sLineBreak +
                  sLineBreak +
@@ -118,6 +123,7 @@ begin
                  sLineBreak +
                  SystemInfo + sLineBreak +
                  '========================================';
+  {$WARN IMPLICIT_STRING_CAST ON}
   
   // 设置各个 Memo 的内容
   MemoException.Lines.Text := ExceptionMsg;
@@ -135,10 +141,16 @@ procedure TExceptionReportForm.btnCopyToClipboardClick(Sender: TObject);
 begin
   try
     Clipboard.AsText := FFullReport;
-    ShowMessage('异常报告已复制到剪贴板');
+    {$WARN IMPLICIT_STRING_CAST OFF}
+    ShowMessage('上常报告已复制到剪贴板');
+    {$WARN IMPLICIT_STRING_CAST ON}
   except
     on E: Exception do
+    begin
+      {$WARN IMPLICIT_STRING_CAST OFF}
       ShowMessage('复制失败: ' + E.Message);
+      {$WARN IMPLICIT_STRING_CAST ON}
+    end;
   end;
 end;
 
@@ -148,10 +160,16 @@ begin
   begin
     try
       TFile.WriteAllText(SaveDialog1.FileName, FFullReport, TEncoding.UTF8);
-      ShowMessage('异常报告已保存到: ' + SaveDialog1.FileName);
+      {$WARN IMPLICIT_STRING_CAST OFF}
+      ShowMessage('上常报告已保存到: ' + SaveDialog1.FileName);
+      {$WARN IMPLICIT_STRING_CAST ON}
     except
       on E: Exception do
+      begin
+        {$WARN IMPLICIT_STRING_CAST OFF}
         ShowMessage('保存失败: ' + E.Message);
+        {$WARN IMPLICIT_STRING_CAST ON}
+      end;
     end;
   end;
 end;

@@ -57,12 +57,14 @@ type
 
 implementation
 
+{$WARN IMPLICIT_STRING_CAST OFF}
+
 uses
   System.IOUtils,
   System.StrUtils;
 
 const
-  APP_VERSION = '1.2.0';
+  APP_VERSION = '2.0.0beta';
   APP_NAME = 'TransSuccess';
 
 { TCommandLineController }
@@ -306,23 +308,37 @@ begin
     begin
       Inc(FSuccessCount);
       if FOptions.Verbose then
+      begin
+        {$WARN IMPLICIT_STRING_CAST OFF}
         WriteOutput(Format('✓ 成功: %s -> %s (%d 字节)', 
           [ConvResult.SourceEncoding, ConvResult.TargetEncoding, ConvResult.BytesProcessed]));
+        {$WARN IMPLICIT_STRING_CAST ON}
+      end;
     end
     else
     begin
       Inc(FFailureCount);
       // 从错误列表中获取错误信息
       if ConvResult.ErrorCount > 0 then
-        WriteOutput(Format('✗ 失败: %s - %s', [FileName, ConvResult.Errors[0].ErrorMessage]), True)
+      begin
+        {$WARN IMPLICIT_STRING_CAST OFF}
+        WriteOutput(Format('✗ 失败: %s - %s', [FileName, ConvResult.Errors[0].ErrorMessage]), True);
+        {$WARN IMPLICIT_STRING_CAST ON}
+      end
       else
+      begin
+        {$WARN IMPLICIT_STRING_CAST OFF}
         WriteOutput(Format('✗ 失败: %s - 转换失败', [FileName]), True);
+        {$WARN IMPLICIT_STRING_CAST ON}
+      end;
     end;
   except
     on E: Exception do
     begin
       Inc(FFailureCount);
+      {$WARN IMPLICIT_STRING_CAST OFF}
       WriteOutput(Format('✗ 异常: %s - %s', [FileName, E.Message]), True);
+      {$WARN IMPLICIT_STRING_CAST ON}
     end;
   end;
 end;
@@ -354,11 +370,15 @@ begin
     
     if Length(Files) = 0 then
     begin
+      {$WARN IMPLICIT_STRING_CAST OFF}
       WriteOutput('目录中没有文件');
+      {$WARN IMPLICIT_STRING_CAST ON}
       Exit;
     end;
     
+    {$WARN IMPLICIT_STRING_CAST OFF}
     WriteOutput(Format('找到 %d 个文件', [Length(Files)]));
+    {$WARN IMPLICIT_STRING_CAST ON}
     
     // 处理每个文件
     for FileName in Files do

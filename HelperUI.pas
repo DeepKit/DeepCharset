@@ -63,7 +63,9 @@ type
 
 implementation
 
-// 统一的勾选标记实现（U+2713），避免源码直接写入非 ASCII 字符导致的乱码
+{$WARN IMPLICIT_STRING_CAST OFF}
+
+// 统一的勾选标记实现（U+2713），避免源码直接写入靐ASCII字符导致的乱码
 class function TUIHelper.GetCheckMark: string;
 begin
   Result := string(WideChar($2713));

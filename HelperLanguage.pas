@@ -395,9 +395,6 @@ end;
 function TLanguageManager.LoadFromIniFile(const FileName: string): TLanguageStrings;
 var
   Lines: TStringList;
-  CurrentSection: string;
-  i: Integer;
-  Line, Key, Value: string;
   EqualPos: Integer;
   
   function GetValue(const Section, KeyName: string): string;

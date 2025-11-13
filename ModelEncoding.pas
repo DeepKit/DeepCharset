@@ -330,6 +330,7 @@ begin
   end;
 end;
 
+{$WARN IMPLICIT_STRING_CAST OFF}
 function TEncodingModel.GetFormattedEncodingName(CodePage: Integer; HasBOM: Boolean): string;
 begin
   case CodePage of
@@ -367,7 +368,9 @@ begin
   if CodePage > 0 then
     Result := Result + ' (' + IntToStr(CodePage) + ')';
 end;
+{$WARN IMPLICIT_STRING_CAST ON}
 
+{$WARN IMPLICIT_STRING_CAST OFF}
 procedure TEncodingModel.InitEncodingList;
 begin
   SetLength(FEncodingList, 0);
@@ -493,6 +496,7 @@ begin
   AddEncodingOption('Amharic', 'AMHARIC', 0, False, '埃塞俄比亚阿姆哈拉语编码');
   AddEncodingOption('CESU-8', 'CESU_8', 0, False, '拉丁美洲使用的Unicode变种编码');
 end;
+{$WARN IMPLICIT_STRING_CAST ON}
 
 procedure TEncodingModel.ReplaceEncodingList(const NewList: TEncodingInfoArray);
 var

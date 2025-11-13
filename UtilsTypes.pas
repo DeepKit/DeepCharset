@@ -145,6 +145,7 @@ type
     DisplayName: string;
   end;
 
+{$WARN IMPLICIT_STRING_CAST OFF}
 const
   // 语言代码映射表
   LANGUAGE_MAPPINGS: array[0..15] of TSimpleLanguageInfo = (
@@ -185,6 +186,8 @@ const
     'tr',    // 土耳其语
     'vi'     // 越南语
   );
+
+{$WARN IMPLICIT_STRING_CAST ON}
 
 var
   // 全局编码列表对象
@@ -468,6 +471,7 @@ begin
     raise Exception.Create('编码列表索引越界');
 end;
 
+{$WARN IMPLICIT_STRING_CAST OFF}
 // 初始化编码列表
 procedure InitializeEncodingList;
 begin
@@ -580,6 +584,7 @@ begin
   GlobalEncodingList.Add('ASCII', ENCODING_ASCII, CP_ASCII, ecOther, False,
     '美国标准信息交换码，7位编码', True);
 end;
+{$WARN IMPLICIT_STRING_CAST ON}
 
 // 清理编码列表
 procedure FinalizeEncodingList;

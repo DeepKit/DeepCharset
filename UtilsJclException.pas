@@ -74,6 +74,8 @@ function FormatStackTrace(const StackInfo: TJclStackInfoList): string;
 
 implementation
 
+{$WARN IMPLICIT_STRING_CAST OFF}
+
 uses
   System.IOUtils, System.DateUtils;
 
@@ -186,8 +188,10 @@ begin
     FEnabled := True;
     WriteToLogFile('========================================');
     WriteToLogFile('JCL 异常追踪系统已启用');
+    {$WARN IMPLICIT_STRING_CAST OFF}
     WriteToLogFile('时间: ' + DateTimeToStr(Now));
     WriteToLogFile(GetSystemInfo);
+    {$WARN IMPLICIT_STRING_CAST ON}
     WriteToLogFile('========================================');
   end;
 end;
@@ -197,9 +201,13 @@ begin
   if FEnabled then
   begin
     WriteToLogFile('========================================');
+    {$WARN IMPLICIT_STRING_CAST OFF}
     WriteToLogFile('JCL 异常追踪系统已禁用');
+    {$WARN IMPLICIT_STRING_CAST ON}
+    {$WARN IMPLICIT_STRING_CAST OFF}
     WriteToLogFile('时间: ' + DateTimeToStr(Now));
     WriteToLogFile('========================================');
+    {$WARN IMPLICIT_STRING_CAST ON}
     ShutdownJCL;
     FEnabled := False;
   end;
@@ -215,11 +223,13 @@ begin
   Builder := TStringBuilder.Create;
   try
     Builder.AppendLine('========================================');
-    Builder.AppendLine('异常信息');
+    Builder.AppendLine('上常信息');
     Builder.AppendLine('========================================');
+    {$WARN IMPLICIT_STRING_CAST OFF}
     Builder.AppendFormat('时间: %s', [DateTimeToStr(Now)]).AppendLine;
-    Builder.AppendFormat('异常类型: %s', [E.ClassName]).AppendLine;
-    Builder.AppendFormat('异常消息: %s', [E.Message]).AppendLine;
+    Builder.AppendFormat('上常类型: %s', [E.ClassName]).AppendLine;
+    Builder.AppendFormat('上常消息: %s', [E.Message]).AppendLine;
+    {$WARN IMPLICIT_STRING_CAST ON}
     
     {$IFDEF USE_JCL}
     // 获取 JCL 调用栈
@@ -254,9 +264,11 @@ begin
     Builder.AppendLine('----------------------------------------');
     
     // 操作系统信息
+    {$WARN IMPLICIT_STRING_CAST OFF}
     Builder.AppendFormat('OS 版本: Windows %d.%d', 
       [Win32MajorVersion, Win32MinorVersion]).AppendLine;
     Builder.AppendFormat('构建号: %d', [Win32BuildNumber]).AppendLine;
+    {$WARN IMPLICIT_STRING_CAST ON}
     
     // 内存信息
     MemStatus.dwLength := SizeOf(MemStatus);
@@ -271,8 +283,10 @@ begin
     end;
     
     // 应用程序信息
+    {$WARN IMPLICIT_STRING_CAST OFF}
     Builder.AppendFormat('程序路径: %s', [ParamStr(0)]).AppendLine;
     Builder.AppendFormat('工作目录: %s', [GetCurrentDir]).AppendLine;
+    {$WARN IMPLICIT_STRING_CAST ON}
     Builder.AppendLine('----------------------------------------');
     
     Result := Builder.ToString;
@@ -358,10 +372,14 @@ begin
       StackList.Free;
     end;
   except
+    {$WARN IMPLICIT_STRING_CAST OFF}
     Result := '获取调用栈失败';
+    {$WARN IMPLICIT_STRING_CAST ON}
   end;
   {$ELSE}
+  {$WARN IMPLICIT_STRING_CAST OFF}
   Result := '调用栈信息不可用（未启用 JCL）';
+  {$WARN IMPLICIT_STRING_CAST ON}
   {$ENDIF}
 end;
 

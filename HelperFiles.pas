@@ -66,9 +66,11 @@ type
 
 implementation
 
-uses
-  Winapi.ShlObj;
+{$WARN IMPLICIT_STRING_CAST OFF}
 
+uses
+  Winapi.ShlObj,
+  UtilsExceptionContext;
 const
   CSIDL_PERSONAL = $0005; // My Documents
 
