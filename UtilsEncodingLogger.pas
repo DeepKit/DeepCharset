@@ -7,7 +7,7 @@ uses
   UtilsTypes, ModelEncoding;
 
 type
-  // 鍩烘湰鏃ュ織鎺ュ彛
+  // 基本日志接口
   ILogger = interface
     ['{F8A9D1E3-B7C4-4A5F-9D2A-8E6B7D8F3E1D}']
     procedure LogInfo(const AMsg: string);

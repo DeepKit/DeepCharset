@@ -1,51 +1,41 @@
 Embarcadero Delphi for Win64 compiler version 36.0
 Copyright (c) 1983,2024 Embarcadero Technologies, Inc.
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\JclStrings.pas(158) Hint: H2077 Value assigned to 'NextLowByte' never used
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\JclStrings.pas(163) Hint: H2077 Value assigned to 'NextLowByte' never used
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\JclStringConversions.pas(65) Warning: W1000 Symbol 'StrLen' is deprecated: 'Moved to the AnsiStrings unit'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(151) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(153) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(154) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(164) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(481) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(483) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(487) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(489) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(491) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(494) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(495) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(496) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(497) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(499) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(501) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(525) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(527) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(533) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(535) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(541) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(543) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(545) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(547) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(549) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(551) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(553) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(555) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(557) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(559) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(561) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UtilsTypes.pas(581) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\ChineseEncodingDetector_Improved.pas(127) Hint: H2077 Value assigned to 'TotalBytes' never used
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UTF8BOMConverter_Improved.pas(368) Hint: H2077 Value assigned to 'SourceCodePage' never used
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\UTF8BOMConverter_Improved.pas(511) Hint: H2077 Value assigned to 'SourceCodePage' never used
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(555) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(680) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(680) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(876) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(878) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(901) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(938) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(943) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(977) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(132) Error: E2065 Unsatisfied forward or external declaration: 'TEncodingConverter_Improved.ValidateConversionIntegrity'
-D:\SynologyDrive\Progs\_Delphi\TransSuccess\EncodingConverter_Improved.pas(96) Hint: H2219 Private symbol 'IsFileAccessible' declared but never used
-SelfTest_Encoding.dpr(6) Fatal: F2063 Could not compile used unit 'EncodingConverter_Improved.pas'
+D:\_Progs\02Business\DeepCharset\JclStrings.pas(158) Hint: H2077 Value assigned to 'NextLowByte' never used
+D:\_Progs\02Business\DeepCharset\JclStrings.pas(163) Hint: H2077 Value assigned to 'NextLowByte' never used
+D:\_Progs\02Business\DeepCharset\JclStringConversions.pas(65) Warning: W1000 Symbol 'StrLen' is deprecated: 'Moved to the AnsiStrings unit'
+D:\_Progs\02Business\DeepCharset\UtilsPathSecurity.pas(183) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\_Progs\02Business\DeepCharset\UtilsPathSecurity.pas(203) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+D:\_Progs\02Business\DeepCharset\UtilsPathSecurity.pas(211) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+D:\_Progs\02Business\DeepCharset\ChineseEncodingDetector_Improved.pas(123) Hint: H2077 Value assigned to 'TotalBytes' never used
+D:\_Progs\02Business\DeepCharset\UTF8BOMConverter_Improved.pas(355) Hint: H2077 Value assigned to 'SourceCodePage' never used
+D:\_Progs\02Business\DeepCharset\UTF8BOMConverter_Improved.pas(498) Hint: H2077 Value assigned to 'SourceCodePage' never used
+D:\_Progs\02Business\DeepCharset\UtilsTempFileSecurity.pas(208) Hint: H2077 Value assigned to 'TTempFileSecurityManager.SecureDeleteFile' never used
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(579) Hint: H2077 Value assigned to 'BOMType' never used
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(651) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(651) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(804) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(806) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(1112) Hint: H2077 Value assigned to 'Found' never used
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(1476) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(1476) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(1745) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(1746) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+D:\_Progs\02Business\DeepCharset\EncodingConverter_Improved.pas(111) Hint: H2219 Private symbol 'IsFileAccessible' declared but never used
+D:\_Progs\02Business\DeepCharset\UtilsEncodingHelper.pas(87) Hint: H2077 Value assigned to 'TEncodingHelper.TryConvertFast' never used
+D:\_Progs\02Business\DeepCharset\JapaneseEncodingDetector_Improved.pas(138) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\JapaneseEncodingDetector_Improved.pas(136) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\JapaneseEncodingDetector_Improved.pas(126) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\JapaneseEncodingDetector_Improved.pas(124) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\JapaneseEncodingDetector_Improved.pas(106) Hint: H2077 Value assigned to 'TotalBytes' never used
+D:\_Progs\02Business\DeepCharset\JapaneseEncodingDetector_Improved.pas(235) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+D:\_Progs\02Business\DeepCharset\KoreanEncodingDetector_Improved.pas(136) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\KoreanEncodingDetector_Improved.pas(134) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\KoreanEncodingDetector_Improved.pas(124) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\KoreanEncodingDetector_Improved.pas(122) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+D:\_Progs\02Business\DeepCharset\KoreanEncodingDetector_Improved.pas(106) Hint: H2077 Value assigned to 'TotalBytes' never used
+D:\_Progs\02Business\DeepCharset\KoreanEncodingDetector_Improved.pas(231) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+Test_BoundaryCases.pas(232) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+SelfTest_Encoding.dpr(336) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+SelfTest_Encoding.dpr(341) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+SelfTest_Encoding.dpr(2004) Hint: H2077 Value assigned to 'keep2' never used
+11757 lines, 0.34 seconds, 1644612 bytes code, 213640 bytes data.

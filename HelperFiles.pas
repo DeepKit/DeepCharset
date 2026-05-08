@@ -11,51 +11,59 @@ uses
   UtilsEncodingBOM_Improved,
   UtilsEncodingUTF8Detector_Improved,
   ChineseEncodingDetector_Improved,
-  EncodingConverter_Improved;
+  JapaneseEncodingDetector_Improved,
+  KoreanEncodingDetector_Improved,
+  EncodingConverter_Improved,
+  InterfacesEncoding,
+  EncodingAdapters;
 
 type
   TFileFilterFunc = reference to function(const FilePath: string): Boolean;
 
-  // æ–‡ä»¶è¾…åŠ©ç±»
+  // ÎÄ¼ş¸¨ÖúÀà
   TFileHelper = class
   private
     FLogCallback: TProc<string>;
+    procedure CollectFilesRecursive(const Dir: string;
+      const Extensions: TArray<string>; CurrentDepth, MaxDepth: Integer;
+      FileList: TList<string>);
 
   public
     constructor Create(ALogCallback: TProc<string>);
     destructor Destroy; override;
 
-    // è·å–æ–‡ä»¶æ‰©å±•ååˆ—è¡¨
+    // »ñÈ¡ÎÄ¼şÀ©Õ¹ÃûÁĞ±í
     function GetFileExtensions(const FolderPath: string): TArray<string>;
 
-    // è·å–æŒ‡å®šæ–‡ä»¶å¤¹ä¸­çš„æ–‡ä»¶
+    // »ñÈ¡Ö¸¶¨ÎÄ¼ş¼ĞÖĞµÄÎÄ¼ş£¨MaxDepth=0 ±íÊ¾²»ÏŞÖÆ²ã¼¶£©
     function GetFilesInFolder(const FolderPath: string;
-      const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False): TArray<string>;
+      const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False;
+      MaxDepth: Integer = 0): TArray<string>;
 
-    // æ£€æµ‹æ–‡ä»¶ç¼–ç 
+    // ¼ì²âÎÄ¼ş±àÂë
     function DetectFileEncoding(const FileName: string; out HasBOM: Boolean): string;
 
-    // åˆ¤æ–­æ–‡ä»¶æ˜¯å¦æ˜¯æ­£å¸¸çš„æ–‡æœ¬æ–‡ä»¶
+    // ÅĞ¶ÏÎÄ¼şÊÇ·ñÊÇÕı³£µÄÎÄ±¾ÎÄ¼ş
     function IsNormalTextFile(const FileName: string): Boolean;
 
-    // è½¬æ¢æ–‡ä»¶ç¼–ç 
+    // ×ª»»ÎÄ¼ş±àÂë
     function ConvertFile(const SourceFile, TargetFile: string;
       TargetEncoding: System.SysUtils.TEncoding; AddBOM: Boolean): Boolean;
 
-    // æ‰¹é‡è½¬æ¢æ–‡ä»¶
+    // ÅúÁ¿×ª»»ÎÄ¼ş
     function BatchConvert(const Files: TArray<string>;
       TargetEncoding: System.SysUtils.TEncoding; AddBOM: Boolean): Integer;
 
-    // æ–‡ä»¶è·¯å¾„å¤„ç†
+    // ÎÄ¼şÂ·¾¶´¦Àí
     function PathWithSeparator(const Path: string): string;
 
-    // æ£€æŸ¥è·¯å¾„æ˜¯å¦å­˜åœ¨ï¼Œä¸å­˜åœ¨åˆ™åˆ›å»º
+    // ¼ì²éÂ·¾¶ÊÇ·ñ´æÔÚ£¬²»´æÔÚÔò´´½¨
     function EnsurePathExists(const Path: string): Boolean;
 
-    // è·å–ç”¨æˆ·æ–‡æ¡£è·¯å¾„
+    // »ñÈ¡ÓÃ»§ÎÄµµÂ·¾¶
     function GetMyDocumentsPath: string;
 
-    // è·å–åº”ç”¨ç¨‹åºæ ¹ç›®å½•
+    // »ñÈ¡Ó¦ÓÃ³ÌĞò¸ùÄ¿Â¼
     function GetRootDir: string;
 
     function GetSelectedFilesInFolder(const FolderPath: string;
@@ -70,18 +78,18 @@ implementation
 
 uses
   Winapi.ShlObj,
-  UtilsExceptionContext;
+  UtilsExceptionContext,
+  UtilsEncodingConfig,
+  EncodingExceptions;
 const
   CSIDL_PERSONAL = $0005; // My Documents
 
-  // æ·»åŠ æœ€å¤§æ–‡æœ¬æ–‡ä»¶å¤§å°å¸¸é‡ (10MB) - å¢åŠ ä»¥æ”¯æŒæ›´å¤§æ–‡ä»¶
+  // Ìí¼Ó×î´óÎÄ±¾ÎÄ¼ş´óĞ¡³£Á¿ (10MB) - Ôö¼ÓÒÔÖ§³Ö¸ü´óÎÄ¼ş
   MAX_TEXT_FILE_SIZE = 10 * 1024 * 1024;
-  // æ·»åŠ äºŒè¿›åˆ¶æ£€æµ‹é˜ˆå€¼ (è¶…è¿‡5%çš„å­—èŠ‚æ˜¯äºŒè¿›åˆ¶åˆ™åˆ¤å®šä¸ºäºŒè¿›åˆ¶æ–‡ä»¶)
+  // Ìí¼Ó¶ş½øÖÆ¼ì²âãĞÖµ (³¬¹ı5%µÄ×Ö½ÚÊÇ¶ş½øÖÆÔòÅĞ¶¨Îª¶ş½øÖÆÎÄ¼ş)
   BINARY_THRESHOLD = 0.05;
-  // æœ€å°æœ‰æ•ˆæ–‡æœ¬æ–‡ä»¶å¤§å° (10å­—èŠ‚)
+  // ×îĞ¡ÓĞĞ§ÎÄ±¾ÎÄ¼ş´óĞ¡ (10×Ö½Ú)
   MIN_TEXT_FILE_SIZE = 10;
-  // æ¯æ¬¡è¯»å–çš„ç¼“å†²åŒºå¤§å° - å¢åŠ åˆ°64KBä»¥æé«˜æ€§èƒ½
-  BUFFER_SIZE = 64 * 1024;
 
 { TFileHelper }
 
@@ -124,15 +132,16 @@ var
   HasBOM: Boolean;
   StartTime: TDateTime;
   ElapsedTime: Int64;
-  Options: TEncodingConversionOptions;
-  ConvResult: TEncodingConversionResult;
-  CP: Integer;
+  ConvFactory: IEncodingConverterFactory;
+  Converter: IEncodingConverter;
+  OptionsIntf: IEncodingConversionOptions;
+  ConvResultIntf: IEncodingConversionResult;
 begin
   Result := False;
   StartTime := Now;
 
   try
-    // æ£€æŸ¥æ˜¯å¦ä¸ºæ­£å¸¸æ–‡æœ¬æ–‡ä»¶
+    // ¼ì²éÊÇ·ñÎªÕı³£ÎÄ±¾ÎÄ¼ş
     if not IsNormalTextFile(SourceFile) then
     begin
       if Assigned(FLogCallback) then
@@ -140,7 +149,7 @@ begin
       Exit;
     end;
 
-    // æ£€æµ‹æºæ–‡ä»¶ç¼–ç 
+    // ¼ì²âÔ´ÎÄ¼ş±àÂë
     SourceEncoding := DetectFileEncoding(SourceFile, HasBOM);
     if (SourceEncoding = ENCODING_UNKNOWN) then
     begin
@@ -151,8 +160,8 @@ begin
       Exit;
     end;
 
-    // ç¡®å®šç›®æ ‡ç¼–ç åç§°ï¼ˆä¸ EncodingConverter_Improved ä¿æŒä¸€è‡´ï¼‰
-    TargetEncodingName := ENCODING_ANSI; // é»˜è®¤ ANSI
+    // È·¶¨Ä¿±ê±àÂëÃû³Æ£¨Óë EncodingConverter_Improved ±£³ÖÒ»ÖÂ£©
+    TargetEncodingName := ENCODING_ANSI; // Ä¬ÈÏ ANSI
 
     if Assigned(TargetEncoding) then
     begin
@@ -171,33 +180,41 @@ begin
         TargetEncodingName := ENCODING_ANSI;
     end;
 
-    // ä½¿ç”¨æ”¹è¿›çš„ç¼–ç è½¬æ¢å™¨æ‰§è¡Œè½¬æ¢
-    Options := TEncodingConverter_Improved.CreateDefaultOptions;
-    Options.AddBOM := AddBOM;
-    Options.DetectSourceEncoding := True;
+    // Ê¹ÓÃ½Ó¿Ú³éÏó²ãÖ´ĞĞ×ª»»
+    ConvFactory := TEncodingConverterFactory.Create;
+    Converter := ConvFactory.CreateConverter;
+    OptionsIntf := ConvFactory.CreateOptions;
+    OptionsIntf.AddBOM := AddBOM;
+    OptionsIntf.DetectSourceEncoding := True;
 
-    ConvResult := TEncodingConverter_Improved.ConvertFile(
-      SourceFile, TargetFile, '', TargetEncodingName, Options);
+    ConvResultIntf := Converter.ConvertFile(
+      SourceFile, TargetFile, '', TargetEncodingName, OptionsIntf);
 
-    if ConvResult.Success then
+    if ConvResultIntf.Success then
     begin
       Result := True;
       ElapsedTime := MilliSecondsBetween(StartTime, Now);
       if Assigned(FLogCallback) then
-        FLogCallback(Format('æˆåŠŸè½¬æ¢: %s -> %s (è€—æ—¶: %d ms)',
+        FLogCallback(Format('³É¹¦×ª»»: %s -> %s (ºÄÊ±: %d ms)',
           [SourceFile, TargetEncodingName, ElapsedTime]));
     end
     else
     begin
       if Assigned(FLogCallback) then
       begin
-        if ConvResult.ErrorCount > 0 then
-          FLogCallback(Format('ç¼–ç è½¬æ¢å¤±è´¥: %s', [ConvResult.Errors[High(ConvResult.Errors)].ErrorMessage]))
+        if ConvResultIntf.ErrorCount > 0 then
+          FLogCallback(Format('±àÂë×ª»»Ê§°Ü: %s', [ConvResultIntf.ErrorMessage]))
         else
           FLogCallback('Encoding conversion failed');
       end;
     end;
   except
+    on E: EEncodingException do
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('Conversion encoding exception: ' + SourceFile + ' - ' + E.Message);
+      Result := False;
+    end;
     on E: Exception do
     begin
       if Assigned(FLogCallback) then
@@ -214,32 +231,31 @@ var
   BOMResult: TBOMDetectionResult;
   UTF8Result: TUTF8DetectionResult;
   CNResult: TChineseEncodingResult;
+  JPResult: TJapaneseEncodingResult;
+  KRResult: TKoreanEncodingResult;
 begin
   StartTime := Now;
 
   try
-    // é¦–å…ˆæ£€æŸ¥æ–‡ä»¶æ˜¯å¦å­˜åœ¨
     if not FileExists(FileName) then
     begin
       if Assigned(FLogCallback) then
-        FLogCallback(Format('æ–‡ä»¶ä¸å­˜åœ¨: %s', [FileName]));
+        FLogCallback(Format('ÎÄ¼ş²»´æÔÚ: %s', [FileName]));
       Result := ENCODING_UNKNOWN;
       HasBOM := False;
       Exit;
     end;
 
-    // 1) BOM æ£€æµ‹ï¼ˆä¼˜å…ˆä¸”æœ€å¿«ï¼‰
+    // 1) BOM ¼ì²â£¨ÓÅÏÈÇÒ×î¿ì£©
     BOMResult := TEncodingBOMDetector_Improved.DetectBOMFromFile(FileName);
     if BOMResult.BOMType <> 0 then
     begin
-      // æ˜¾å¼è½¬æ¢ä¸º UnicodeStringï¼Œé¿å…éšå¼ AnsiString -> string å‘Šè­¦
       Result := string(BOMResult.Encoding);
       HasBOM := True;
-      // ä¸å†è®°å½•æ¯ä¸ªæ–‡ä»¶çš„æ—¥å¿—ï¼Œå‡å°‘æ€§èƒ½å¼€é”€
       Exit;
     end;
 
-    // 2) UTF-8 æ£€æµ‹
+    // 2) UTF-8 ¼ì²â
     UTF8Result := TUTF8EncodingDetector_Improved.DetectFile(FileName);
     if UTF8Result.IsUTF8 then
     begin
@@ -249,8 +265,6 @@ begin
     end
     else
     begin
-      // å…¼å®¹æ€§ä¿®å¤ï¼š
-      // å¯¹äºçº¯ ASCII æˆ–â€œå…¨éƒ¨ä¸ºæœ‰æ•ˆ UTF-8 å­—èŠ‚ä½†ç½®ä¿¡åº¦æœªè¾¾é˜ˆå€¼â€çš„æƒ…å†µï¼Œç›´æ¥åˆ¤ä¸º UTF-8ï¼Œé¿å…åç»­è¢«ä¸­æ–‡æ¢æµ‹è¯¯åˆ¤ä¸º Big5/GBKã€‚
       if (UTF8Result.InvalidByteCount = 0) and (UTF8Result.TotalByteCount > 0) then
       begin
         Result := ENCODING_UTF8;
@@ -259,28 +273,96 @@ begin
       end;
     end;
 
-    // 3) ä¸­æ–‡ç¼–ç ç»¼åˆæ£€æµ‹ï¼ˆGBK/GB18030/Big5/GB2312ï¼‰
+    // 3) ÖĞÎÄ±àÂë×ÛºÏ¼ì²â£¨GBK/GB18030/Big5/GB2312£©
     CNResult := TChineseEncodingDetector_Improved.DetectFile(FileName);
-    if CNResult.Encoding <> ENCODING_UNKNOWN then
+    if (CNResult.Encoding <> ENCODING_UNKNOWN) and (CNResult.Confidence >= 0.5) then
     begin
-      // æ˜¾å¼è½¬æ¢
       Result := string(CNResult.Encoding);
       HasBOM := CNResult.HasBOM;
       Exit;
     end;
 
-    // 4) é»˜è®¤å›é€€åˆ° ANSI
+    // 4) ÈÕÎÄ±àÂë¼ì²â£¨Shift-JIS/EUC-JP/ISO-2022-JP£©
+    JPResult := TJapaneseEncodingDetector_Improved.DetectFile(FileName);
+    if (JPResult.Encoding <> '') and (JPResult.Encoding <> ENCODING_UNKNOWN) and (JPResult.Confidence >= 0.5) then
+    begin
+      // µ±ÖĞÈÕ¼ì²â½á¹ûÖÃĞÅ¶È½Ó½üÊ±£¬È¡¸ü¸ßÕß
+      if (CNResult.Confidence >= 0.5) and (CNResult.Confidence > JPResult.Confidence) then
+      begin
+        Result := string(CNResult.Encoding);
+        HasBOM := CNResult.HasBOM;
+      end
+      else
+      begin
+        Result := JPResult.Encoding;
+        HasBOM := JPResult.HasBOM;
+      end;
+      Exit;
+    end;
+
+    // 5) º«ÎÄ±àÂë¼ì²â£¨EUC-KR/UHC/ISO-2022-KR£©
+    KRResult := TKoreanEncodingDetector_Improved.DetectFile(FileName);
+    if (KRResult.Encoding <> '') and (KRResult.Encoding <> ENCODING_UNKNOWN) and (KRResult.Confidence >= 0.5) then
+    begin
+      if (CNResult.Confidence >= 0.5) and (CNResult.Confidence > KRResult.Confidence) then
+      begin
+        Result := string(CNResult.Encoding);
+        HasBOM := CNResult.HasBOM;
+      end
+      else if (JPResult.Confidence >= 0.5) and (JPResult.Confidence > KRResult.Confidence) then
+      begin
+        Result := JPResult.Encoding;
+        HasBOM := JPResult.HasBOM;
+      end
+      else
+      begin
+        Result := KRResult.Encoding;
+        HasBOM := KRResult.HasBOM;
+      end;
+      Exit;
+    end;
+
+    // 6) Èç¹ûÖĞÈÕº«ÈÎÒ»ÓĞ½á¹ûµ«µÍÓÚ 0.5 ÖÃĞÅ¶È£¬È¡×î¸ßÕß
+    if (CNResult.Encoding <> ENCODING_UNKNOWN) or
+       ((JPResult.Encoding <> '') and (JPResult.Encoding <> ENCODING_UNKNOWN)) or
+       ((KRResult.Encoding <> '') and (KRResult.Encoding <> ENCODING_UNKNOWN)) then
+    begin
+      var BestEnc := ENCODING_ANSI;
+      var BestConf := 0.0;
+      var BestBOM := False;
+
+      if (CNResult.Encoding <> ENCODING_UNKNOWN) and (CNResult.Confidence > BestConf) then
+      begin
+        BestEnc := string(CNResult.Encoding);
+        BestConf := CNResult.Confidence;
+        BestBOM := CNResult.HasBOM;
+      end;
+      if (JPResult.Encoding <> '') and (JPResult.Encoding <> ENCODING_UNKNOWN) and (JPResult.Confidence > BestConf) then
+      begin
+        BestEnc := JPResult.Encoding;
+        BestConf := JPResult.Confidence;
+        BestBOM := JPResult.HasBOM;
+      end;
+      if (KRResult.Encoding <> '') and (KRResult.Encoding <> ENCODING_UNKNOWN) and (KRResult.Confidence > BestConf) then
+      begin
+        BestEnc := KRResult.Encoding;
+        BestConf := KRResult.Confidence;
+        BestBOM := KRResult.HasBOM;
+      end;
+
+      Result := BestEnc;
+      HasBOM := BestBOM;
+      Exit;
+    end;
+
+    // 7) Ä¬ÈÏ»ØÍËµ½ ANSI
     Result := ENCODING_ANSI;
     HasBOM := False;
   except
-    on E: Exception do
+    on E: EEncodingException do
     begin
-      // å¦‚æœæ£€æµ‹å¤±è´¥ï¼Œä½¿ç”¨é»˜è®¤å€¼
       Result := ENCODING_UNKNOWN;
       HasBOM := False;
-
-      // åªè®°å½•ä¸¥é‡é”™è¯¯ï¼Œé¿å…æ—¥å¿—è¿‡å¤š
-      // ä¸å†è®°å½•æ¯ä¸ªæ–‡ä»¶çš„æ£€æµ‹å¤±è´¥ä¿¡æ¯
     end;
   end;
 end;
@@ -315,10 +397,10 @@ var
   Ext: string;
   SafePath: string;
 begin
-  // åˆå§‹åŒ–è¿”å›å€¼ä¸ºç©ºæ•°ç»„
+  // ³õÊ¼»¯·µ»ØÖµÎª¿ÕÊı×é
   SetLength(Result, 0);
 
-  // å®‰å…¨æ£€æŸ¥ï¼šç¡®ä¿å‚æ•°æœ‰æ•ˆ
+  // °²È«¼ì²é£ºÈ·±£²ÎÊıÓĞĞ§
   if FolderPath = '' then
   begin
     if Assigned(FLogCallback) then
@@ -326,7 +408,7 @@ begin
     Exit;
   end;
 
-  // è§„èŒƒåŒ–è·¯å¾„
+  // ¹æ·¶»¯Â·¾¶
   try
     SafePath := ExcludeTrailingPathDelimiter(FolderPath);
     SafePath := IncludeTrailingPathDelimiter(SafePath);
@@ -339,13 +421,13 @@ begin
     end;
   end;
 
-  // åˆ›å»ºæ‰©å±•ååˆ—è¡¨
+  // ´´½¨À©Õ¹ÃûÁĞ±í
   Extensions := TStringList.Create;
   try
     Extensions.Sorted := True;
     Extensions.Duplicates := TDuplicates.dupIgnore;
 
-    // å®‰å…¨æ£€æŸ¥ï¼šç¡®ä¿ç›®å½•å­˜åœ¨
+    // °²È«¼ì²é£ºÈ·±£Ä¿Â¼´æÔÚ
     if not DirectoryExists(SafePath) then
     begin
       if Assigned(FLogCallback) then
@@ -354,7 +436,7 @@ begin
     end;
 
     try
-      // ä»…æœç´¢å½“å‰ç›®å½•ï¼Œä¸å†ä½¿ç”¨soAllDirectories
+      // ½öËÑË÷µ±Ç°Ä¿Â¼£¬²»ÔÙÊ¹ÓÃsoAllDirectories
       try
         Files := TDirectory.GetFiles(SafePath, '*.*', TSearchOption.soTopDirectoryOnly);
       except
@@ -369,15 +451,15 @@ begin
       if Assigned(FLogCallback) then
         FLogCallback('Found ' + IntToStr(Length(Files)) + ' files, extracting extensions');
 
-      // å®‰å…¨æ£€æŸ¥ï¼šç¡®ä¿æ–‡ä»¶åˆ—è¡¨æœ‰æ•ˆ
+      // °²È«¼ì²é£ºÈ·±£ÎÄ¼şÁĞ±íÓĞĞ§
       if Length(Files) = 0 then
       begin
         if Assigned(FLogCallback) then
-          FLogCallback('ç›®å½•ä¸­æ²¡æœ‰æ–‡ä»¶');
+          FLogCallback('Ä¿Â¼ÖĞÃ»ÓĞÎÄ¼ş');
         Exit;
       end;
 
-      // æå–æ‰©å±•å
+      // ÌáÈ¡À©Õ¹Ãû
       for i := 0 to High(Files) do
       begin
         try
@@ -388,14 +470,14 @@ begin
           on E: Exception do
           begin
             if Assigned(FLogCallback) then
-              FLogCallback('å¤„ç†æ–‡ä»¶æ‰©å±•åå‡ºé”™: ' + Files[i] + ' - ' + E.Message);
-            // ç»§ç»­å¤„ç†ä¸‹ä¸€ä¸ªæ–‡ä»¶
+              FLogCallback('´¦ÀíÎÄ¼şÀ©Õ¹Ãû³ö´í: ' + Files[i] + ' - ' + E.Message);
+            // ¼ÌĞø´¦ÀíÏÂÒ»¸öÎÄ¼ş
             Continue;
           end;
         end;
       end;
 
-      // å®‰å…¨æ£€æŸ¥ï¼šç¡®ä¿æ‰¾åˆ°äº†æ‰©å±•å
+      // °²È«¼ì²é£ºÈ·±£ÕÒµ½ÁËÀ©Õ¹Ãû
       if Extensions.Count = 0 then
       begin
         if Assigned(FLogCallback) then
@@ -403,7 +485,7 @@ begin
         Exit;
       end;
 
-      // è½¬æ¢ä¸ºæ•°ç»„
+      // ×ª»»ÎªÊı×é
       try
         SetLength(Result, Extensions.Count);
         for i := 0 to Extensions.Count - 1 do
@@ -428,21 +510,89 @@ begin
       end;
     end;
   finally
-    // ç¡®ä¿é‡Šæ”¾èµ„æº
+    // È·±£ÊÍ·Å×ÊÔ´
     if Assigned(Extensions) then
       Extensions.Free;
   end;
 end;
 
-function TFileHelper.GetFilesInFolder(const FolderPath: string;
-  const Extensions: TArray<string> = nil; IncludeSubdirs: Boolean = False): TArray<string>;
+procedure TFileHelper.CollectFilesRecursive(const Dir: string;
+  const Extensions: TArray<string>; CurrentDepth, MaxDepth: Integer;
+  FileList: TList<string>);
 var
   Files: TArray<string>;
-  FilteredFiles: TList<string>;
+  SubDirs: TArray<string>;
+  DirName, Ext: string;
   i, j: Integer;
-  Ext: string;
   IsMatch: Boolean;
-  SearchOption: TSearchOption;
+begin
+  try
+    Files := TDirectory.GetFiles(Dir, '*.*', TSearchOption.soTopDirectoryOnly);
+  except
+    on E: Exception do
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('Skip inaccessible directory: ' + Dir + ' (' + E.Message + ')');
+      Exit;
+    end;
+  end;
+
+  for i := 0 to High(Files) do
+  begin
+    if Length(Extensions) = 0 then
+      FileList.Add(Files[i])
+    else
+    begin
+      Ext := ExtractFileExt(Files[i]);
+      IsMatch := False;
+      for j := 0 to High(Extensions) do
+      begin
+        if SameText(Ext, Extensions[j]) then
+        begin
+          IsMatch := True;
+          Break;
+        end;
+      end;
+      if IsMatch then
+        FileList.Add(Files[i]);
+    end;
+  end;
+
+  // MaxDepth=0 means unlimited
+  if (MaxDepth > 0) and (CurrentDepth >= MaxDepth) then
+    Exit;
+
+  try
+    SubDirs := TDirectory.GetDirectories(Dir);
+  except
+    on E: Exception do
+    begin
+      if Assigned(FLogCallback) then
+        FLogCallback('Cannot list subdirectories: ' + Dir + ' (' + E.Message + ')');
+      Exit;
+    end;
+  end;
+
+  for DirName in SubDirs do
+  begin
+    try
+      CollectFilesRecursive(DirName, Extensions, CurrentDepth + 1, MaxDepth, FileList);
+    except
+      on E: Exception do
+      begin
+        if Assigned(FLogCallback) then
+          FLogCallback('Skip failed directory: ' + DirName + ' (' + E.Message + ')');
+      end;
+    end;
+  end;
+end;
+
+function TFileHelper.GetFilesInFolder(const FolderPath: string;
+  const Extensions: TArray<string>; IncludeSubdirs: Boolean;
+  MaxDepth: Integer): TArray<string>;
+var
+  FileList: TList<string>;
+  i: Integer;
 begin
   if not DirectoryExists(FolderPath) then
   begin
@@ -450,59 +600,39 @@ begin
     Exit;
   end;
 
-  // æ ¹æ®å‚æ•°å†³å®šæ˜¯å¦æœç´¢å­ç›®å½•
-  if IncludeSubdirs then
-    SearchOption := TSearchOption.soAllDirectories
-  else
-    SearchOption := TSearchOption.soTopDirectoryOnly;
-
   if Assigned(FLogCallback) then
     FLogCallback('Start searching files: ' + FolderPath +
                  ', include subdirectories: ' + BoolToStr(IncludeSubdirs, True) +
+                 ', max depth: ' + IntToStr(MaxDepth) +
                  ', extensions: ' + IntToStr(Length(Extensions)));
 
-  FilteredFiles := TList<string>.Create;
+  FileList := TList<string>.Create;
   try
-    // ä½¿ç”¨SearchOptionå‚æ•°æ¥æ§åˆ¶æ˜¯å¦æœç´¢å­ç›®å½•
-    Files := TDirectory.GetFiles(FolderPath, '*.*', SearchOption);
-
-    if Assigned(FLogCallback) then
-      FLogCallback('Found ' + IntToStr(Length(Files)) + ' files');
-
-    for i := 0 to High(Files) do
+    if not IncludeSubdirs then
     begin
-      if Length(Extensions) = 0 then
-      begin
-        FilteredFiles.Add(Files[i]);
-      end
-      else
-      begin
-        Ext := ExtractFileExt(Files[i]);
-        IsMatch := False;
-
-        for j := 0 to High(Extensions) do
-        begin
-          if SameText(Ext, Extensions[j]) then
-          begin
-            IsMatch := True;
-            Break;
-          end;
-        end;
-
-        if IsMatch then
-          FilteredFiles.Add(Files[i]);
-      end;
+      // Only root directory ¡ª depth=1 means scan only the starting folder
+      CollectFilesRecursive(FolderPath, Extensions, 0, 1, FileList);
+    end
+    else if MaxDepth > 0 then
+    begin
+      // Depth-limited recursive scan
+      CollectFilesRecursive(FolderPath, Extensions, 0, MaxDepth, FileList);
+    end
+    else
+    begin
+      // Unlimited recursive scan
+      CollectFilesRecursive(FolderPath, Extensions, 0, 0, FileList);
     end;
 
-    SetLength(Result, FilteredFiles.Count);
-    for i := 0 to FilteredFiles.Count - 1 do
-      Result[i] := FilteredFiles[i];
+    SetLength(Result, FileList.Count);
+    for i := 0 to FileList.Count - 1 do
+      Result[i] := FileList[i];
 
     if Assigned(FLogCallback) then
-      FLogCallback('After filtering: ' + IntToStr(FilteredFiles.Count) + ' files match');
+      FLogCallback('After filtering: ' + IntToStr(FileList.Count) + ' files match');
 
   finally
-    FilteredFiles.Free;
+    FileList.Free;
   end;
 end;
 
@@ -527,45 +657,45 @@ var
 begin
   Result := False;
 
-  // æ£€æŸ¥æ–‡ä»¶æ˜¯å¦å­˜åœ¨
+  // ¼ì²éÎÄ¼şÊÇ·ñ´æÔÚ
   if not FileExists(FileName) then
     Exit;
 
-  // è·å–æ–‡ä»¶æ‰©å±•å
+  // »ñÈ¡ÎÄ¼şÀ©Õ¹Ãû
   Ext := LowerCase(ExtractFileExt(FileName));
 
-  // è·³è¿‡å·²çŸ¥çš„äºŒè¿›åˆ¶æ–‡ä»¶ç±»å‹
+  // Ìø¹ıÒÑÖªµÄ¶ş½øÖÆÎÄ¼şÀàĞÍ
   if (Ext = '.exe') or (Ext = '.dll') or (Ext = '.obj') or
      (Ext = '.bin') or (Ext = '.o') or (Ext = '.a') or
      (Ext = '.so') or (Ext = '.lib') or (Ext = '.pdb') or
      (Ext = '.com') or (Ext = '.sys') or (Ext = '.ocx') or
-     // å›¾åƒæ–‡ä»¶
+     // Í¼ÏñÎÄ¼ş
      (Ext = '.ico') or (Ext = '.bmp') or (Ext = '.jpg') or
      (Ext = '.jpeg') or (Ext = '.png') or (Ext = '.gif') or
      (Ext = '.tif') or (Ext = '.tiff') or (Ext = '.webp') or
      (Ext = '.svg') or (Ext = '.psd') or (Ext = '.ai') or
-     // å‹ç¼©æ–‡ä»¶
+     // Ñ¹ËõÎÄ¼ş
      (Ext = '.zip') or (Ext = '.rar') or (Ext = '.7z') or (Ext = '.tar') or
      (Ext = '.gz') or (Ext = '.bz2') or (Ext = '.xz') or (Ext = '.cab') or
-     // æ–‡æ¡£æ–‡ä»¶
+     // ÎÄµµÎÄ¼ş
      (Ext = '.pdf') or (Ext = '.doc') or (Ext = '.docx') or
      (Ext = '.xls') or (Ext = '.xlsx') or (Ext = '.ppt') or
      (Ext = '.pptx') or (Ext = '.odt') or (Ext = '.ods') or
-     // æ•°æ®åº“æ–‡ä»¶
+     // Êı¾İ¿âÎÄ¼ş
      (Ext = '.db') or (Ext = '.sqlite') or (Ext = '.mdb') or
      (Ext = '.accdb') or (Ext = '.frm') or (Ext = '.dbf') or
-     // éŸ³è§†é¢‘æ–‡ä»¶
+     // ÒôÊÓÆµÎÄ¼ş
      (Ext = '.mp3') or (Ext = '.mp4') or (Ext = '.avi') or
      (Ext = '.mov') or (Ext = '.wmv') or (Ext = '.flv') or
      (Ext = '.wav') or (Ext = '.ogg') or (Ext = '.flac') or
-     // Delphiç‰¹æœ‰çš„äºŒè¿›åˆ¶æ–‡ä»¶
+     // DelphiÌØÓĞµÄ¶ş½øÖÆÎÄ¼ş
      (Ext = '.dcu') or (Ext = '.bpl') or (Ext = '.dcp') or
      (Ext = '.dcpil') or (Ext = '.dcuil') or (Ext = '.drc') or
      (Ext = '.res') or (Ext = '.rsm') or (Ext = '.map') or
      (Ext = '.tds') or (Ext = '.jdbg') or (Ext = '.dsk') or
      (Ext = '.~*') or (Ext = '.local') or (Ext = '.identcache') or
      (Ext = '.stat') or (Ext = '.otares') or (Ext = '.deployproj') or
-     // å…¶ä»–å¸¸è§äºŒè¿›åˆ¶æ–‡ä»¶
+     // ÆäËû³£¼û¶ş½øÖÆÎÄ¼ş
      (Ext = '.class') or (Ext = '.jar') or (Ext = '.war') or
      (Ext = '.pyc') or (Ext = '.pyo') or (Ext = '.o') or
      (Ext = '.swf') or (Ext = '.fla') or (Ext = '.ttf') or
@@ -573,43 +703,43 @@ begin
     Exit;
 
   try
-    // æ‰“å¼€æ–‡ä»¶
+    // ´ò¿ªÎÄ¼ş
     FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
     try
-      // è·å–æ–‡ä»¶å¤§å°
+      // »ñÈ¡ÎÄ¼ş´óĞ¡
       FileSize := FileStream.Size;
 
-      // æ–‡ä»¶å¤ªå¤§æˆ–å¤ªå°ï¼Œä¸æ˜¯æ­£å¸¸æ–‡æœ¬æ–‡ä»¶
+      // ÎÄ¼şÌ«´ó»òÌ«Ğ¡£¬²»ÊÇÕı³£ÎÄ±¾ÎÄ¼ş
       if (FileSize > MAX_TEXT_FILE_SIZE) or (FileSize < MIN_TEXT_FILE_SIZE) then
         Exit;
 
-      // åˆ†é…ç¼“å†²åŒº
-      SetLength(Buffer, BUFFER_SIZE);
+      // ·ÖÅä»º³åÇø£¨Ê¹ÓÃÍ³Ò»µÄÄ¬ÈÏ»º³åÇø´óĞ¡£©
+      SetLength(Buffer, DEFAULT_BUFFER_SIZE);
 
-      // åˆå§‹åŒ–è®¡æ•°å™¨
+      // ³õÊ¼»¯¼ÆÊıÆ÷
       BinaryCount := 0;
 
-      // æ£€æŸ¥å‰4KBæ•°æ®
-      BytesRead := FileStream.Read(Buffer[0], BUFFER_SIZE);
+      // ¼ì²éÇ°Ò»¶ÎÊı¾İ£¨Ä¬ÈÏ 64KB£©
+      BytesRead := FileStream.Read(Buffer[0], DEFAULT_BUFFER_SIZE);
 
-      // æ£€æŸ¥æ¯ä¸ªå­—èŠ‚æ˜¯å¦ä¸ºäºŒè¿›åˆ¶æ•°æ®
+      // ¼ì²éÃ¿¸ö×Ö½ÚÊÇ·ñÎª¶ş½øÖÆÊı¾İ
       for i := 0 to BytesRead - 1 do
       begin
-        // ASCIIæ§åˆ¶å­—ç¬¦(é™¤äº†åˆ¶è¡¨ç¬¦ã€æ¢è¡Œå’Œå›è½¦)é€šå¸¸ä¸ä¼šå‡ºç°åœ¨æ–‡æœ¬æ–‡ä»¶ä¸­
+        // ASCII¿ØÖÆ×Ö·û(³ıÁËÖÆ±í·û¡¢»»ĞĞºÍ»Ø³µ)Í¨³£²»»á³öÏÖÔÚÎÄ±¾ÎÄ¼şÖĞ
         if (Buffer[i] < 9) or ((Buffer[i] > 13) and (Buffer[i] < 32)) then
           Inc(BinaryCount);
       end;
 
-      // è®¡ç®—äºŒè¿›åˆ¶å­—èŠ‚å æ¯”
+      // ¼ÆËã¶ş½øÖÆ×Ö½ÚÕ¼±È
       if BytesRead > 0 then
         BinaryRatio := BinaryCount / BytesRead
       else
         BinaryRatio := 0;
 
-      // å¦‚æœäºŒè¿›åˆ¶å­—èŠ‚æ¯”ä¾‹é«˜äºé˜ˆå€¼ï¼Œè®¤ä¸ºæ˜¯äºŒè¿›åˆ¶æ–‡ä»¶
+      // Èç¹û¶ş½øÖÆ×Ö½Ú±ÈÀı¸ßÓÚãĞÖµ£¬ÈÏÎªÊÇ¶ş½øÖÆÎÄ¼ş
       Result := BinaryRatio <= BINARY_THRESHOLD;
 
-      // è®°å½•åˆ†æç»“æœ
+      // ¼ÇÂ¼·ÖÎö½á¹û
       if Assigned(FLogCallback) and not Result then
         FLogCallback('Skip non-text file: ' + FileName + ' (binary ratio: ' +
                      FormatFloat('0.00%', BinaryRatio * 100) + ')');
@@ -620,7 +750,7 @@ begin
   except
     on E: Exception do
     begin
-      // å¦‚æœæ— æ³•è¯»å–æ–‡ä»¶ï¼Œè®¤ä¸ºå®ƒä¸æ˜¯æ­£å¸¸æ–‡æœ¬æ–‡ä»¶
+      // Èç¹ûÎŞ·¨¶ÁÈ¡ÎÄ¼ş£¬ÈÏÎªËü²»ÊÇÕı³£ÎÄ±¾ÎÄ¼ş
       if Assigned(FLogCallback) then
         FLogCallback('Cannot analyze file: ' + FileName + ' - ' + E.Message);
       Result := False;
@@ -638,18 +768,18 @@ var
   ExeDir, ParentDir, GrandParentDir: string;
   IniDirPath: string;
 begin
-  // 1. å–å¾—æ‰§è¡Œæ–‡ä»¶ç›®å½•
+  // 1. È¡µÃÖ´ĞĞÎÄ¼şÄ¿Â¼
   ExeDir := ExtractFilePath(Application.ExeName);
   ExeDir := ExcludeTrailingPathDelimiter(ExeDir);
 
-  // 2. å›é€€ä¸¤çº§
+  // 2. »ØÍËÁ½¼¶
   ParentDir := ExtractFilePath(ExcludeTrailingPathDelimiter(ExeDir));
   ParentDir := ExcludeTrailingPathDelimiter(ParentDir);
 
   GrandParentDir := ExtractFilePath(ExcludeTrailingPathDelimiter(ParentDir));
   GrandParentDir := ExcludeTrailingPathDelimiter(GrandParentDir);
 
-  // 3. è‹¥æ‰¾åˆ°å­ç›®å½• .\ini
+  // 3. ÈôÕÒµ½×ÓÄ¿Â¼ .\ini
   IniDirPath := GrandParentDir + '\ini';
 
   if DirectoryExists(IniDirPath) then
@@ -660,7 +790,7 @@ begin
   end
   else
   begin
-    // å¦‚æœæ²¡æœ‰æ‰¾åˆ°iniç›®å½•ï¼Œåˆ™ä½¿ç”¨å½“å‰ç›®å½•
+    // Èç¹ûÃ»ÓĞÕÒµ½iniÄ¿Â¼£¬ÔòÊ¹ÓÃµ±Ç°Ä¿Â¼
     Result := ExeDir;
     if Assigned(FLogCallback) then
       FLogCallback('INI directory not found, use application directory as root: ' + Result);
@@ -683,10 +813,10 @@ begin
     else
       SearchOption := TSearchOption.soTopDirectoryOnly;
 
-    // è·å–æ‰€æœ‰æ–‡ä»¶
+    // »ñÈ¡ËùÓĞÎÄ¼ş
     Files := TDirectory.GetFiles(FolderPath, '*.*', SearchOption);
 
-    // è¿‡æ»¤æ–‡ä»¶
+    // ¹ıÂËÎÄ¼ş
     for i := 0 to High(Files) do
     begin
       if (Extensions.IndexOf(ExtractFileExt(Files[i])) >= 0) and

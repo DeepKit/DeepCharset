@@ -1,0 +1,68 @@
+﻿Embarcadero Delphi for Win64 compiler version 36.0
+Copyright (c) 1983,2024 Embarcadero Technologies, Inc.
+JclStrings.pas(158) Hint: H2077 Value assigned to 'NextLowByte' never used
+JclStrings.pas(163) Hint: H2077 Value assigned to 'NextLowByte' never used
+JclStringConversions.pas(65) Warning: W1000 Symbol 'StrLen' is deprecated: 'Moved to the AnsiStrings unit'
+UtilsPathSecurity.pas(183) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+UtilsPathSecurity.pas(191) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+UtilsPathSecurity.pas(199) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+ChineseEncodingDetector_Improved.pas(123) Hint: H2077 Value assigned to 'TotalBytes' never used
+UTF8BOMConverter_Improved.pas(303) Hint: H2077 Value assigned to 'SourceCodePage' never used
+UTF8BOMConverter_Improved.pas(446) Hint: H2077 Value assigned to 'SourceCodePage' never used
+UtilsTempFileSecurity.pas(149) Hint: H2077 Value assigned to 'TTempFileSecurityManager.SecureDeleteFile' never used
+EncodingConverter_Improved.pas(501) Hint: H2077 Value assigned to 'BOMType' never used
+EncodingConverter_Improved.pas(574) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+EncodingConverter_Improved.pas(574) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+EncodingConverter_Improved.pas(728) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+EncodingConverter_Improved.pas(730) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+EncodingConverter_Improved.pas(1036) Hint: H2077 Value assigned to 'Found' never used
+EncodingConverter_Improved.pas(102) Hint: H2219 Private symbol 'IsFileAccessible' declared but never used
+UtilsEncodingHelper.pas(87) Hint: H2077 Value assigned to 'TEncodingHelper.TryConvertFast' never used
+JapaneseEncodingDetector_Improved.pas(138) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(136) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(126) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(124) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(106) Hint: H2077 Value assigned to 'TotalBytes' never used
+JapaneseEncodingDetector_Improved.pas(235) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+KoreanEncodingDetector_Improved.pas(136) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(134) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(124) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(122) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(106) Hint: H2077 Value assigned to 'TotalBytes' never used
+KoreanEncodingDetector_Improved.pas(231) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+Tests\Test_BoundaryCases.pas(232) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(213) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(253) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(334) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+Tests\SelfTest_Encoding.dpr(339) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+Tests\SelfTest_Encoding.dpr(348) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(352) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(385) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(392) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(402) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(416) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(419) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(422) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(423) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(746) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(750) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(759) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(763) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(772) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(776) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(887) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(893) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(902) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(948) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(979) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(1009) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(1025) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(1039) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(1052) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(1247) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(1266) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\Tests\SelfTest_Encoding.dpr(1901) Hint: H2077 Value assigned to 'keep2' never used
+Tests\SelfTest_Encoding.dpr(2018) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(2079) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+Tests\SelfTest_Encoding.dpr(2097) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+10975 lines, 0.38 seconds, 1630412 bytes code, 213064 bytes data.

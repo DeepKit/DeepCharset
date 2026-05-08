@@ -1,4 +1,4 @@
-unit UtilsEncodingTypes;
+﻿unit UtilsEncodingTypes;
 
 interface
 
@@ -6,18 +6,18 @@ uses
   System.SysUtils, System.Classes, System.DateUtils, System.Generics.Collections,
   System.Math, System.IOUtils, Winapi.Windows, UtilsTypes;
 
-// 在此定义一个类型别名，以区分自定义的编码枚举类型和系统的TEncoding类
+// �ڴ˶���һ�����ͱ������������Զ���ı���ö�����ͺ�ϵͳ��TEncoding��
 type
   TEncodingClass = System.SysUtils.TEncoding;
 
-  // 定义Windows API类型
+  // ����Windows API����
   {$IFNDEF UNICODE}
   LANGID = Word;
   {$ENDIF}
 
-// 编码常量定义
+// ���볣������
 const
-  // 编码名称常量（统一转发至 UtilsTypes，保持全项目一致）
+  // �������Ƴ�����ͳһת���� UtilsTypes������ȫ��Ŀһ�£�
   ENCODING_UNKNOWN        = 'Unknown';
   ENCODING_ANSI           = UtilsTypes.ENCODING_ANSI;
   ENCODING_ASCII          = UtilsTypes.ENCODING_ASCII;
@@ -33,7 +33,7 @@ const
   ENCODING_BIG5           = UtilsTypes.ENCODING_BIG5;         // 'BIG5'
   ENCODING_SHIFT_JIS      = UtilsTypes.ENCODING_SHIFT_JIS;
   ENCODING_EUC_JP         = UtilsTypes.ENCODING_EUC_JP;
-  ENCODING_ISO2022_JP     = UtilsTypes.ENCODING_ISO_2022_JP;  // 名称不同但字符串一致
+  ENCODING_ISO2022_JP     = UtilsTypes.ENCODING_ISO_2022_JP;  // ���Ʋ�ͬ���ַ���һ��
   ENCODING_EUC_KR         = UtilsTypes.ENCODING_EUC_KR;
   ENCODING_ISO_2022_KR    = UtilsTypes.ENCODING_ISO_2022_KR;
   ENCODING_WINDOWS_1251   = 'Windows-1251';
@@ -50,7 +50,7 @@ const
   ENCODING_CP949          = 'CP949';
   ENCODING_BINARY         = 'Binary';
 
-  // 代码页常量
+  // ����ҳ����
   CP_UTF8 = 65001;
   CP_UTF16_LE = 1200;
   CP_UTF16_BE = 1201;
@@ -66,21 +66,21 @@ const
   CP_EUC_KR = 949;
   CP_ISO_2022_KR = 50225;
 
-  // BOM 定义 - 移至implementation部分，避免重复定义
+  // BOM ���� - ����implementation���֣������ظ�����
 
-  // ISO-2022-JP 转义序列
+  // ISO-2022-JP ת������
   ISO2022_JP_ASCII    = #$1B'(B';    // ESC (B - ASCII
-  ISO2022_JP_JISX0201 = #$1B'(J';    // ESC (J - JIS X 0201-1976 片假名
+  ISO2022_JP_JISX0201 = #$1B'(J';    // ESC (J - JIS X 0201-1976 Ƭ����
   ISO2022_JP_JISX0208 = #$1B'$B';    // ESC $B - JIS X 0208-1983
   ISO2022_JP_JISX0212 = #$1B'$(D';   // ESC $(D - JIS X 0212-1990
 
-  // 编码检测常量
-  MIN_CONFIDENCE = 0.6;        // 最小置信度
-  MAX_TEXT_SAMPLE = 16384;     // 最大文本样本大小（16KB）
-  MIN_TEXT_SAMPLE = 256;       // 最小文本样本大小（256字节）
-  MAX_DETECTION_TIME = 1000;   // 最大检测时间（毫秒）
+  // �����ⳣ��
+  MIN_CONFIDENCE = 0.6;        // ��С���Ŷ�
+  MAX_TEXT_SAMPLE = 16384;     // ����ı�������С��16KB��
+  MIN_TEXT_SAMPLE = 256;       // ��С�ı�������С��256�ֽڣ�
+  MAX_DETECTION_TIME = 1000;   // �����ʱ�䣨���룩
 
-  // 文件类型常量
+  // �ļ����ͳ���
   TEXT_FILE_EXTENSIONS: array[0..19] of string = (
     '.txt', '.log', '.csv', '.xml', '.html', '.htm', '.json', '.js', '.css',
     '.pas', '.dpr', '.dfm', '.c', '.cpp', '.h', '.hpp', '.cs', '.java', '.py', '.rb'
@@ -158,99 +158,99 @@ type
   );
 
   /// <summary>
-  /// 编码类型枚举
+  /// ��������ö��
   /// </summary>
   TEncodingType = (
-    etUnknown,    // 未知编码
-    etANSI,       // ANSI编码
-    etASCII,      // ASCII编码
-    etUTF8,       // UTF-8编码（无BOM）
-    etUTF8BOM,    // UTF-8编码（有BOM）
-    etUTF16LE,    // UTF-16 Little Endian编码
-    etUTF16BE,    // UTF-16 Big Endian编码
-    etUTF32LE,    // UTF-32 Little Endian编码
-    etUTF32BE,    // UTF-32 Big Endian编码
-    etGBK,        // GBK编码
-    etGB2312,     // GB2312编码
-    etGB18030,    // GB18030编码
-    etBig5,       // Big5编码
-    etShiftJIS,   // Shift-JIS编码
-    etEUCJP,      // EUC-JP编码
-    etEUCKR,      // EUC-KR编码
-    etBinary      // 二进制文件
+    etUnknown,    // δ֪����
+    etANSI,       // ANSI����
+    etASCII,      // ASCII����
+    etUTF8,       // UTF-8���루��BOM��
+    etUTF8BOM,    // UTF-8���루��BOM��
+    etUTF16LE,    // UTF-16 Little Endian����
+    etUTF16BE,    // UTF-16 Big Endian����
+    etUTF32LE,    // UTF-32 Little Endian����
+    etUTF32BE,    // UTF-32 Big Endian����
+    etGBK,        // GBK����
+    etGB2312,     // GB2312����
+    etGB18030,    // GB18030����
+    etBig5,       // Big5����
+    etShiftJIS,   // Shift-JIS����
+    etEUCJP,      // EUC-JP����
+    etEUCKR,      // EUC-KR����
+    etBinary      // �������ļ�
   );
 
   /// <summary>
-  /// 编码检测方法枚举
+  /// �����ⷽ��ö��
   /// </summary>
   TEncodingDetectionMethod = (
-    edmBOM,                // 通过BOM检测
-    edmASCII,              // 纯ASCII检测
-    edmFileType,           // 文件类型判断
-    edmUTF8Validation,     // UTF-8有效性检测
-    edmChineseCharacters,  // 中文字符检测
-    edmJapaneseCharacters, // 日文字符检测
-    edmKoreanCharacters,   // 韩文字符检测
-    edmSystemLanguage,     // 系统语言环境判断
-    edmFileName,           // 文件名判断
-    edmStatistical,        // 统计分析
-    edmHeuristic,          // 启发式规则
-    edmUserHistory,        // 用户历史记录
-    edmUnknown             // 未知方法
+    edmBOM,                // ͨ��BOM���
+    edmASCII,              // ��ASCII���
+    edmFileType,           // �ļ������ж�
+    edmUTF8Validation,     // UTF-8��Ч�Լ��
+    edmChineseCharacters,  // �����ַ����
+    edmJapaneseCharacters, // �����ַ����
+    edmKoreanCharacters,   // �����ַ����
+    edmSystemLanguage,     // ϵͳ���Ի����ж�
+    edmFileName,           // �ļ����ж�
+    edmStatistical,        // ͳ�Ʒ���
+    edmHeuristic,          // ���ʽ����
+    edmUserHistory,        // �û���ʷ��¼
+    edmUnknown             // δ֪����
   );
 
   /// <summary>
-  /// 编码转换类型枚举
+  /// ����ת������ö��
   /// </summary>
   TEncodingConversionType = (
-    ectSameEncoding,       // 相同编码（无需转换）
-    ectAddBOM,             // 添加BOM
-    ectRemoveBOM,          // 移除BOM
-    ectANSIToUTF8,         // ANSI到UTF-8
-    ectUTF8ToANSI,         // UTF-8到ANSI
-    ectANSIToUTF16LE,      // ANSI到UTF-16 LE
-    ectUTF16LEToANSI,      // UTF-16 LE到ANSI
-    ectUTF8ToUTF16LE,      // UTF-8到UTF-16 LE
-    ectUTF16LEToUTF8,      // UTF-16 LE到UTF-8
-    ectOther               // 其他转换
+    ectSameEncoding,       // ��ͬ���루����ת����
+    ectAddBOM,             // ���BOM
+    ectRemoveBOM,          // �Ƴ�BOM
+    ectANSIToUTF8,         // ANSI��UTF-8
+    ectUTF8ToANSI,         // UTF-8��ANSI
+    ectANSIToUTF16LE,      // ANSI��UTF-16 LE
+    ectUTF16LEToANSI,      // UTF-16 LE��ANSI
+    ectUTF8ToUTF16LE,      // UTF-8��UTF-16 LE
+    ectUTF16LEToUTF8,      // UTF-16 LE��UTF-8
+    ectOther               // ����ת��
   );
 
   /// <summary>
-  /// BOM检测结果记录
+  /// BOM�������¼
   /// </summary>
   TBOMDetectionResult = record
-    BOMType: Integer;      // BOM类型
-    BOMLength: Integer;    // BOM长度（字节数）
-    Encoding: string;      // 对应的编码名称
-    CodePage: Integer;     // 对应的代码页
+    BOMType: Integer;      // BOM����
+    BOMLength: Integer;    // BOM���ȣ��ֽ�����
+    Encoding: string;      // ��Ӧ�ı�������
+    CodePage: Integer;     // ��Ӧ�Ĵ���ҳ
   end;
 
   /// <summary>
-  /// 编码检测结果记录
+  /// ����������¼
   /// </summary>
   TEncodingDetectionResult = record
-    Encoding: string;        // 检测到的编码名称
-    HasBOM: Boolean;         // 是否有BOM
-    Confidence: Double;      // 置信度 (0.0-1.0)
-    DetectionMethod: string; // 检测方法
-    ElapsedTime: Int64;      // 检测耗时(毫秒)
+    Encoding: string;        // ��⵽�ı�������
+    HasBOM: Boolean;         // �Ƿ���BOM
+    Confidence: Double;      // ���Ŷ� (0.0-1.0)
+    DetectionMethod: string; // ��ⷽ��
+    ElapsedTime: Int64;      // ����ʱ(����)
   end;
 
   /// <summary>
-  /// 编码转换结果记录
+  /// ����ת�������¼
   /// </summary>
   TEncodingConversionResult = record
-    Success: Boolean;           // 是否成功
-    ErrorMessage: string;       // 错误信息
-    SourceEncoding: string;     // 源编码
-    TargetEncoding: string;     // 目标编码
-    BytesProcessed: Int64;      // 处理的字节数
-    ElapsedTime: Int64;         // 耗时(毫秒)
+    Success: Boolean;           // �Ƿ�ɹ�
+    ErrorMessage: string;       // ������Ϣ
+    SourceEncoding: string;     // Դ����
+    TargetEncoding: string;     // Ŀ�����
+    BytesProcessed: Int64;      // ������ֽ���
+    ElapsedTime: Int64;         // ��ʱ(����)
   end;
 
-// BOM类型常量
+// BOM���ͳ���
 const
-  BOM_NONE = 0;      // 无BOM
+  BOM_NONE = 0;      // ��BOM
   BOM_UTF8 = 1;      // UTF-8 BOM (EF BB BF)
   BOM_UTF16LE = 2;   // UTF-16 Little Endian BOM (FF FE)
   BOM_UTF16BE = 3;   // UTF-16 Big Endian BOM (FE FF)
@@ -259,7 +259,7 @@ const
 
 implementation
 
-// BOM 字节数组常量
+// BOM �ֽ����鳣��
 const
   UTF8_BOM: array[0..2] of Byte = ($EF, $BB, $BF);
   UTF16_LE_BOM: array[0..1] of Byte = ($FF, $FE);

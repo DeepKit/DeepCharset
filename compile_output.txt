@@ -115,8 +115,8 @@ ViewExceptionReport.pas(74) Warning: W1057 Implicit string cast from 'AnsiString
 ViewExceptionReport.pas(78) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
 ViewExceptionReport.pas(98) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
 ViewExceptionReport.pas(138) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
-Hint: H2161 Warning: Duplicate resource:  Type 10 (RCDATA), ID PLATFORMTARGETS; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
-Hint: H2161 Warning: Duplicate resource:  Type 14 (ICON GROUP), ID MAINICON; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
-Hint: H2161 Warning: Duplicate resource:  Type 16 (VERSIONINFO), ID 1; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
-Hint: H2161 Warning: Duplicate resource:  Type 24 (user-defined), ID 1; File D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource kept; file D:\SynologyDrive\Progs\_Delphi\TransSuccess\TransSuccess.res resource discarded.
+Hint: H2161 Warning: Duplicate resource:  Type 10 (RCDATA), ID PLATFORMTARGETS; File D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource kept; file D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource discarded.
+Hint: H2161 Warning: Duplicate resource:  Type 14 (ICON GROUP), ID MAINICON; File D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource kept; file D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource discarded.
+Hint: H2161 Warning: Duplicate resource:  Type 16 (VERSIONINFO), ID 1; File D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource kept; file D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource discarded.
+Hint: H2161 Warning: Duplicate resource:  Type 24 (user-defined), ID 1; File D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource kept; file D:\SynologyDrive\Progs\_Delphi\DeepCharset\DeepCharset.res resource discarded.
 16087 lines, 0.50 seconds, 3934048 bytes code, 389112 bytes data.

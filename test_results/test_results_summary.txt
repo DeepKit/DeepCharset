@@ -1,0 +1,91 @@
+﻿DeepCharset Encoding Detection Test Results
+=============================================
+Generated: 2025-11-13 22:04:37
+
+OVERALL STATISTICS
+==================
+Total Tests: 26
+Passed: 0
+Failed: 26
+Overall Accuracy: 0%
+Errors: 0
+
+PER-ENCODING RESULTS
+====================
+EUC-JP:
+  Tests Run: 2
+  Passed: 0
+  Failed: 2
+  Accuracy: 0%
+  Avg Detection Time: 30.54ms
+
+EUC-KR:
+  Tests Run: 3
+  Passed: 0
+  Failed: 3
+  Accuracy: 0%
+  Avg Detection Time: 24.86ms
+
+GB2312:
+  Tests Run: 2
+  Passed: 0
+  Failed: 2
+  Accuracy: 0%
+  Avg Detection Time: 24.43ms
+
+GBK:
+  Tests Run: 3
+  Passed: 0
+  Failed: 3
+  Accuracy: 0%
+  Avg Detection Time: 23.84ms
+
+ISO-8859-1:
+  Tests Run: 1
+  Passed: 0
+  Failed: 1
+  Accuracy: 0%
+  Avg Detection Time: 24.07ms
+
+Shift_JIS:
+  Tests Run: 3
+  Passed: 0
+  Failed: 3
+  Accuracy: 0%
+  Avg Detection Time: 26.46ms
+
+UTF-16BE:
+  Tests Run: 2
+  Passed: 0
+  Failed: 2
+  Accuracy: 0%
+  Avg Detection Time: 23.47ms
+
+UTF-16LE:
+  Tests Run: 2
+  Passed: 0
+  Failed: 2
+  Accuracy: 0%
+  Avg Detection Time: 25.38ms
+
+UTF-8 BOM:
+  Tests Run: 3
+  Passed: 0
+  Failed: 3
+  Accuracy: 0%
+  Avg Detection Time: 25.34ms
+
+UTF-8:
+  Tests Run: 3
+  Passed: 0
+  Failed: 3
+  Accuracy: 0%
+  Avg Detection Time: 25.13ms
+
+Windows-1252:
+  Tests Run: 2
+  Passed: 0
+  Failed: 2
+  Accuracy: 0%
+  Avg Detection Time: 25.29ms
+

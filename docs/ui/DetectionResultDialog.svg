@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="520" height="360" viewBox="0 0 520 360" xmlns="http://www.w3.org/2000/svg">
+  <title>Encoding Detection Result Dialog</title>
+  <style>
+    .window { fill:#f8f9fa; stroke:#adb5bd; stroke-width:1; }
+    .titlebar { fill:#e9ecef; stroke:#adb5bd; stroke-width:1; }
+    .label { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#343a40; }
+    .label-strong { font-family:'Segoe UI', sans-serif; font-size:11px; font-weight:bold; fill:#212529; }
+    .badge { fill:#e2f0d9; stroke:#b7dfb0; stroke-width:1; }
+    .badge-text { font-family:'Segoe UI', sans-serif; font-size:10px; fill:#1b4d3e; }
+    .button-primary { fill:#0d6efd; stroke:#0a58ca; stroke-width:1; rx:3; ry:3; }
+    .button-secondary { fill:#e9ecef; stroke:#adb5bd; stroke-width:1; rx:3; ry:3; }
+    .button-text-primary { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#ffffff; }
+    .button-text-secondary { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#212529; }
+    .preview-box { fill:#ffffff; stroke:#ced4da; stroke-width:1; }
+  </style>
+
+  <!-- Dialog window -->
+  <rect class="window" x="10" y="10" width="500" height="340" rx="4" ry="4" />
+  <rect class="titlebar" x="10" y="10" width="500" height="26" rx="4" ry="4" />
+  <text class="label-strong" x="20" y="27">检测结果 / Encoding Detection Result</text>
+
+  <!-- File name -->
+  <text class="label" x="24" y="52">文件: C:\data\logs\bar_mixed.log</text>
+
+  <!-- Main detection info -->
+  <text class="label-strong" x="24" y="76">推断结果</text>
+  <rect class="badge" x="24" y="82" width="210" height="20" rx="3" ry="3" />
+  <text class="badge-text" x="30" y="96">候选 1: UTF‑8 (置信度 0.62)</text>
+
+  <rect class="badge" x="24" y="108" width="230" height="20" rx="3" ry="3" />
+  <text class="badge-text" x="30" y="122">候选 2: GBK (置信度 0.58)</text>
+
+  <text class="label" x="24" y="144">说明: 样本较短且包含混合字节模式，无法给出单一高置信度结论。</text>
+
+  <!-- Choice section -->
+  <text class="label-strong" x="24" y="170">选择本次转换使用的源编码</text>
+
+  <rect class="preview-box" x="28" y="178" width="200" height="18" />
+  <text class="label" x="32" y="191">● 使用 UTF‑8 (推荐, 保守)</text>
+
+  <rect class="preview-box" x="28" y="199" width="200" height="18" />
+  <text class="label" x="32" y="212">○ 使用 GBK</text>
+
+  <rect class="preview-box" x="28" y="220" width="260" height="18" />
+  <text class="label" x="32" y="233">○ 暂不转换，仅在报告中标注该文件</text>
+
+  <!-- Right side: preview -->
+  <text class="label-strong" x="260" y="76">预览 / Preview (UTF‑8)</text>
+  <rect class="preview-box" x="260" y="84" width="230" height="90" />
+  <text class="label" x="266" y="100">原文片段:</text>
+  <text class="label" x="266" y="116">[00] 日志开始: ...</text>
+  <text class="label" x="266" y="130">[01] 用户: 张三, 操作: 导入</text>
+  <text class="label" x="266" y="144">[02] ...</text>
+
+  <text class="label" x="260" y="192">切换候选时，预览将更新为对应编码解码后的片段。</text>
+
+  <!-- Bottom safety note -->
+  <text class="label" x="24" y="254">提示: 在本次会话中可以为类似文件复用相同选择，也可以仅对本文件应用。</text>
+
+  <!-- Action buttons -->
+  <rect class="button-primary" x="250" y="290" width="110" height="26" />
+  <text class="button-text-primary" x="262" y="307">应用并继续</text>
+
+  <rect class="button-secondary" x="368" y="290" width="130" height="26" />
+  <text class="button-text-secondary" x="376" y="307">仅标注, 不转换</text>
+
+  <text class="label" x="24" y="292">"应用并继续" 将使用上方所选编码参与本次转换。</text>
+</svg>

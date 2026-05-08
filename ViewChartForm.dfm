@@ -1,7 +1,7 @@
-object FrmChart: TFrmChart
+﻿object FrmChart: TFrmChart
   Left = 0
   Top = 0
-  Caption = #22270#34920#26174#31034#20027#31383
+  Caption = '图表显示主窗'
   ClientHeight = 600
   ClientWidth = 800
   Color = clBtnFace
@@ -27,14 +27,14 @@ object FrmChart: TFrmChart
       Top = 13
       Width = 52
       Height = 15
-      Caption = #22270#34920#26631#39064': '
+      Caption = '图表标题: '
     end
     object LblChartType: TLabel
       Left = 240
       Top = 13
       Width = 52
       Height = 15
-      Caption = #22270#34920#31867#22411': '
+      Caption = '图表类型: '
     end
   end
 end

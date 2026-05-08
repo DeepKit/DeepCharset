@@ -1,0 +1,3 @@
+﻿Embarcadero Delphi for Win64 compiler version 36.0
+Copyright (c) 1983,2024 Embarcadero Technologies, Inc.
+SelfTest_Encoding.dpr(9) Fatal: F2613 Unit 'EncodingConverter_Improved' not found.

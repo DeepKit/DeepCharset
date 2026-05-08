@@ -1,4 +1,4 @@
-object MemoForm: TMemoForm
+﻿object MemoForm: TMemoForm
   Left = 0
   Top = 0
   Caption = '文件查看器'

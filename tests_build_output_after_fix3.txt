@@ -1,0 +1,63 @@
+﻿Embarcadero Delphi for Win64 compiler version 36.0
+Copyright (c) 1983,2024 Embarcadero Technologies, Inc.
+JclStrings.pas(158) Hint: H2077 Value assigned to 'NextLowByte' never used
+JclStrings.pas(163) Hint: H2077 Value assigned to 'NextLowByte' never used
+JclStringConversions.pas(65) Warning: W1000 Symbol 'StrLen' is deprecated: 'Moved to the AnsiStrings unit'
+HelperUI.pas(529) Hint: H2077 Value assigned to 'idx' never used
+HelperUI.pas(547) Hint: H2077 Value assigned to 'IsCommonEncoding' never used
+ChineseEncodingDetector_Improved.pas(123) Hint: H2077 Value assigned to 'TotalBytes' never used
+UtilsPathSecurity.pas(183) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+UtilsPathSecurity.pas(191) Warning: W1057 Implicit string cast from 'AnsiString' to 'string'
+UtilsPathSecurity.pas(199) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+UTF8BOMConverter_Improved.pas(303) Hint: H2077 Value assigned to 'SourceCodePage' never used
+UTF8BOMConverter_Improved.pas(446) Hint: H2077 Value assigned to 'SourceCodePage' never used
+UtilsTempFileSecurity.pas(149) Hint: H2077 Value assigned to 'TTempFileSecurityManager.SecureDeleteFile' never used
+EncodingConverter_Improved.pas(501) Hint: H2077 Value assigned to 'BOMType' never used
+EncodingConverter_Improved.pas(574) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+EncodingConverter_Improved.pas(574) Warning: W1002 Symbol 'TFileAttributes' is specific to a platform
+EncodingConverter_Improved.pas(745) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+EncodingConverter_Improved.pas(747) Warning: W1002 Symbol 'TFileAttribute' is specific to a platform
+EncodingConverter_Improved.pas(1053) Hint: H2077 Value assigned to 'Found' never used
+EncodingConverter_Improved.pas(102) Hint: H2219 Private symbol 'IsFileAccessible' declared but never used
+UtilsEncodingHelper.pas(87) Hint: H2077 Value assigned to 'TEncodingHelper.TryConvertFast' never used
+JapaneseEncodingDetector_Improved.pas(138) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(136) Hint: H2077 Value assigned to 'EUCJPTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(126) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(124) Hint: H2077 Value assigned to 'ShiftJISTrailingBytes' never used
+JapaneseEncodingDetector_Improved.pas(106) Hint: H2077 Value assigned to 'TotalBytes' never used
+JapaneseEncodingDetector_Improved.pas(235) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+KoreanEncodingDetector_Improved.pas(136) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(134) Hint: H2077 Value assigned to 'UHCTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(124) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(122) Hint: H2077 Value assigned to 'EUCKRTrailingBytes' never used
+KoreanEncodingDetector_Improved.pas(106) Hint: H2077 Value assigned to 'TotalBytes' never used
+KoreanEncodingDetector_Improved.pas(231) Hint: H2077 Value assigned to 'MaxConsecutiveValid' never used
+HelperFiles.pas(229) Hint: H2077 Value assigned to 'StartTime' never used
+HelperFiles.pas(224) Hint: H2164 Variable 'ElapsedTime' is declared but never used in 'TFileHelper.DetectFileEncoding'
+ControllerEncoding.pas(98) Hint: H2164 Variable 'DetectionInfo' is declared but never used in 'TEncodingController.DetectFileEncoding'
+ControllerEncoding.pas(104) Hint: H2164 Variable 'ChineseResult' is declared but never used in 'TEncodingController.DetectFileEncoding'
+ViewSynEdit.pas(331) Hint: H2077 Value assigned to 'TSynEditForm.LoadFileWithProperEncoding$ActRec.$0$Body' never used
+ViewMainCode.pas(354) Hint: H2077 Value assigned to 'SuccessCount' never used
+ViewMainCode.pas(886) Hint: H2164 Variable 'EncodingName' is declared but never used in 'TForm1.MenuItemConvertAllFilesClick'
+ViewMainCode.pas(887) Hint: H2164 Variable 'FinishMsg' is declared but never used in 'TForm1.MenuItemConvertAllFilesClick'
+ViewMainCode.pas(1746) Hint: H2077 Value assigned to 'Encoding' never used
+ViewMainCode.pas(1714) Hint: H2164 Variable 'EncodingInfo' is declared but never used in 'TForm1.btnShowContentClick'
+ControllerCommandLine.pas(336) Error: E2003 Undeclared identifier: 'EEncodingException'
+ControllerCommandLine.pas(340) Error: E2029 ']' expected but identifier 'Message' found
+ControllerCommandLine.pas(343) Error: E2003 Undeclared identifier: 'on'
+ControllerCommandLine.pas(343) Error: E2029 'END' expected but 'DO' found
+ControllerCommandLine.pas(344) Error: E2029 ';' expected but 'BEGIN' found
+ControllerCommandLine.pas(345) Error: E2003 Undeclared identifier: 'FFailureCount'
+ControllerCommandLine.pas(347) Error: E2003 Undeclared identifier: 'WriteOutput'
+ControllerCommandLine.pas(347) Error: E2003 Undeclared identifier: 'FileName'
+ControllerCommandLine.pas(347) Error: E2029 ']' expected but identifier 'Message' found
+ControllerCommandLine.pas(349) Error: E2029 '.' expected but ';' found
+ControllerCommandLine.pas(350) Warning: W1011 Text after final 'END.' - ignored by compiler
+ControllerCommandLine.pas(47) Error: E2065 Unsatisfied forward or external declaration: 'TCommandLineController.ProcessDirectory'
+ControllerCommandLine.pas(53) Error: E2065 Unsatisfied forward or external declaration: 'TCommandLineController.Execute'
+ControllerCommandLine.pas(42) Hint: H2219 Private symbol 'ParseCommandLine' declared but never used
+ControllerCommandLine.pas(43) Hint: H2219 Private symbol 'ShowHelp' declared but never used
+ControllerCommandLine.pas(44) Hint: H2219 Private symbol 'ShowVersion' declared but never used
+ControllerCommandLine.pas(46) Hint: H2219 Private symbol 'ProcessSingleFile' declared but never used
+ControllerCommandLine.pas(47) Hint: H2219 Private symbol 'ProcessDirectory' declared but never used
+DeepCharset.dpr(49) Fatal: F2063 Could not compile used unit 'ControllerCommandLine.pas'

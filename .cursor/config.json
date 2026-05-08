@@ -44,7 +44,7 @@
     },
     "safetyChecks": {
       "lockSharedCode": true,
-      "requireHumanReview": ["API签名变更", "新增依赖项"]
+      "requireHumanReview": ["API签名变更", "新增依赖�?]
     }
   },
   "documentation": {

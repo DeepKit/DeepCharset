@@ -1,10 +1,10 @@
-# TransSuccess Changelog
+﻿# DeepCharset Changelog
 
 ## Version 2.0.0beta (Release)
 
 ### Batch 14: Final Release Preparation (Current)
 - **Version Update**: Updated APP_VERSION to 2.0.0beta
-- **Release Documentation**: Created CHANGELOG.md for version history
+- **Release Documentation**: Created CHANGELOG.md for version hiDeepDeepDeepDeepDeepStory
 - **Quality Assurance**: Final compilation and warning baseline capture
 - **Testing**: Core functionality verification (encoding detection, file conversion, exception handling)
 - **Release Package**: Assembly of binary, documentation, and configuration files
@@ -94,11 +94,11 @@ See `docs/Quick_Start_Guide.md` for detailed startup instructions, parameter tun
 ## Building from Source
 ```bash
 # Compile with Delphi
-dcc64 TransSuccess.dpr -B -Q -CC -E"bin\Win64\_build" -U".;lib;src;.." -I".;lib;src" -R".;lib;src"
+dcc64 DeepCharset.dpr -B -Q -CC -E"bin\Win64\_build" -U".;lib;src;.." -I".;lib;src" -R".;lib;src"
 ```
 
 ---
 
 ## License & Credits
-TransSuccess - Comprehensive File Encoding Conversion Tool
+DeepCharset - Comprehensive File Encoding Conversion Tool
 Copyright © 2024-2025

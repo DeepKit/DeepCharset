@@ -16,8 +16,8 @@ function Add-Err($msg){
 
 # 1) 必要文件检查
 $root = Split-Path -Parent $PSCommandPath | Split-Path -Parent
-if (-not (Test-Path (Join-Path $root 'TransSuccess.dproj'))) { Add-Err '缺少 TransSuccess.dproj' }
-if (-not (Test-Path (Join-Path $root 'TransSuccess.dpr')))  { Add-Err '缺少 TransSuccess.dpr'  }
+if (-not (Test-Path (Join-Path $root 'DeepCharset.dproj'))) { Add-Err '缺少 DeepCharset.dproj' }
+if (-not (Test-Path (Join-Path $root 'DeepCharset.dpr')))  { Add-Err '缺少 DeepCharset.dpr'  }
 
 # 2) 编译器可用性
 $msbuild = $env:MSBUILD

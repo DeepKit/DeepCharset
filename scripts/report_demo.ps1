@@ -4,7 +4,7 @@ param(
   [string]$Enc = "UTF-8"
 )
 
-$exe = Join-Path $PSScriptRoot "..\TransSuccess.exe"
+$exe = Join-Path $PSScriptRoot "..\DeepCharset.exe"
 if (-not (Test-Path $exe)) {
   Write-Host "Executable not found: $exe" -ForegroundColor Red
   exit 1

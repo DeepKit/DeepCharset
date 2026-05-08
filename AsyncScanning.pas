@@ -44,7 +44,7 @@ type
     property OnProgress: TScanProgressEvent read FOnProgress write FOnProgress;
     property OnComplete: TScanCompleteEvent read FOnComplete write FOnComplete;
     property OnTotal: TScanTotalEvent read FOnTotal write FOnTotal;
-    // é…ç½®é¡¹
+    // ÅäÖÃÏî
     property EnableEstimate: Boolean read FEnableEstimate write FEnableEstimate;
     property CountCap: Integer read FCountCap write FCountCap;
   end;
@@ -67,7 +67,7 @@ begin
   FEnableEstimate := True;
   FCountCap := 200000;
   FLock := TObject.Create;
-  // ç”±è°ƒç”¨æ–¹æ˜¾å¼ Startï¼Œé¿å…é‡å¤å¯åŠ¨
+  // ÓÉµ÷ÓÃ·½ÏÔÊ½ Start£¬±ÜÃâÖØ¸´Æô¶¯
 end;
 
 destructor TAsyncFileScanner.Destroy;
@@ -159,7 +159,7 @@ begin
   TMonitor.Exit(FLock);
   if Cancelled or Terminated then Exit;
 
-  // å½“å‰ç›®å½•æ–‡ä»¶
+  // µ±Ç°Ä¿Â¼ÎÄ¼ş
   try
     Files := TDirectory.GetFiles(Dir);
     for FileName in Files do
@@ -177,10 +177,10 @@ begin
       end;
     end;
   except
-    // å¿½ç•¥è®¿é—®å¼‚å¸¸
+    // ºöÂÔ·ÃÎÊÒì³£
   end;
 
-  // å­ç›®å½•
+  // ×ÓÄ¿Â¼
   if FIncludeSubdirs then
   begin
     try
@@ -194,7 +194,7 @@ begin
         ScanDir(Sub);
       end;
     except
-      // å¿½ç•¥è®¿é—®å¼‚å¸¸
+      // ºöÂÔ·ÃÎÊÒì³£
     end;
   end;
 end;
@@ -206,7 +206,7 @@ var
   Cancelled: Boolean;
 begin
   Result := 0;
-  // ç»Ÿè®¡å½“å‰ç›®å½•æ–‡ä»¶
+  // Í³¼Æµ±Ç°Ä¿Â¼ÎÄ¼ş
   Res := FindFirst(IncludeTrailingPathDelimiter(Dir) + '*.*', faAnyFile, SR);
   try
     while Res = 0 do

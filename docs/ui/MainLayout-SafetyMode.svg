@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1040" height="616" viewBox="0 0 1040 616" xmlns="http://www.w3.org/2000/svg">
+  <title>TransSuccess Main Layout - Safety Mode</title>
+  <style>
+    .panel { fill:#f5f5f5; stroke:#cccccc; stroke-width:1; }
+    .panel-header { fill:#e0e0e0; stroke:#b0b0b0; stroke-width:1; }
+    .label { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#333333; }
+    .label-strong { font-family:'Segoe UI', sans-serif; font-size:11px; font-weight:bold; fill:#222222; }
+    .badge { fill:#fff3cd; stroke:#ffecb5; stroke-width:1; }
+    .badge-text { font-family:'Segoe UI', sans-serif; font-size:10px; fill:#664d03; }
+    .warning { fill:#fff5f5; stroke:#f5c2c7; stroke-width:1; }
+    .warning-text { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#842029; }
+    .button { fill:#e9ecef; stroke:#adb5bd; stroke-width:1; rx:3; ry:3; }
+    .button-text { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#212529; }
+    .tab { fill:#dee2e6; stroke:#adb5bd; stroke-width:1; }
+    .tab-text-vertical { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#495057; writing-mode:tb; glyph-orientation-vertical:0; }
+    .grid-header { fill:#e9ecef; stroke:#ced4da; stroke-width:1; }
+    .grid-row { fill:#ffffff; stroke:#f1f3f5; stroke-width:1; }
+  </style>
+
+  <!-- Top toolbar panel -->
+  <rect class="panel" x="0" y="0" width="1040" height="48" />
+  <text class="label-strong" x="10" y="18">语言 / Language</text>
+  <rect class="panel" x="10" y="24" width="80" height="18" />
+  <text class="label" x="14" y="37">中文</text>
+
+  <text class="label-strong" x="110" y="18">最近目录 / Directory History</text>
+  <rect class="panel" x="110" y="24" width="620" height="18" />
+  <text class="label" x="114" y="36">C:\projects\...</text>
+
+  <rect class="button" x="740" y="22" width="100" height="22" />
+  <text class="button-text" x="748" y="37">选择扩展名...</text>
+
+  <rect class="button" x="850" y="22" width="80" height="22" />
+  <text class="button-text" x="858" y="37">查看内容</text>
+
+  <!-- Safety mode selector badge -->
+  <rect class="badge" x="940" y="4" width="90" height="18" rx="3" ry="3" />
+  <text class="badge-text" x="945" y="17">安全模式: 开启</text>
+
+  <!-- Safety mode short hint -->
+  <text class="label" x="940" y="38">低置信检测仅标注</text>
+
+  <!-- Main center layout: left tree, middle grid, right encoding tree -->
+
+  <!-- Left panel: drives + directories -->
+  <rect class="panel" x="0" y="48" width="225" height="409" />
+  <rect class="panel-header" x="10" y="56" width="205" height="20" />
+  <text class="label-strong" x="14" y="70">驱动器 / Drives</text>
+  <rect class="panel-header" x="10" y="82" width="205" height="18" />
+  <text class="label-strong" x="14" y="95">包含子目录</text>
+  <rect class="panel" x="10" y="104" width="205" height="340" />
+  <text class="label" x="14" y="120">目录列表 / Directories</text>
+
+  <!-- Center panel: file list + selection + actions -->
+  <rect class="panel" x="225" y="48" width="535" height="409" />
+
+  <!-- Center top actions -->
+  <rect class="panel-header" x="226" y="49" width="533" height="40" />
+  <rect class="button" x="235" y="55" width="170" height="24" />
+  <text class="button-text" x="243" y="71">全选 / 取消选择</text>
+
+  <rect class="button" x="410" y="55" width="155" height="24" />
+  <text class="button-text" x="418" y="71">批量转换 (安全模式)</text>
+
+  <rect class="button" x="570" y="55" width="180" height="24" />
+  <text class="button-text" x="578" y="71">单个文件预览与转换...</text>
+
+  <!-- Safety hint under actions -->
+  <text class="label" x="235" y="90">安全模式：低置信检测仅生成报告，强制保留备份。</text>
+
+  <!-- Left of center: checklist of file types -->
+  <rect class="panel" x="226" y="96" width="70" height="361" />
+  <text class="label-strong" x="230" y="112">类型</text>
+  <text class="label" x="230" y="132">.txt</text>
+  <text class="label" x="230" y="148">.log</text>
+  <text class="label" x="230" y="164">.ini</text>
+
+  <!-- File grid -->
+  <rect class="panel" x="296" y="96" width="462" height="361" />
+  <rect class="grid-header" x="297" y="97" width="460" height="20" />
+  <text class="label-strong" x="302" y="111">文件名</text>
+  <text class="label-strong" x="480" y="111">推断编码 / 置信度</text>
+  <text class="label-strong" x="670" y="111">操作</text>
+
+  <rect class="grid-row" x="297" y="117" width="460" height="18" />
+  <text class="label" x="302" y="130">foo_cn.txt</text>
+  <text class="label" x="480" y="130">GBK (0.98)</text>
+  <text class="label" x="670" y="130">✔ 可安全转换</text>
+
+  <rect class="grid-row" x="297" y="135" width="460" height="18" />
+  <text class="label" x="302" y="148">bar_mixed.log</text>
+  <text class="label" x="480" y="148">不确定 (UTF‑8 / GBK)</text>
+  <text class="label" x="670" y="148">⚠ 仅报告，不自动转换</text>
+
+  <!-- Right panel: encoding tree / presets -->
+  <rect class="panel" x="760" y="48" width="280" height="409" />
+  <rect class="panel-header" x="762" y="50" width="276" height="22" />
+  <text class="label-strong" x="768" y="66">目标编码 / Encoding Presets</text>
+  <text class="label" x="770" y="88">UTF‑8 (推荐)</text>
+  <text class="label" x="770" y="104">UTF‑8 with BOM</text>
+  <text class="label" x="770" y="120">UTF‑16 LE</text>
+  <text class="label" x="770" y="136">...</text>
+
+  <!-- Bottom area: log + progress + safety warning -->
+  <rect class="panel" x="0" y="457" width="1040" height="159" />
+
+  <!-- Log tab (simplified) -->
+  <rect class="tab" x="995" y="460" width="40" height="80" />
+  <text class="tab-text-vertical" x="1015" y="470">Log</text>
+
+  <rect class="panel" x="5" y="462" width="750" height="149" />
+  <text class="label-strong" x="12" y="478">操作日志 / Operation Log</text>
+  <text class="label" x="12" y="496">[INFO] 检测 foo_cn.txt: 推断为 GBK (0.98), 已加入转换队列。</text>
+  <text class="label" x="12" y="512">[WARN] 检测 bar_mixed.log: 候选为 UTF‑8/GBK, 进入仅报告模式。</text>
+
+  <!-- Bottom-right: progress + control buttons -->
+  <rect class="panel" x="760" y="462" width="275" height="149" />
+  <rect class="panel" x="770" y="472" width="255" height="16" />
+  <text class="label" x="774" y="484">进度: 40% (12/30 files)</text>
+
+  <rect class="button" x="770" y="500" width="120" height="24" />
+  <text class="button-text" x="778" y="516">取消当前批处理</text>
+
+  <rect class="button" x="770" y="530" width="120" height="24" />
+  <text class="button-text" x="778" y="546">刷新结果</text>
+
+  <rect class="button" x="905" y="530" width="120" height="24" />
+  <text class="button-text" x="913" y="546">退出程序</text>
+
+  <!-- Global safety warning panel -->
+  <rect class="warning" x="5" y="610" width="1030" height="26" />
+  <text class="warning-text" x="12" y="626">提示：编码检测结果基于启发式算法，对重要/生产数据建议先在少量样本上验证，并开启备份或输出到新目录。</text>
+</svg>

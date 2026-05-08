@@ -1,0 +1,809 @@
+{
+    "Errors":  0,
+    "Passed":  0,
+    "OverallAccuracy":  0,
+    "DetailedResults":  [
+                            {
+                                "FileSize":  7100,
+                                "ExpectedEncoding":  "EUC-JP",
+                                "Timestamp":  "2025-11-13 22:04:36",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_jp\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  36.768100000000004,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  71,
+                                "ExpectedEncoding":  "EUC-JP",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_jp\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  24.3031,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  63000,
+                                "ExpectedEncoding":  "EUC-KR",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_kr\\large.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  22.8607,
+                                "Result":  "FAIL",
+                                "File":  "large.txt"
+                            },
+                            {
+                                "FileSize":  6300,
+                                "ExpectedEncoding":  "EUC-KR",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_kr\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  25.8454,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  63,
+                                "ExpectedEncoding":  "EUC-KR",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_kr\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  25.8623,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  7900,
+                                "ExpectedEncoding":  "GB2312",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gb2312\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  24.4751,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  79,
+                                "ExpectedEncoding":  "GB2312",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gb2312\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  24.3782,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  79000,
+                                "ExpectedEncoding":  "GBK",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gbk\\large.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  23.543200000000002,
+                                "Result":  "FAIL",
+                                "File":  "large.txt"
+                            },
+                            {
+                                "FileSize":  7900,
+                                "ExpectedEncoding":  "GBK",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gbk\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  23.4659,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  79,
+                                "ExpectedEncoding":  "GBK",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gbk\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  24.521600000000003,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  72,
+                                "ExpectedEncoding":  "ISO-8859-1",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\iso88591\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  24.0741,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  73000,
+                                "ExpectedEncoding":  "Shift_JIS",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\shift_jis\\large.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  25.6828,
+                                "Result":  "FAIL",
+                                "File":  "large.txt"
+                            },
+                            {
+                                "FileSize":  7300,
+                                "ExpectedEncoding":  "Shift_JIS",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\shift_jis\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  27.7325,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  73,
+                                "ExpectedEncoding":  "Shift_JIS",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\shift_jis\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  25.9737,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  73202,
+                                "ExpectedEncoding":  "UTF-16BE",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16be\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  23.889300000000002,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  734,
+                                "ExpectedEncoding":  "UTF-16BE",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16be\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  23.0519,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  49000,
+                                "ExpectedEncoding":  "UTF-16LE",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16le\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  22.476000000000003,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  490,
+                                "ExpectedEncoding":  "UTF-16LE",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16le\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  28.293300000000002,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  490000,
+                                "ExpectedEncoding":  "UTF-8 BOM",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_bom\\large.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  22.9218,
+                                "Result":  "FAIL",
+                                "File":  "large.txt"
+                            },
+                            {
+                                "FileSize":  49000,
+                                "ExpectedEncoding":  "UTF-8 BOM",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_bom\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  27.631,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  490,
+                                "ExpectedEncoding":  "UTF-8 BOM",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_bom\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  25.462200000000003,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  490000,
+                                "ExpectedEncoding":  "UTF-8",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_no_bom\\large.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  24.8705,
+                                "Result":  "FAIL",
+                                "File":  "large.txt"
+                            },
+                            {
+                                "FileSize":  49000,
+                                "ExpectedEncoding":  "UTF-8",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_no_bom\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  26.736,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  490,
+                                "ExpectedEncoding":  "UTF-8",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_no_bom\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  23.7815,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            },
+                            {
+                                "FileSize":  7200,
+                                "ExpectedEncoding":  "Windows-1252",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\windows1252\\medium.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  26.430500000000002,
+                                "Result":  "FAIL",
+                                "File":  "medium.txt"
+                            },
+                            {
+                                "FileSize":  72,
+                                "ExpectedEncoding":  "Windows-1252",
+                                "Timestamp":  "2025-11-13 22:04:37",
+                                "Confidence":  "",
+                                "Output":  {
+
+                                           },
+                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\windows1252\\small.txt",
+                                "DetectedEncoding":  "",
+                                "Duration":  24.156000000000002,
+                                "Result":  "FAIL",
+                                "File":  "small.txt"
+                            }
+                        ],
+    "Failed":  26,
+    "EncodingStats":  {
+                          "euc_kr":  {
+                                         "Encoding":  "EUC-KR",
+                                         "TotalDuration":  74.568400000000011,
+                                         "Pass":  0,
+                                         "Accuracy":  0,
+                                         "Fail":  3,
+                                         "Tests":  [
+                                                       {
+                                                           "FileSize":  63000,
+                                                           "ExpectedEncoding":  "EUC-KR",
+                                                           "Timestamp":  "2025-11-13 22:04:37",
+                                                           "Confidence":  "",
+                                                           "Output":  "",
+                                                           "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_kr\\large.txt",
+                                                           "DetectedEncoding":  "",
+                                                           "Duration":  22.8607,
+                                                           "Result":  "FAIL",
+                                                           "File":  "large.txt"
+                                                       },
+                                                       {
+                                                           "FileSize":  6300,
+                                                           "ExpectedEncoding":  "EUC-KR",
+                                                           "Timestamp":  "2025-11-13 22:04:37",
+                                                           "Confidence":  "",
+                                                           "Output":  "",
+                                                           "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_kr\\medium.txt",
+                                                           "DetectedEncoding":  "",
+                                                           "Duration":  25.8454,
+                                                           "Result":  "FAIL",
+                                                           "File":  "medium.txt"
+                                                       },
+                                                       {
+                                                           "FileSize":  63,
+                                                           "ExpectedEncoding":  "EUC-KR",
+                                                           "Timestamp":  "2025-11-13 22:04:37",
+                                                           "Confidence":  "",
+                                                           "Output":  "",
+                                                           "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_kr\\small.txt",
+                                                           "DetectedEncoding":  "",
+                                                           "Duration":  25.8623,
+                                                           "Result":  "FAIL",
+                                                           "File":  "small.txt"
+                                                       }
+                                                   ],
+                                         "Total":  3,
+                                         "AvgDuration":  24.856133333333336
+                                     },
+                          "utf8_no_bom":  {
+                                              "Encoding":  "UTF-8",
+                                              "TotalDuration":  75.388,
+                                              "Pass":  0,
+                                              "Accuracy":  0,
+                                              "Fail":  3,
+                                              "Tests":  [
+                                                            {
+                                                                "FileSize":  490000,
+                                                                "ExpectedEncoding":  "UTF-8",
+                                                                "Timestamp":  "2025-11-13 22:04:37",
+                                                                "Confidence":  "",
+                                                                "Output":  "",
+                                                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_no_bom\\large.txt",
+                                                                "DetectedEncoding":  "",
+                                                                "Duration":  24.8705,
+                                                                "Result":  "FAIL",
+                                                                "File":  "large.txt"
+                                                            },
+                                                            {
+                                                                "FileSize":  49000,
+                                                                "ExpectedEncoding":  "UTF-8",
+                                                                "Timestamp":  "2025-11-13 22:04:37",
+                                                                "Confidence":  "",
+                                                                "Output":  "",
+                                                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_no_bom\\medium.txt",
+                                                                "DetectedEncoding":  "",
+                                                                "Duration":  26.736,
+                                                                "Result":  "FAIL",
+                                                                "File":  "medium.txt"
+                                                            },
+                                                            {
+                                                                "FileSize":  490,
+                                                                "ExpectedEncoding":  "UTF-8",
+                                                                "Timestamp":  "2025-11-13 22:04:37",
+                                                                "Confidence":  "",
+                                                                "Output":  "",
+                                                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_no_bom\\small.txt",
+                                                                "DetectedEncoding":  "",
+                                                                "Duration":  23.7815,
+                                                                "Result":  "FAIL",
+                                                                "File":  "small.txt"
+                                                            }
+                                                        ],
+                                              "Total":  3,
+                                              "AvgDuration":  25.129333333333335
+                                          },
+                          "windows1252":  {
+                                              "Encoding":  "Windows-1252",
+                                              "TotalDuration":  50.5865,
+                                              "Pass":  0,
+                                              "Accuracy":  0,
+                                              "Fail":  2,
+                                              "Tests":  [
+                                                            {
+                                                                "FileSize":  7200,
+                                                                "ExpectedEncoding":  "Windows-1252",
+                                                                "Timestamp":  "2025-11-13 22:04:37",
+                                                                "Confidence":  "",
+                                                                "Output":  "",
+                                                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\windows1252\\medium.txt",
+                                                                "DetectedEncoding":  "",
+                                                                "Duration":  26.430500000000002,
+                                                                "Result":  "FAIL",
+                                                                "File":  "medium.txt"
+                                                            },
+                                                            {
+                                                                "FileSize":  72,
+                                                                "ExpectedEncoding":  "Windows-1252",
+                                                                "Timestamp":  "2025-11-13 22:04:37",
+                                                                "Confidence":  "",
+                                                                "Output":  "",
+                                                                "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\windows1252\\small.txt",
+                                                                "DetectedEncoding":  "",
+                                                                "Duration":  24.156000000000002,
+                                                                "Result":  "FAIL",
+                                                                "File":  "small.txt"
+                                                            }
+                                                        ],
+                                              "Total":  2,
+                                              "AvgDuration":  25.29325
+                                          },
+                          "iso88591":  {
+                                           "Encoding":  "ISO-8859-1",
+                                           "TotalDuration":  24.0741,
+                                           "Pass":  0,
+                                           "Accuracy":  0,
+                                           "Fail":  1,
+                                           "Tests":  [
+                                                         {
+                                                             "FileSize":  72,
+                                                             "ExpectedEncoding":  "ISO-8859-1",
+                                                             "Timestamp":  "2025-11-13 22:04:37",
+                                                             "Confidence":  "",
+                                                             "Output":  "",
+                                                             "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\iso88591\\small.txt",
+                                                             "DetectedEncoding":  "",
+                                                             "Duration":  24.0741,
+                                                             "Result":  "FAIL",
+                                                             "File":  "small.txt"
+                                                         }
+                                                     ],
+                                           "Total":  1,
+                                           "AvgDuration":  24.0741
+                                       },
+                          "gb2312":  {
+                                         "Encoding":  "GB2312",
+                                         "TotalDuration":  48.853300000000004,
+                                         "Pass":  0,
+                                         "Accuracy":  0,
+                                         "Fail":  2,
+                                         "Tests":  [
+                                                       {
+                                                           "FileSize":  7900,
+                                                           "ExpectedEncoding":  "GB2312",
+                                                           "Timestamp":  "2025-11-13 22:04:37",
+                                                           "Confidence":  "",
+                                                           "Output":  "",
+                                                           "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gb2312\\medium.txt",
+                                                           "DetectedEncoding":  "",
+                                                           "Duration":  24.4751,
+                                                           "Result":  "FAIL",
+                                                           "File":  "medium.txt"
+                                                       },
+                                                       {
+                                                           "FileSize":  79,
+                                                           "ExpectedEncoding":  "GB2312",
+                                                           "Timestamp":  "2025-11-13 22:04:37",
+                                                           "Confidence":  "",
+                                                           "Output":  "",
+                                                           "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gb2312\\small.txt",
+                                                           "DetectedEncoding":  "",
+                                                           "Duration":  24.3782,
+                                                           "Result":  "FAIL",
+                                                           "File":  "small.txt"
+                                                       }
+                                                   ],
+                                         "Total":  2,
+                                         "AvgDuration":  24.426650000000002
+                                     },
+                          "utf8_bom":  {
+                                           "Encoding":  "UTF-8 BOM",
+                                           "TotalDuration":  76.015000000000015,
+                                           "Pass":  0,
+                                           "Accuracy":  0,
+                                           "Fail":  3,
+                                           "Tests":  [
+                                                         {
+                                                             "FileSize":  490000,
+                                                             "ExpectedEncoding":  "UTF-8 BOM",
+                                                             "Timestamp":  "2025-11-13 22:04:37",
+                                                             "Confidence":  "",
+                                                             "Output":  "",
+                                                             "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_bom\\large.txt",
+                                                             "DetectedEncoding":  "",
+                                                             "Duration":  22.9218,
+                                                             "Result":  "FAIL",
+                                                             "File":  "large.txt"
+                                                         },
+                                                         {
+                                                             "FileSize":  49000,
+                                                             "ExpectedEncoding":  "UTF-8 BOM",
+                                                             "Timestamp":  "2025-11-13 22:04:37",
+                                                             "Confidence":  "",
+                                                             "Output":  "",
+                                                             "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_bom\\medium.txt",
+                                                             "DetectedEncoding":  "",
+                                                             "Duration":  27.631,
+                                                             "Result":  "FAIL",
+                                                             "File":  "medium.txt"
+                                                         },
+                                                         {
+                                                             "FileSize":  490,
+                                                             "ExpectedEncoding":  "UTF-8 BOM",
+                                                             "Timestamp":  "2025-11-13 22:04:37",
+                                                             "Confidence":  "",
+                                                             "Output":  "",
+                                                             "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf8_bom\\small.txt",
+                                                             "DetectedEncoding":  "",
+                                                             "Duration":  25.462200000000003,
+                                                             "Result":  "FAIL",
+                                                             "File":  "small.txt"
+                                                         }
+                                                     ],
+                                           "Total":  3,
+                                           "AvgDuration":  25.338333333333338
+                                       },
+                          "shift_jis":  {
+                                            "Encoding":  "Shift_JIS",
+                                            "TotalDuration":  79.38900000000001,
+                                            "Pass":  0,
+                                            "Accuracy":  0,
+                                            "Fail":  3,
+                                            "Tests":  [
+                                                          {
+                                                              "FileSize":  73000,
+                                                              "ExpectedEncoding":  "Shift_JIS",
+                                                              "Timestamp":  "2025-11-13 22:04:37",
+                                                              "Confidence":  "",
+                                                              "Output":  "",
+                                                              "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\shift_jis\\large.txt",
+                                                              "DetectedEncoding":  "",
+                                                              "Duration":  25.6828,
+                                                              "Result":  "FAIL",
+                                                              "File":  "large.txt"
+                                                          },
+                                                          {
+                                                              "FileSize":  7300,
+                                                              "ExpectedEncoding":  "Shift_JIS",
+                                                              "Timestamp":  "2025-11-13 22:04:37",
+                                                              "Confidence":  "",
+                                                              "Output":  "",
+                                                              "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\shift_jis\\medium.txt",
+                                                              "DetectedEncoding":  "",
+                                                              "Duration":  27.7325,
+                                                              "Result":  "FAIL",
+                                                              "File":  "medium.txt"
+                                                          },
+                                                          {
+                                                              "FileSize":  73,
+                                                              "ExpectedEncoding":  "Shift_JIS",
+                                                              "Timestamp":  "2025-11-13 22:04:37",
+                                                              "Confidence":  "",
+                                                              "Output":  "",
+                                                              "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\shift_jis\\small.txt",
+                                                              "DetectedEncoding":  "",
+                                                              "Duration":  25.9737,
+                                                              "Result":  "FAIL",
+                                                              "File":  "small.txt"
+                                                          }
+                                                      ],
+                                            "Total":  3,
+                                            "AvgDuration":  26.463000000000005
+                                        },
+                          "euc_jp":  {
+                                         "Encoding":  "EUC-JP",
+                                         "TotalDuration":  61.071200000000005,
+                                         "Pass":  0,
+                                         "Accuracy":  0,
+                                         "Fail":  2,
+                                         "Tests":  [
+                                                       {
+                                                           "FileSize":  7100,
+                                                           "ExpectedEncoding":  "EUC-JP",
+                                                           "Timestamp":  "2025-11-13 22:04:36",
+                                                           "Confidence":  "",
+                                                           "Output":  "",
+                                                           "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_jp\\medium.txt",
+                                                           "DetectedEncoding":  "",
+                                                           "Duration":  36.768100000000004,
+                                                           "Result":  "FAIL",
+                                                           "File":  "medium.txt"
+                                                       },
+                                                       {
+                                                           "FileSize":  71,
+                                                           "ExpectedEncoding":  "EUC-JP",
+                                                           "Timestamp":  "2025-11-13 22:04:37",
+                                                           "Confidence":  "",
+                                                           "Output":  "",
+                                                           "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\euc_jp\\small.txt",
+                                                           "DetectedEncoding":  "",
+                                                           "Duration":  24.3031,
+                                                           "Result":  "FAIL",
+                                                           "File":  "small.txt"
+                                                       }
+                                                   ],
+                                         "Total":  2,
+                                         "AvgDuration":  30.535600000000002
+                                     },
+                          "gbk":  {
+                                      "Encoding":  "GBK",
+                                      "TotalDuration":  71.53070000000001,
+                                      "Pass":  0,
+                                      "Accuracy":  0,
+                                      "Fail":  3,
+                                      "Tests":  [
+                                                    {
+                                                        "FileSize":  79000,
+                                                        "ExpectedEncoding":  "GBK",
+                                                        "Timestamp":  "2025-11-13 22:04:37",
+                                                        "Confidence":  "",
+                                                        "Output":  "",
+                                                        "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gbk\\large.txt",
+                                                        "DetectedEncoding":  "",
+                                                        "Duration":  23.543200000000002,
+                                                        "Result":  "FAIL",
+                                                        "File":  "large.txt"
+                                                    },
+                                                    {
+                                                        "FileSize":  7900,
+                                                        "ExpectedEncoding":  "GBK",
+                                                        "Timestamp":  "2025-11-13 22:04:37",
+                                                        "Confidence":  "",
+                                                        "Output":  "",
+                                                        "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gbk\\medium.txt",
+                                                        "DetectedEncoding":  "",
+                                                        "Duration":  23.4659,
+                                                        "Result":  "FAIL",
+                                                        "File":  "medium.txt"
+                                                    },
+                                                    {
+                                                        "FileSize":  79,
+                                                        "ExpectedEncoding":  "GBK",
+                                                        "Timestamp":  "2025-11-13 22:04:37",
+                                                        "Confidence":  "",
+                                                        "Output":  "",
+                                                        "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\gbk\\small.txt",
+                                                        "DetectedEncoding":  "",
+                                                        "Duration":  24.521600000000003,
+                                                        "Result":  "FAIL",
+                                                        "File":  "small.txt"
+                                                    }
+                                                ],
+                                      "Total":  3,
+                                      "AvgDuration":  23.843566666666671
+                                  },
+                          "utf16le":  {
+                                          "Encoding":  "UTF-16LE",
+                                          "TotalDuration":  50.7693,
+                                          "Pass":  0,
+                                          "Accuracy":  0,
+                                          "Fail":  2,
+                                          "Tests":  [
+                                                        {
+                                                            "FileSize":  49000,
+                                                            "ExpectedEncoding":  "UTF-16LE",
+                                                            "Timestamp":  "2025-11-13 22:04:37",
+                                                            "Confidence":  "",
+                                                            "Output":  "",
+                                                            "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16le\\medium.txt",
+                                                            "DetectedEncoding":  "",
+                                                            "Duration":  22.476000000000003,
+                                                            "Result":  "FAIL",
+                                                            "File":  "medium.txt"
+                                                        },
+                                                        {
+                                                            "FileSize":  490,
+                                                            "ExpectedEncoding":  "UTF-16LE",
+                                                            "Timestamp":  "2025-11-13 22:04:37",
+                                                            "Confidence":  "",
+                                                            "Output":  "",
+                                                            "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16le\\small.txt",
+                                                            "DetectedEncoding":  "",
+                                                            "Duration":  28.293300000000002,
+                                                            "Result":  "FAIL",
+                                                            "File":  "small.txt"
+                                                        }
+                                                    ],
+                                          "Total":  2,
+                                          "AvgDuration":  25.38465
+                                      },
+                          "utf16be":  {
+                                          "Encoding":  "UTF-16BE",
+                                          "TotalDuration":  46.9412,
+                                          "Pass":  0,
+                                          "Accuracy":  0,
+                                          "Fail":  2,
+                                          "Tests":  [
+                                                        {
+                                                            "FileSize":  73202,
+                                                            "ExpectedEncoding":  "UTF-16BE",
+                                                            "Timestamp":  "2025-11-13 22:04:37",
+                                                            "Confidence":  "",
+                                                            "Output":  "",
+                                                            "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16be\\medium.txt",
+                                                            "DetectedEncoding":  "",
+                                                            "Duration":  23.889300000000002,
+                                                            "Result":  "FAIL",
+                                                            "File":  "medium.txt"
+                                                        },
+                                                        {
+                                                            "FileSize":  734,
+                                                            "ExpectedEncoding":  "UTF-16BE",
+                                                            "Timestamp":  "2025-11-13 22:04:37",
+                                                            "Confidence":  "",
+                                                            "Output":  "",
+                                                            "FilePath":  "D:\\SynologyDrive\\Progs\\_Delphi\\DeepCharset\\test_data\\encoding_detection\\utf16be\\small.txt",
+                                                            "DetectedEncoding":  "",
+                                                            "Duration":  23.0519,
+                                                            "Result":  "FAIL",
+                                                            "File":  "small.txt"
+                                                        }
+                                                    ],
+                                          "Total":  2,
+                                          "AvgDuration":  23.4706
+                                      }
+                      },
+    "TotalTests":  26,
+    "GeneratedAt":  "2025-11-13T22:04:37.9265333+08:00"
+}

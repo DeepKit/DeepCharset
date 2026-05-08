@@ -29,14 +29,14 @@ begin
   begin
     Result.WorkingSetKB := pmc.WorkingSetSize div 1024;
     Result.PeakWorkingSetKB := pmc.PeakWorkingSetSize div 1024;
-    Result.PrivateBytesKB := 0; // ä»… PROCESS_MEMORY_COUNTERS å¯ç”¨ï¼Œçœç•¥ç§æœ‰å­—èŠ‚
+    Result.PrivateBytesKB := 0; // ½ö PROCESS_MEMORY_COUNTERS ¿ÉÓÃ£¬Ê¡ÂÔË½ÓĞ×Ö½Ú
     Result.PagefileUsageKB := pmc.PagefileUsage div 1024;
   end;
 end;
 
 function FormatMemoryStats(const S: TProcessMemoryStats): string;
 begin
-  Result := Format('å†…å­˜: WS=%dKB, WS_Peak=%dKB, Private=%dKB, PageFile=%dKB',
+  Result := Format('ÄÚ´æ: WS=%dKB, WS_Peak=%dKB, Private=%dKB, PageFile=%dKB',
     [S.WorkingSetKB, S.PeakWorkingSetKB, S.PrivateBytesKB, S.PagefileUsageKB]);
 end;
 

@@ -1,0 +1,431 @@
+﻿object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = '码到成功：文件编码转换工具'
+  ClientHeight = 616
+  ClientWidth = 1040
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnCreate = FormCreate
+  TextHeight = 15
+  object Splitter1: TSplitter
+    Left = 0
+    Top = 65
+    Width = 1040
+    Height = 3
+    Cursor = crVSplit
+    Align = alTop
+    ExplicitLeft = 1
+    ExplicitTop = 1
+    ExplicitWidth = 113
+  end
+  object Splitter2: TSplitter
+    Left = 0
+    Top = 613
+    Width = 1040
+    Height = 3
+    Cursor = crVSplit
+    Align = alBottom
+    ExplicitTop = 49
+    ExplicitWidth = 961
+  end
+  object Splitter3: TSplitter
+    Left = 225
+    Top = 68
+    Height = 521
+    ExplicitLeft = 0
+    ExplicitTop = 44
+    ExplicitHeight = 961
+  end
+  object Splitter4: TSplitter
+    Left = 757
+    Top = 68
+    Height = 521
+    Align = alRight
+    ExplicitTop = 42
+    ExplicitHeight = 409
+  end
+  object Splitter9: TSplitter
+    Left = 0
+    Top = 589
+    Width = 1040
+    Height = 3
+    Cursor = crVSplit
+    Align = alBottom
+    ExplicitLeft = 754
+    ExplicitTop = 44
+    ExplicitWidth = 412
+  end
+  object Panel1: TPanel
+    Left = 0
+    Top = 592
+    Width = 1040
+    Height = 21
+    Align = alBottom
+    TabOrder = 0
+    Visible = False
+    object Splitter7: TSplitter
+      Left = 1036
+      Top = 1
+      Height = 19
+      Align = alRight
+      ExplicitLeft = 600
+      ExplicitHeight = 155
+    end
+    object Splitter8: TSplitter
+      Left = 1
+      Top = 1
+      Height = 19
+      ExplicitLeft = 778
+      ExplicitTop = 47
+      ExplicitHeight = 113
+    end
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 0
+    Width = 1040
+    Height = 65
+    Align = alTop
+    TabOrder = 1
+    DesignSize = (
+      1040
+      65)
+    object lblProgress: TLabel
+      Left = 12
+      Top = 38
+      Width = 52
+      Height = 15
+      Anchors = [akLeft, akTop, akRight]
+      Caption = '准备就绪'
+      Visible = False
+    end
+    object ComboBox1: TComboBox
+      Left = 11
+      Top = 6
+      Width = 78
+      Height = 23
+      TabOrder = 0
+      Text = 'ComboBox1'
+      OnChange = cmbLanguageChange
+    end
+    object Button2: TButton
+      Left = 786
+      Top = 92
+      Width = 75
+      Height = 25
+      Caption = '退出'
+      TabOrder = 1
+    end
+    object CBoxDirHistory: TComboBox
+      Left = 104
+      Top = 7
+      Width = 646
+      Height = 23
+      TabOrder = 2
+    end
+    object ProgressBar1: TProgressBar
+      Left = 104
+      Top = 36
+      Width = 265
+      Height = 17
+      Anchors = [akLeft, akTop, akRight]
+      TabOrder = 3
+      Visible = False
+    end
+    object btnRefresh: TButton
+      Left = 786
+      Top = 7
+      Width = 98
+      Height = 22
+      Anchors = [akTop, akRight]
+      Caption = '刷新'
+      TabOrder = 4
+      OnClick = btnRefreshClick
+    end
+    object btnCancel: TButton
+      Left = 909
+      Top = 37
+      Width = 98
+      Height = 22
+      Anchors = [akTop, akRight]
+      Caption = '取消操作'
+      TabOrder = 5
+      Visible = False
+    end
+    object btnClose: TButton
+      Left = 909
+      Top = 7
+      Width = 98
+      Height = 22
+      Anchors = [akTop, akRight]
+      Caption = '退出软件'
+      TabOrder = 6
+      OnClick = btnCloseClick
+    end
+  end
+  object Panel3: TPanel
+    Left = 0
+    Top = 68
+    Width = 225
+    Height = 521
+    Align = alLeft
+    TabOrder = 2
+    ExplicitTop = 44
+    ExplicitHeight = 409
+    object DriveComboBox1: TDriveComboBox
+      AlignWithMargins = True
+      Left = 11
+      Top = 11
+      Width = 203
+      Height = 21
+      Margins.Left = 10
+      Margins.Top = 10
+      Margins.Right = 10
+      Margins.Bottom = 10
+      Align = alTop
+      TabOrder = 0
+      OnChange = DriveComboBox1Change
+    end
+    object DirectoryListBox1: TDirectoryListBox
+      AlignWithMargins = True
+      Left = 11
+      Top = 62
+      Width = 203
+      Height = 448
+      Margins.Left = 10
+      Margins.Top = 20
+      Margins.Right = 10
+      Margins.Bottom = 10
+      Align = alClient
+      TabOrder = 1
+      OnChange = DirectoryListBox1Change
+      OnMouseDown = DirectoryListBox1MouseDown
+      ExplicitHeight = 336
+    end
+  end
+  object Panel4: TPanel
+    Left = 760
+    Top = 68
+    Width = 280
+    Height = 521
+    Align = alRight
+    TabOrder = 3
+    ExplicitTop = 44
+    ExplicitHeight = 409
+    object Splitter6: TSplitter
+      Left = 1
+      Top = 1
+      Width = 278
+      Height = 3
+      Cursor = crVSplit
+      Align = alTop
+      ExplicitTop = 145
+      ExplicitWidth = 183
+    end
+    object TreeViewEncodings: TTreeView
+      AlignWithMargins = True
+      Left = 4
+      Top = 7
+      Width = 269
+      Height = 510
+      Margins.Right = 6
+      Align = alClient
+      HideSelection = False
+      Indent = 19
+      ReadOnly = True
+      RightClickSelect = True
+      TabOrder = 0
+      OnClick = TreeViewEncodingsClick
+      ExplicitHeight = 398
+    end
+  end
+  object Panel5: TPanel
+    Left = 228
+    Top = 68
+    Width = 529
+    Height = 521
+    Align = alClient
+    TabOrder = 4
+    ExplicitTop = 44
+    ExplicitHeight = 409
+    object Splitter5: TSplitter
+      Left = 1
+      Top = 73
+      Width = 527
+      Height = 3
+      Cursor = crVSplit
+      Align = alTop
+      ExplicitTop = 1
+      ExplicitWidth = 583
+    end
+    object StringGrid1: TStringGrid
+      Left = 73
+      Top = 76
+      Width = 455
+      Height = 372
+      Align = alClient
+      ColCount = 3
+      FixedCols = 0
+      RowCount = 2
+      Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goDrawFocusSelected, goRowSelect]
+      PopupMenu = GridPopupMenu
+      TabOrder = 0
+      OnClick = StringGrid1Click
+      OnContextPopup = StringGrid1ContextPopup
+      OnSelectCell = StringGridSelectCell
+      ExplicitTop = 46
+      ExplicitHeight = 362
+    end
+    object Panel7: TPanel
+      Left = 1
+      Top = 76
+      Width = 72
+      Height = 372
+      Align = alLeft
+      TabOrder = 1
+      ExplicitTop = 46
+      ExplicitHeight = 362
+      object CheckListBox1: TCheckListBox
+        Left = 1
+        Top = 1
+        Width = 70
+        Height = 370
+        Align = alClient
+        Columns = 1
+        ItemHeight = 17
+        TabOrder = 0
+        ExplicitHeight = 360
+      end
+    end
+    object Panel8: TPanel
+      Left = 1
+      Top = 1
+      Width = 527
+      Height = 72
+      Align = alTop
+      TabOrder = 2
+      object btnConvert: TButton
+        Left = 183
+        Top = 36
+        Width = 162
+        Height = 25
+        Caption = '全部转换'
+        TabOrder = 0
+        OnClick = btnConvertClick
+      end
+      object btnSingleFile: TButton
+        Left = 351
+        Top = 36
+        Width = 171
+        Height = 25
+        Caption = '单个文件转换'
+        TabOrder = 1
+        OnClick = btnSingleFileClick
+      end
+      object btnToggleSelect: TButton
+        Left = 5
+        Top = 36
+        Width = 172
+        Height = 25
+        Caption = '全选/取消'
+        TabOrder = 2
+        OnClick = btnToggleSelectClick
+      end
+      object chkIncludeSubdirs: TCheckBox
+        Left = 355
+        Top = 13
+        Width = 134
+        Height = 17
+        Caption = '包括下级子目录'
+        TabOrder = 3
+      end
+      object lblDepth: TLabel
+        Left = 495
+        Top = 16
+        Width = 24
+        Height = 15
+        Caption = '层级'
+      end
+      object SpinEditDepth: TSpinEdit
+        Left = 523
+        Top = 11
+        Width = 43
+        Height = 22
+        MaxValue = 50
+        MinValue = 1
+        TabOrder = 7
+        Value = 2
+        Visible = False
+      end
+      object btnSelectAllExt: TButton
+        Left = 5
+        Top = 5
+        Width = 172
+        Height = 25
+        Caption = '全选类型'
+        TabOrder = 4
+        OnClick = btnSelectAllExtClick
+      end
+      object btnShowContent: TButton
+        Left = 183
+        Top = 5
+        Width = 162
+        Height = 25
+        Caption = '查看内容'
+        TabOrder = 5
+        OnClick = btnShowContentClick
+      end
+    end
+    object MemLog: TMemo
+      Left = 1
+      Top = 448
+      Width = 527
+      Height = 72
+      Align = alBottom
+      Lines.Strings = (
+        'MemLog')
+      ScrollBars = ssVertical
+      TabOrder = 3
+      ExplicitTop = 312
+    end
+  end
+  object GridPopupMenu: TPopupMenu
+    Left = 344
+    Top = 248
+    object MenuItemConvert: TMenuItem
+      Caption = '转换选中文件'
+      OnClick = MenuItemConvertClick
+    end
+    object MenuItemConvertCurrent: TMenuItem
+      Caption = '转换当前文件'
+      OnClick = MenuItemConvertCurrentClick
+    end
+    object MenuItemConvertAllFiles: TMenuItem
+      Caption = '转换整个目录'
+      OnClick = MenuItemConvertAllFilesClick
+    end
+    object N1: TMenuItem
+      Caption = '-'
+    end
+    object MenuItemToggleSelect: TMenuItem
+      Caption = '全选/取消'
+      OnClick = MenuItemToggleSelectClick
+    end
+    object MenuItemViewContent: TMenuItem
+      Caption = '查看内容'
+      OnClick = MenuItemViewContentClick
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
+    object MenuItemCopyFullPath: TMenuItem
+      Caption = '复制全路径文件名'
+      OnClick = MenuItemCopyFullPathClick
+    end
+  end
+end

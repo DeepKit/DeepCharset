@@ -1,8 +1,8 @@
-object ExceptionReportForm: TExceptionReportForm
+﻿object ExceptionReportForm: TExceptionReportForm
   Left = 0
   Top = 0
   BorderStyle = bsDialog
-  Caption = #24322#24120#25253#21578
+  Caption = '异常报告'
   ClientHeight = 500
   ClientWidth = 700
   Color = clBtnFace
@@ -31,7 +31,7 @@ object ExceptionReportForm: TExceptionReportForm
       Top = 16
       Width = 225
       Height = 16
-      Caption = #31243#24207#21457#29983#20102#19968#20010#26410#22788#29702#30340#24322#24120
+      Caption = '程序发生了一个未处理的异常'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -13
@@ -60,7 +60,7 @@ object ExceptionReportForm: TExceptionReportForm
       Top = 8
       Width = 75
       Height = 25
-      Caption = #20851#38381
+      Caption = '关闭'
       TabOrder = 0
       OnClick = btnCloseClick
     end
@@ -69,7 +69,7 @@ object ExceptionReportForm: TExceptionReportForm
       Top = 8
       Width = 120
       Height = 25
-      Caption = #22797#21046#21040#21098#36148#26495
+      Caption = '复制到剪贴板'
       TabOrder = 1
       OnClick = btnCopyToClipboardClick
     end
@@ -78,7 +78,7 @@ object ExceptionReportForm: TExceptionReportForm
       Top = 8
       Width = 120
       Height = 25
-      Caption = #20445#23384#21040#25991#20214'...'
+      Caption = '保存到文件...'
       TabOrder = 2
       OnClick = btnSaveToFileClick
     end
@@ -100,7 +100,7 @@ object ExceptionReportForm: TExceptionReportForm
       Align = alClient
       TabOrder = 0
       object TabSheetException: TTabSheet
-        Caption = #24322#24120#20449#24687
+        Caption = '异常信息'
         object MemoException: TMemo
           Left = 0
           Top = 0
@@ -119,7 +119,7 @@ object ExceptionReportForm: TExceptionReportForm
         end
       end
       object TabSheetStackTrace: TTabSheet
-        Caption = #35843#29992#26632
+        Caption = '调用栈'
         ImageIndex = 1
         object MemoStackTrace: TMemo
           Left = 0
@@ -139,7 +139,7 @@ object ExceptionReportForm: TExceptionReportForm
         end
       end
       object TabSheetSystem: TTabSheet
-        Caption = #31995#32479#20449#24687
+        Caption = '系统信息'
         ImageIndex = 2
         object MemoSystemInfo: TMemo
           Left = 0
@@ -172,7 +172,7 @@ object ExceptionReportForm: TExceptionReportForm
   end
   object SaveDialog1: TSaveDialog
     DefaultExt = 'txt'
-    Filter = #25991#26412#25991#20214' (*.txt)|*.txt|'#26085#24535#25991#20214' (*.log)|*.log|'#25152#26377#25991#20214' (*.*)|*.*'
+    Filter = '文本文件 (*.txt)|*.txt|日志文件 (*.log)|*.log|所有文件 (*.*)|*.*'
     Left = 24
     Top = 416
   end

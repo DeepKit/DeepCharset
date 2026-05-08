@@ -1,14 +1,14 @@
 unit UtilsJclException;
 
 {
-  JCL å¼‚å¸¸è¿½è¸ªç³»ç»Ÿ
-  åŠŸèƒ½ï¼š
-  - å…¨å±€å¼‚å¸¸æ•è·å’Œè¿½è¸ª
-  - è¯¦ç»†çš„è°ƒç”¨æ ˆä¿¡æ¯
-  - å¼‚å¸¸æ—¥å¿—è‡ªåŠ¨ä¿å­˜
-  - ç³»ç»Ÿä¿¡æ¯æ”¶é›†
+  JCL Òì³£×·×ÙÏµÍ³
+  ¹¦ÄÜ£º
+  - È«¾ÖÒì³£²¶»ñºÍ×·×Ù
+  - ÏêÏ¸µÄµ÷ÓÃÕ»ĞÅÏ¢
+  - Òì³£ÈÕÖ¾×Ô¶¯±£´æ
+  - ÏµÍ³ĞÅÏ¢ÊÕ¼¯
   
-  ä¾èµ–ï¼šJEDI Code Library (JCL) 2024.12
+  ÒÀÀµ£ºJEDI Code Library (JCL) 2024.12
 }
 
 interface
@@ -22,8 +22,8 @@ uses
 
 type
   /// <summary>
-  /// JCL å¼‚å¸¸å¤„ç†å™¨ç±»
-  /// æä¾›å…¨å±€å¼‚å¸¸è¿½è¸ªå’Œè¯¦ç»†çš„è°ƒè¯•ä¿¡æ¯
+  /// JCL Òì³£´¦ÀíÆ÷Àà
+  /// Ìá¹©È«¾ÖÒì³£×·×ÙºÍÏêÏ¸µÄµ÷ÊÔĞÅÏ¢
   /// </summary>
   TJclExceptionHandler = class
   private
@@ -41,22 +41,22 @@ type
     constructor Create(const LogPath: string = '');
     destructor Destroy; override;
     
-    /// <summary>å¯ç”¨å¼‚å¸¸è¿½è¸ª</summary>
+    /// <summary>ÆôÓÃÒì³£×·×Ù</summary>
     procedure Enable;
     
-    /// <summary>ç¦ç”¨å¼‚å¸¸è¿½è¸ª</summary>
+    /// <summary>½ûÓÃÒì³£×·×Ù</summary>
     procedure Disable;
     
-    /// <summary>ä¿å­˜å¼‚å¸¸æŠ¥å‘Šåˆ°æ–‡ä»¶</summary>
+    /// <summary>±£´æÒì³£±¨¸æµ½ÎÄ¼ş</summary>
     procedure SaveExceptionReport(E: Exception; const AdditionalInfo: string = '');
     
-    /// <summary>è·å–å½“å‰è°ƒç”¨æ ˆä¿¡æ¯</summary>
+    /// <summary>»ñÈ¡µ±Ç°µ÷ÓÃÕ»ĞÅÏ¢</summary>
     function GetStackTrace: string;
     
-    /// <summary>è·å–æœ€åä¸€æ¬¡å¼‚å¸¸çš„è¯¦ç»†ä¿¡æ¯</summary>
+    /// <summary>»ñÈ¡×îºóÒ»´ÎÒì³£µÄÏêÏ¸ĞÅÏ¢</summary>
     function GetLastExceptionInfo: string;
     
-    /// <summary>æ¸…ç©ºå¼‚å¸¸æ—¥å¿—æ–‡ä»¶</summary>
+    /// <summary>Çå¿ÕÒì³£ÈÕÖ¾ÎÄ¼ş</summary>
     procedure ClearLogFile;
     
     property Enabled: Boolean read FEnabled;
@@ -64,11 +64,11 @@ type
     property AutoSave: Boolean read FAutoSave write FAutoSave;
   end;
 
-/// <summary>å…¨å±€å¼‚å¸¸å¤„ç†å™¨å®ä¾‹</summary>
+/// <summary>È«¾ÖÒì³£´¦ÀíÆ÷ÊµÀı</summary>
 function ExceptionHandler: TJclExceptionHandler;
 
 {$IFDEF USE_JCL}
-/// <summary>æ ¼å¼åŒ–è°ƒç”¨æ ˆä¿¡æ¯</summary>
+/// <summary>¸ñÊ½»¯µ÷ÓÃÕ»ĞÅÏ¢</summary>
 function FormatStackTrace(const StackInfo: TJclStackInfoList): string;
 {$ENDIF}
 
@@ -98,7 +98,7 @@ var
 begin
   Builder := TStringBuilder.Create;
   try
-    Builder.AppendLine('è°ƒç”¨æ ˆä¿¡æ¯:');
+    Builder.AppendLine('µ÷ÓÃÕ»ĞÅÏ¢:');
     Builder.AppendLine('----------------------------------------');
     
     for i := 0 to StackInfo.Count - 1 do
@@ -135,17 +135,17 @@ begin
   FEnabled := False;
   FAutoSave := True;
   
-  // è®¾ç½®æ—¥å¿—è·¯å¾„
+  // ÉèÖÃÈÕÖ¾Â·¾¶
   if LogPath <> '' then
     FLogPath := LogPath
   else
     FLogPath := TPath.Combine(ExtractFilePath(ParamStr(0)), 'Logs');
     
-  // ç¡®ä¿æ—¥å¿—ç›®å½•å­˜åœ¨
+  // È·±£ÈÕÖ¾Ä¿Â¼´æÔÚ
   if not TDirectory.Exists(FLogPath) then
     TDirectory.CreateDirectory(FLogPath);
     
-  // ç”Ÿæˆæ—¥å¿—æ–‡ä»¶åï¼ˆå¸¦æ—¶é—´æˆ³ï¼‰
+  // Éú³ÉÈÕÖ¾ÎÄ¼şÃû£¨´øÊ±¼ä´Á£©
   FLogFile := TPath.Combine(FLogPath, 
     Format('Exception_%s.log', [FormatDateTime('yyyymmdd_hhnnss', Now)]));
 end;
@@ -159,24 +159,24 @@ end;
 
 procedure TJclExceptionHandler.InitializeJCL;
 begin
-  // åˆå§‹åŒ– JCL å¼‚å¸¸è¿½è¸ª
+  // ³õÊ¼»¯ JCL Òì³£×·×Ù
   try
-    // JCL å¼‚å¸¸è¿½è¸ªå·²åœ¨ä¸»ç¨‹åºä¸­å¯ç”¨
-    // è¿™é‡Œåªéœ€è®°å½•æ—¥å¿—
+    // JCL Òì³£×·×ÙÒÑÔÚÖ÷³ÌĞòÖĞÆôÓÃ
+    // ÕâÀïÖ»Ğè¼ÇÂ¼ÈÕÖ¾
   except
     on E: Exception do
-      WriteToLogFile('åˆå§‹åŒ– JCL å¤±è´¥: ' + E.Message);
+      WriteToLogFile('³õÊ¼»¯ JCL Ê§°Ü: ' + E.Message);
   end;
 end;
 
 procedure TJclExceptionHandler.ShutdownJCL;
 begin
   try
-    // JCL å¼‚å¸¸è¿½è¸ªä¼šåœ¨ä¸»ç¨‹åºé€€å‡ºæ—¶è‡ªåŠ¨å…³é—­
-    // è¿™é‡Œåªéœ€è®°å½•æ—¥å¿—
+    // JCL Òì³£×·×Ù»áÔÚÖ÷³ÌĞòÍË³öÊ±×Ô¶¯¹Ø±Õ
+    // ÕâÀïÖ»Ğè¼ÇÂ¼ÈÕÖ¾
   except
     on E: Exception do
-      WriteToLogFile('å…³é—­ JCL å¤±è´¥: ' + E.Message);
+      WriteToLogFile('¹Ø±Õ JCL Ê§°Ü: ' + E.Message);
   end;
 end;
 
@@ -187,9 +187,9 @@ begin
     InitializeJCL;
     FEnabled := True;
     WriteToLogFile('========================================');
-    WriteToLogFile('JCL å¼‚å¸¸è¿½è¸ªç³»ç»Ÿå·²å¯ç”¨');
+    WriteToLogFile('JCL Òì³£×·×ÙÏµÍ³ÒÑÆôÓÃ');
     {$WARN IMPLICIT_STRING_CAST OFF}
-    WriteToLogFile('æ—¶é—´: ' + DateTimeToStr(Now));
+    WriteToLogFile('Ê±¼ä: ' + DateTimeToStr(Now));
     WriteToLogFile(GetSystemInfo);
     {$WARN IMPLICIT_STRING_CAST ON}
     WriteToLogFile('========================================');
@@ -202,10 +202,10 @@ begin
   begin
     WriteToLogFile('========================================');
     {$WARN IMPLICIT_STRING_CAST OFF}
-    WriteToLogFile('JCL å¼‚å¸¸è¿½è¸ªç³»ç»Ÿå·²ç¦ç”¨');
+    WriteToLogFile('JCL Òì³£×·×ÙÏµÍ³ÒÑ½ûÓÃ');
     {$WARN IMPLICIT_STRING_CAST ON}
     {$WARN IMPLICIT_STRING_CAST OFF}
-    WriteToLogFile('æ—¶é—´: ' + DateTimeToStr(Now));
+    WriteToLogFile('Ê±¼ä: ' + DateTimeToStr(Now));
     WriteToLogFile('========================================');
     {$WARN IMPLICIT_STRING_CAST ON}
     ShutdownJCL;
@@ -223,16 +223,16 @@ begin
   Builder := TStringBuilder.Create;
   try
     Builder.AppendLine('========================================');
-    Builder.AppendLine('ä¸Šå¸¸ä¿¡æ¯');
+    Builder.AppendLine('ÉÏ³£ĞÅÏ¢');
     Builder.AppendLine('========================================');
     {$WARN IMPLICIT_STRING_CAST OFF}
-    Builder.AppendFormat('æ—¶é—´: %s', [DateTimeToStr(Now)]).AppendLine;
-    Builder.AppendFormat('ä¸Šå¸¸ç±»å‹: %s', [E.ClassName]).AppendLine;
-    Builder.AppendFormat('ä¸Šå¸¸æ¶ˆæ¯: %s', [E.Message]).AppendLine;
+    Builder.AppendFormat('Ê±¼ä: %s', [DateTimeToStr(Now)]).AppendLine;
+    Builder.AppendFormat('ÉÏ³£ÀàĞÍ: %s', [E.ClassName]).AppendLine;
+    Builder.AppendFormat('ÉÏ³£ÏûÏ¢: %s', [E.Message]).AppendLine;
     {$WARN IMPLICIT_STRING_CAST ON}
     
     {$IFDEF USE_JCL}
-    // è·å– JCL è°ƒç”¨æ ˆ
+    // »ñÈ¡ JCL µ÷ÓÃÕ»
     StackList := JclGetExceptionStackList(E);
     if Assigned(StackList) then
     begin
@@ -243,7 +243,7 @@ begin
     {$ENDIF}
     begin
       Builder.AppendLine;
-      Builder.AppendLine('è°ƒç”¨æ ˆä¿¡æ¯ä¸å¯ç”¨');
+      Builder.AppendLine('µ÷ÓÃÕ»ĞÅÏ¢²»¿ÉÓÃ');
     end;
     
     Builder.AppendLine('========================================');
@@ -260,32 +260,32 @@ var
 begin
   Builder := TStringBuilder.Create;
   try
-    Builder.AppendLine('ç³»ç»Ÿä¿¡æ¯:');
+    Builder.AppendLine('ÏµÍ³ĞÅÏ¢:');
     Builder.AppendLine('----------------------------------------');
     
-    // æ“ä½œç³»ç»Ÿä¿¡æ¯
+    // ²Ù×÷ÏµÍ³ĞÅÏ¢
     {$WARN IMPLICIT_STRING_CAST OFF}
-    Builder.AppendFormat('OS ç‰ˆæœ¬: Windows %d.%d', 
+    Builder.AppendFormat('OS °æ±¾: Windows %d.%d', 
       [Win32MajorVersion, Win32MinorVersion]).AppendLine;
-    Builder.AppendFormat('æ„å»ºå·: %d', [Win32BuildNumber]).AppendLine;
+    Builder.AppendFormat('¹¹½¨ºÅ: %d', [Win32BuildNumber]).AppendLine;
     {$WARN IMPLICIT_STRING_CAST ON}
     
-    // å†…å­˜ä¿¡æ¯
+    // ÄÚ´æĞÅÏ¢
     MemStatus.dwLength := SizeOf(MemStatus);
     if GlobalMemoryStatusEx(MemStatus) then
     begin
-      Builder.AppendFormat('ç‰©ç†å†…å­˜: %d MB / %d MB', 
+      Builder.AppendFormat('ÎïÀíÄÚ´æ: %d MB / %d MB', 
         [(MemStatus.ullTotalPhys - MemStatus.ullAvailPhys) div (1024 * 1024),
          MemStatus.ullTotalPhys div (1024 * 1024)]).AppendLine;
-      Builder.AppendFormat('è™šæ‹Ÿå†…å­˜: %d MB / %d MB', 
+      Builder.AppendFormat('ĞéÄâÄÚ´æ: %d MB / %d MB', 
         [(MemStatus.ullTotalVirtual - MemStatus.ullAvailVirtual) div (1024 * 1024),
          MemStatus.ullTotalVirtual div (1024 * 1024)]).AppendLine;
     end;
     
-    // åº”ç”¨ç¨‹åºä¿¡æ¯
+    // Ó¦ÓÃ³ÌĞòĞÅÏ¢
     {$WARN IMPLICIT_STRING_CAST OFF}
-    Builder.AppendFormat('ç¨‹åºè·¯å¾„: %s', [ParamStr(0)]).AppendLine;
-    Builder.AppendFormat('å·¥ä½œç›®å½•: %s', [GetCurrentDir]).AppendLine;
+    Builder.AppendFormat('³ÌĞòÂ·¾¶: %s', [ParamStr(0)]).AppendLine;
+    Builder.AppendFormat('¹¤×÷Ä¿Â¼: %s', [GetCurrentDir]).AppendLine;
     {$WARN IMPLICIT_STRING_CAST ON}
     Builder.AppendLine('----------------------------------------');
     
@@ -302,7 +302,7 @@ var
   FileMode: Word;
 begin
   try
-    // å¦‚æœæ–‡ä»¶å­˜åœ¨åˆ™è¿½åŠ ï¼Œå¦åˆ™åˆ›å»ºæ–°æ–‡ä»¶
+    // Èç¹ûÎÄ¼ş´æÔÚÔò×·¼Ó£¬·ñÔò´´½¨ĞÂÎÄ¼ş
     if TFile.Exists(FLogFile) then
       FileMode := fmOpenWrite or fmShareDenyWrite
     else
@@ -310,7 +310,7 @@ begin
       
     FileStream := TFileStream.Create(FLogFile, FileMode);
     try
-      // å®šä½åˆ°æ–‡ä»¶æœ«å°¾
+      // ¶¨Î»µ½ÎÄ¼şÄ©Î²
       if FileMode = (fmOpenWrite or fmShareDenyWrite) then
         FileStream.Seek(0, soEnd);
         
@@ -324,7 +324,7 @@ begin
       FileStream.Free;
     end;
   except
-    // å†™å…¥æ—¥å¿—å¤±è´¥æ—¶ä¸æŠ›å‡ºå¼‚å¸¸ï¼Œé¿å…é€’å½’
+    // Ğ´ÈëÈÕÖ¾Ê§°ÜÊ±²»Å×³öÒì³££¬±ÜÃâµİ¹é
   end;
 end;
 
@@ -341,13 +341,13 @@ begin
     
     if AdditionalInfo <> '' then
     begin
-      Report := Report + sLineBreak + 'é™„åŠ ä¿¡æ¯:' + sLineBreak + 
+      Report := Report + sLineBreak + '¸½¼ÓĞÅÏ¢:' + sLineBreak + 
                 AdditionalInfo + sLineBreak;
     end;
     
     WriteToLogFile(Report);
   except
-    // å¼‚å¸¸å¤„ç†å™¨æœ¬èº«ä¸åº”è¯¥æŠ›å‡ºå¼‚å¸¸
+    // Òì³£´¦ÀíÆ÷±¾Éí²»Ó¦¸ÃÅ×³öÒì³£
   end;
 end;
 
@@ -373,12 +373,12 @@ begin
     end;
   except
     {$WARN IMPLICIT_STRING_CAST OFF}
-    Result := 'è·å–è°ƒç”¨æ ˆå¤±è´¥';
+    Result := '»ñÈ¡µ÷ÓÃÕ»Ê§°Ü';
     {$WARN IMPLICIT_STRING_CAST ON}
   end;
   {$ELSE}
   {$WARN IMPLICIT_STRING_CAST OFF}
-  Result := 'è°ƒç”¨æ ˆä¿¡æ¯ä¸å¯ç”¨ï¼ˆæœªå¯ç”¨ JCLï¼‰';
+  Result := 'µ÷ÓÃÕ»ĞÅÏ¢²»¿ÉÓÃ£¨Î´ÆôÓÃ JCL£©';
   {$WARN IMPLICIT_STRING_CAST ON}
   {$ENDIF}
 end;
@@ -394,7 +394,7 @@ begin
     if TFile.Exists(FLogFile) then
       Result := TFile.ReadAllText(FLogFile, TEncoding.UTF8);
   except
-    Result := 'æ— æ³•è¯»å–å¼‚å¸¸æ—¥å¿—æ–‡ä»¶';
+    Result := 'ÎŞ·¨¶ÁÈ¡Òì³£ÈÕÖ¾ÎÄ¼ş';
   end;
 end;
 
@@ -404,16 +404,16 @@ begin
     if TFile.Exists(FLogFile) then
       TFile.Delete(FLogFile);
   except
-    // å¿½ç•¥åˆ é™¤å¤±è´¥
+    // ºöÂÔÉ¾³ıÊ§°Ü
   end;
 end;
 
 initialization
-  // è‡ªåŠ¨åˆ›å»ºå…¨å±€å®ä¾‹
+  // ×Ô¶¯´´½¨È«¾ÖÊµÀı
   GExceptionHandler := nil;
 
 finalization
-  // è‡ªåŠ¨é‡Šæ”¾å…¨å±€å®ä¾‹
+  // ×Ô¶¯ÊÍ·ÅÈ«¾ÖÊµÀı
   if Assigned(GExceptionHandler) then
   begin
     GExceptionHandler.Free;

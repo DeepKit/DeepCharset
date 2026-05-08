@@ -1,7 +1,7 @@
-object SynEditForm: TSynEditForm
+﻿object SynEditForm: TSynEditForm
   Left = 0
   Top = 0
-  Caption = #25991#20214#26597#30475#22120
+  Caption = '文件查看器'
   ClientHeight = 750
   ClientWidth = 1149
   Color = clBtnFace
@@ -32,7 +32,7 @@ object SynEditForm: TSynEditForm
       Top = 10
       Width = 48
       Height = 15
-      Caption = #25991#20214#21517': '
+      Caption = '文件名: '
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -12
@@ -46,7 +46,7 @@ object SynEditForm: TSynEditForm
       Width = 32
       Height = 15
       Anchors = [akTop, akRight]
-      Caption = #32534#30721': '
+      Caption = '编码: '
     end
     object LabelFileSize: TLabel
       Left = 800
@@ -54,7 +54,7 @@ object SynEditForm: TSynEditForm
       Width = 58
       Height = 15
       Anchors = [akTop, akRight]
-      Caption = #25991#20214#22823#23567': '
+      Caption = '文件大小: '
     end
   end
   object PanelButtons: TPanel
@@ -75,7 +75,7 @@ object SynEditForm: TSynEditForm
       Width = 80
       Height = 30
       Anchors = [akTop, akRight]
-      Caption = #20851#38381
+      Caption = '关闭'
       TabOrder = 0
       OnClick = btnCloseClick
     end
@@ -85,7 +85,7 @@ object SynEditForm: TSynEditForm
       Width = 80
       Height = 30
       Anchors = [akTop, akRight]
-      Caption = #22797#21046
+      Caption = '复制'
       TabOrder = 1
       OnClick = btnCopyClick
     end
@@ -95,7 +95,7 @@ object SynEditForm: TSynEditForm
       Width = 90
       Height = 30
       Anchors = [akTop, akRight]
-      Caption = #33258#21160#25442#34892
+      Caption = '自动换行'
       TabOrder = 2
       OnClick = btnWordWrapClick
     end
@@ -141,18 +141,18 @@ object SynEditForm: TSynEditForm
     Left = 100
     Top = 100
     object MenuItemCopy: TMenuItem
-      Caption = #22797#21046
+      Caption = '复制'
       OnClick = MenuItemCopyClick
     end
     object MenuItemSelectAll: TMenuItem
-      Caption = #20840#36873
+      Caption = '全选'
       OnClick = MenuItemSelectAllClick
     end
     object N1: TMenuItem
       Caption = '-'
     end
     object MenuItemWordWrap: TMenuItem
-      Caption = #33258#21160#25442#34892
+      Caption = '自动换行'
       OnClick = MenuItemWordWrapClick
     end
   end

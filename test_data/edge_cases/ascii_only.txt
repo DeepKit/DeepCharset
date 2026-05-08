@@ -1,0 +1,2 @@
+ASCII only content: 0123456789 abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+

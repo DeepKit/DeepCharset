@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="520" height="260" viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg">
+  <title>Batch Conversion Safety Warning</title>
+  <style>
+    .window { fill:#fff; stroke:#adb5bd; stroke-width:1; }
+    .titlebar { fill:#fff3cd; stroke:#ffecb5; stroke-width:1; }
+    .label { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#343a40; }
+    .label-strong { font-family:'Segoe UI', sans-serif; font-size:11px; font-weight:bold; fill:#212529; }
+    .button-primary { fill:#0d6efd; stroke:#0a58ca; stroke-width:1; rx:3; ry:3; }
+    .button-secondary { fill:#e9ecef; stroke:#adb5bd; stroke-width:1; rx:3; ry:3; }
+    .button-text-primary { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#ffffff; }
+    .button-text-secondary { font-family:'Segoe UI', sans-serif; font-size:11px; fill:#212529; }
+    .checkbox-box { fill:#ffffff; stroke:#adb5bd; stroke-width:1; }
+    .warning-icon { fill:#ffc107; }
+  </style>
+
+  <!-- Dialog window -->
+  <rect class="window" x="10" y="10" width="500" height="240" rx="4" ry="4" />
+  <rect class="titlebar" x="10" y="10" width="500" height="28" rx="4" ry="4" />
+  <circle class="warning-icon" cx="26" cy="24" r="8" />
+  <text class="label-strong" x="40" y="27">批量转换安全提示 / Batch Conversion Safety Warning</text>
+
+  <!-- Message -->
+  <text class="label" x="24" y="54">你即将对 <tspan fill="#000">320</tspan> 个文件执行批量编码转换。</text>
+  <text class="label" x="24" y="70">在当前设置下，将使用 <tspan fill="#000">自动检测源编码</tspan> 并直接覆盖原始文件。</text>
+
+  <text class="label-strong" x="24" y="92">为降低风险，请确认以下选项:</text>
+
+  <!-- Checkboxes -->
+  <rect class="checkbox-box" x="28" y="104" width="10" height="10" />
+  <text class="label" x="44" y="113">我已经为这些文件做了完整备份</text>
+
+  <rect class="checkbox-box" x="28" y="122" width="10" height="10" />
+  <text class="label" x="44" y="131">自动为本次批量操作创建备份 (推荐)</text>
+
+  <rect class="checkbox-box" x="28" y="140" width="10" height="10" />
+  <text class="label" x="44" y="149">将结果输出到新的目录，而不是覆盖原始文件</text>
+
+  <rect class="checkbox-box" x="28" y="158" width="10" height="10" />
+  <text class="label" x="44" y="167">我理解自动检测是启发式的，在低置信场景下可能需要人工确认</text>
+
+  <!-- Footer note -->
+  <text class="label" x="24" y="188">建议首次在生产数据上使用时，仅对少量样本目录执行，并检查结果后再扩大范围。</text>
+
+  <!-- Buttons -->
+  <rect class="button-secondary" x="230" y="210" width="110" height="26" />
+  <text class="button-text-secondary" x="246" y="227">取消操作</text>
+
+  <rect class="button-primary" x="352" y="210" width="140" height="26" />
+  <text class="button-text-primary" x="360" y="227">确认, 继续批量转换</text>
+</svg>

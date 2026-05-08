@@ -1,5 +1,5 @@
 ================================================================================
-                    TransSuccess v2.0.0beta RELEASE SUMMARY
+                    DeepCharset v2.0.0beta RELEASE SUMMARY
 ================================================================================
 
 Release Date:     2025-11-13
@@ -88,8 +88,8 @@ Batch 14 (Nov 2025) 🎉 RELEASE FINALIZATION
 ================================================================================
 
 EXECUTABLE
-  • bin/Win64/_build/TransSuccess.exe (5.03 MB)
-    - Version: TransSuccess v2.0.0beta
+  • bin/Win64/_build/DeepCharset.exe (5.03 MB)
+    - Version: DeepCharset v2.0.0beta
     - Platform: Windows 64-bit
     - All core features working
 
@@ -178,16 +178,16 @@ Recommended:
 ================================================================================
 
 Quick Start:
-  1. Extract TransSuccess.exe to desired directory
+  1. Extract DeepCharset.exe to desired directory
   2. Double-click for GUI mode
-  3. Or run: TransSuccess.exe --help for CLI options
+  3. Or run: DeepCharset.exe --help for CLI options
 
 CLI Example:
   # Convert GBK to UTF-8
-  TransSuccess.exe -s GBK -t UTF-8 input.txt
+  DeepCharset.exe -s GBK -t UTF-8 input.txt
 
   # Recursive conversion with backup
-  TransSuccess.exe -s auto -t UTF-8 -r -b C:\MyFiles\
+  DeepCharset.exe -s auto -t UTF-8 -r -b C:\MyFiles\
 
 Detailed Guide:
   See docs/Quick_Start_Guide.md and docs/CommandLine_Usage.md
@@ -247,13 +247,13 @@ Overall Status: ALL TESTS PASSED ✅
 ================================================================================
 
 For End Users:
-  ☑ Download TransSuccess.exe (5.03 MB)
+  ☑ Download DeepCharset.exe (5.03 MB)
   ☑ Place in desired directory
   ☑ Run executable (GUI or CLI mode)
   ☑ Configure detection parameters in ui.ini (optional)
 
 For Administrators:
-  ☑ Deploy TransSuccess.exe to target systems
+  ☑ Deploy DeepCharset.exe to target systems
   ☑ Deploy docs/ directory for user reference
   ☑ Deploy ini/ directory for localization
   ☑ Configure ui.ini with organizational settings
@@ -310,7 +310,7 @@ Issues & Feedback:
   • Consult docs/Detection_Settings.md for parameter tuning
 
 Binary Information:
-  • Location: bin/Win64/_build/TransSuccess.exe
+  • Location: bin/Win64/_build/DeepCharset.exe
   • Size: 5.03 MB
   • Version: 2.0.0beta
   • Status: PRODUCTION READY
@@ -335,7 +335,7 @@ QA Verification:
   ✅ Packaging: PASS (36 artifacts ready)
 
 Status Summary:
-  🎉 TransSuccess v2.0.0beta is READY FOR RELEASE 🚀
+  🎉 DeepCharset v2.0.0beta is READY FOR RELEASE 🚀
 
 Next Action:
   Proceed with production deployment and community distribution
