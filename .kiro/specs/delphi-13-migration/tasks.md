@@ -12,10 +12,10 @@
 
 - [ ] 0.1 确认 DeepBase 已完成 13.1 迁移
 - [ ] 0.2 确认阻塞组件就绪:
-  - [ ] 0.2.1 SynEdit 13.1 ✗（未安装）
-  - [ ] 0.2.2 VirtualTreeView 13.1 ✗（未安装）
-  - [ ] 0.2.3 Python4Delphi 13.1 ✗（未安装）
-  - [ ] 0.2.4 madCollection BDS24 ✗（未安装）
+  - [ ] 0.2.1 SynEdit 13.1 ⏳（安装中）
+  - [ ] 0.2.2 VirtualTreeView 13.1 ⏳（安装中）
+  - [ ] 0.2.3 Python4Delphi 13.1 ⏳（安装中）
+  - [x] 0.2.4 madCollection ⛔ 不需要（源码未使用 madExcept，详见 docs/d13-migration-notes.md）
 - [x] 0.3 打 git tag `pre-d13-deepcharset`
 - [ ] 0.4 确认 12.3 下可编译,记录 Warning 基线
 - [x] 0.5 创建分支 `upgrade/delphi-13`
@@ -25,14 +25,14 @@
 - [x] 1.1 更新编译脚本
 - [ ] 1.2 用 13.1 IDE 打开,升级 dproj
 - [ ] 1.3 确认 SynEdit + VTV + P4D 集成（可复用 DeepConfig 的验证结果）
-- [ ] 1.4 确认 madCollection BDS24 版本替换 madExcept
+- [x] 1.4 确认 madCollection BDS24 版本替换 madExcept（跳过：不使用 madCollection）
 - [ ] 1.5 确认 Skia 7.1.0
 - [ ] 1.6 检查 Search Path
 
 ## 阶段 2：编译修复
 
 - [ ] 2.1 Clean + Build
-- [ ] 2.2 修复 madCollection 迁移（madExcept → madCollection 新 API）
+- [x] 2.2 修复 madCollection 迁移（跳过：不使用）
 - [ ] 2.3 修复 SynEdit/VTV/P4D API 变化
 - [ ] 2.4 修复 Skia 路径变化
 - [ ] 2.5 处理 Warning
@@ -54,6 +54,6 @@
 ## DoD
 
 - [ ] Clean + Build 成功
-- [ ] SynEdit + VTV + P4D + Skia + madCollection 五组件正常
+- [ ] SynEdit + VTV + P4D + Skia 四组件正常（madCollection 不使用）
 - [ ] 冒烟测试通过
 - [ ] Warning ≤ 基线

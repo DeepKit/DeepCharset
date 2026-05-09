@@ -8,17 +8,17 @@ setlocal
 set MODE=%1
 if "%MODE%"=="" set MODE=Debug
 
-rem madCollection paths (BDS24 版本)
-set MAD=D:\Program Files (x86)\madCollection
-set MADPATHS=-U"%MAD%\madBasic\Source;%MAD%\madDisAsm\Source;%MAD%\madExcept\Source" -I"%MAD%\madBasic\Source;%MAD%\madDisAsm\Source;%MAD%\madExcept\Source"
+rem NOTE: madCollection removed. Source code does not actually use madExcept.
+rem The {$DEFINE USE_MADEXCEPT} block in DeepCharset.dpr is disabled and the
+rem local madExcept.pas is an empty stub. Re-enable this if you later adopt madCollection.
 
 rem Common compiler flags
 set COMMON=-B -NSSystem;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;Xml;Data;Datasnap;Web;Soap;Winapi;System.Win -E"Win64\%MODE%" -N"Win64\%MODE%"
 
 if /I "%MODE%"=="Debug" (
-  %DCC64% %COMMON% -$D+ -$L+ -$V+ %MADPATHS% DeepCharset.dpr > build_output.txt 2>&1
+  %DCC64% %COMMON% -$D+ -$L+ -$V+ DeepCharset.dpr > build_output.txt 2>&1
 ) else (
-  %DCC64% %COMMON% -$D- -$L- -$O+ %MADPATHS% DeepCharset.dpr > build_output.txt 2>&1
+  %DCC64% %COMMON% -$D- -$L- -$O+ DeepCharset.dpr > build_output.txt 2>&1
 )
 
 type build_output.txt
