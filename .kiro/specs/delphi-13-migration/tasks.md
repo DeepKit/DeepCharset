@@ -39,7 +39,7 @@
 
 ## 阶段 3：语法现代化
 
-- [x] 3.1 选 1-2 个核心文件做三元 + inline var 重构
+- [x] 3.1 选 1-2 个核心文件做三元 + inline var 重构（ModelConfig.pas、HelperLanguage.pas）
 - [ ] 3.2 确认编译通过
 
 ## 阶段 4：测试与收尾
