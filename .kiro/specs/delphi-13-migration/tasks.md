@@ -12,9 +12,9 @@
 
 - [ ] 0.1 确认 DeepBase 已完成 13.1 迁移
 - [ ] 0.2 确认阻塞组件就绪:
-  - [ ] 0.2.1 SynEdit 13.1 ⏳（安装中）
-  - [ ] 0.2.2 VirtualTreeView 13.1 ⏳（安装中）
-  - [ ] 0.2.3 Python4Delphi 13.1 ⏳（安装中）
+  - [x] 0.2.1 SynEdit 13.1 ✓（`SynEditDR370.bpl` 已注册）
+  - [x] 0.2.2 VirtualTreeView 13.1 ✓（`VirtualTreesDR370.bpl` 已注册）
+  - [x] 0.2.3 Python4Delphi 13.1 ✓（`Python370.bpl` 已注册）
   - [x] 0.2.4 madCollection ⛔ 不需要（源码未使用 madExcept，详见 docs/d13-migration-notes.md）
 - [x] 0.3 打 git tag `pre-d13-deepcharset`
 - [ ] 0.4 确认 12.3 下可编译,记录 Warning 基线
