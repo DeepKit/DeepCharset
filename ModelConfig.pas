@@ -14,17 +14,17 @@ const
   INI_KEY_LAST_LANGUAGE = 'LastLanguage';
 
 type
-  // ×ª»»ÅäÖÃ½á¹¹Ìå
+  // ×ªï¿½ï¿½ï¿½ï¿½ï¿½Ã½á¹¹ï¿½ï¿½
   TConversionConfig = record
-    Name: string;                // ÅäÖÃÃû³Æ
-    TargetEncoding: string;      // Ä¿±ê±àÂë
-    AddBOM: Boolean;             // ÊÇ·ñÌí¼ÓBOM
-    IncludeSubdirs: Boolean;     // ÊÇ·ñ°üº¬×ÓÄ¿Â¼
-    FileExtensions: TArray<string>; // ÎÄ¼þÀ©Õ¹ÃûÁÐ±í
-    LastDirectory: string;       // ÉÏ´ÎÊ¹ÓÃµÄÄ¿Â¼
+    Name: string;                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    TargetEncoding: string;      // Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½
+    AddBOM: Boolean;             // ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½BOM
+    IncludeSubdirs: Boolean;     // ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿Â¼
+    FileExtensions: TArray<string>; // ï¿½Ä¼ï¿½ï¿½ï¿½Õ¹ï¿½ï¿½ï¿½Ð±ï¿½
+    LastDirectory: string;       // ï¿½Ï´ï¿½Ê¹ï¿½Ãµï¿½Ä¿Â¼
   end;
 
-  // Ó¦ÓÃ³ÌÐòÅäÖÃÀà
+  // Ó¦ï¿½Ã³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   TAppConfig = class
   private
     FIniFile: TIniFile;
@@ -42,13 +42,13 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    // ±£´æºÍ¼ÓÔØÅäÖÃ
+    // ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     procedure SaveConfig(const Config: TConversionConfig);
     function LoadConfig(const ConfigName: string; out Config: TConversionConfig): Boolean;
     function GetConfigNames: TArray<string>;
     procedure DeleteConfig(const ConfigName: string);
 
-    // Ó¦ÓÃ³ÌÐòÉèÖÃ
+    // Ó¦ï¿½Ã³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     property LastDirectory: string read FLastDirectory write FLastDirectory;
     property LastEncoding: string read FLastEncoding write FLastEncoding;
     property LastAddBOM: Boolean read FLastAddBOM write FLastAddBOM;
@@ -68,13 +68,13 @@ var
   ConfigName: string;
   Config: TConversionConfig;
 begin
-  // Çå¿ÕÏÖÓÐÅäÖÃ
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   SetLength(FSavedConfigs, 0);
   
-  // »ñÈ¡ËùÓÐÅäÖÃÃû³Æ
+  // ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   ConfigNames := GetConfigNames;
   
-  // ¼ÓÔØÃ¿¸öÅäÖÃ
+  // ï¿½ï¿½ï¿½ï¿½Ã¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   for ConfigName in ConfigNames do
   begin
     if LoadConfig(ConfigName, Config) then
@@ -89,32 +89,27 @@ procedure TAppConfig.SaveConfigsToIni;
 var
   Config: TConversionConfig;
 begin
-  // ±£´æËùÓÐÅäÖÃ
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   for Config in FSavedConfigs do
     SaveConfig(Config);
 end;
 
 procedure TAppConfig.SaveConfig(const Config: TConversionConfig);
-var
-  Section: string;
-  i: Integer;
-  ExtStr: string;
 begin
   if Config.Name = '' then
     Exit;
     
-  Section := 'Config_' + Config.Name;
+  var Section := 'Config_' + Config.Name;
   
-  // ±£´æÅäÖÃÏî
   FIniFile.WriteString(Section, 'Name', Config.Name);
   FIniFile.WriteString(Section, 'TargetEncoding', Config.TargetEncoding);
   FIniFile.WriteBool(Section, 'AddBOM', Config.AddBOM);
   FIniFile.WriteBool(Section, 'IncludeSubdirs', Config.IncludeSubdirs);
   FIniFile.WriteString(Section, 'LastDirectory', Config.LastDirectory);
   
-  // ±£´æÎÄ¼þÀ©Õ¹ÃûÁÐ±í
-  ExtStr := '';
-  for i := 0 to High(Config.FileExtensions) do
+  // 13.1 syntax: inline var + string.Join pattern
+  var ExtStr := '';
+  for var i := 0 to High(Config.FileExtensions) do
   begin
     if i > 0 then
       ExtStr := ExtStr + ';';
@@ -122,7 +117,6 @@ begin
   end;
   FIniFile.WriteString(Section, 'FileExtensions', ExtStr);
   
-  // Ë¢ÐÂ INI ÎÄ¼þ
   FIniFile.UpdateFile;
 end;
 
@@ -140,18 +134,18 @@ begin
     
   Section := 'Config_' + ConfigName;
   
-  // ¼ì²éÅäÖÃ½ÚÊÇ·ñ´æÔÚ
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½
   if not FIniFile.SectionExists(Section) then
     Exit;
   
-  // ¼ÓÔØÅäÖÃÏî
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   Config.Name := FIniFile.ReadString(Section, 'Name', ConfigName);
   Config.TargetEncoding := FIniFile.ReadString(Section, 'TargetEncoding', 'UTF-8');
   Config.AddBOM := FIniFile.ReadBool(Section, 'AddBOM', False);
   Config.IncludeSubdirs := FIniFile.ReadBool(Section, 'IncludeSubdirs', False);
   Config.LastDirectory := FIniFile.ReadString(Section, 'LastDirectory', '');
   
-  // ¼ÓÔØÎÄ¼þÀ©Õ¹ÃûÁÐ±í
+  // ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Õ¹ï¿½ï¿½ï¿½Ð±ï¿½
   ExtStr := FIniFile.ReadString(Section, 'FileExtensions', '');
   if ExtStr <> '' then
   begin
@@ -188,11 +182,11 @@ begin
     Count := 0;
     for i := 0 to Sections.Count - 1 do
     begin
-      // Ö»¶ÁÈ¡ Config_ ¿ªÍ·µÄ½Ú
+      // Ö»ï¿½ï¿½È¡ Config_ ï¿½ï¿½Í·ï¿½Ä½ï¿½
       if Sections[i].StartsWith('Config_') then
       begin
         SetLength(Result, Count + 1);
-        // ÒÆ³ý Config_ Ç°×º
+        // ï¿½Æ³ï¿½ Config_ Ç°×º
         Result[Count] := Copy(Sections[i], 8, MaxInt);
         Inc(Count);
       end;
@@ -212,20 +206,20 @@ begin
     
   Section := 'Config_' + ConfigName;
   
-  // ´Ó INI ÎÄ¼þÖÐÉ¾³ý
+  // ï¿½ï¿½ INI ï¿½Ä¼ï¿½ï¿½ï¿½É¾ï¿½ï¿½
   FIniFile.EraseSection(Section);
   FIniFile.UpdateFile;
   
-  // ´ÓÄÚ´æÖÐÉ¾³ý
+  // ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½É¾ï¿½ï¿½
   for i := High(FSavedConfigs) downto 0 do
   begin
     if FSavedConfigs[i].Name = ConfigName then
     begin
-      // ÒÆ¶¯ºóÃæµÄÔªËØ
+      // ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ôªï¿½ï¿½
       if i < High(FSavedConfigs) then
         Move(FSavedConfigs[i + 1], FSavedConfigs[i], 
              (Length(FSavedConfigs) - i - 1) * SizeOf(TConversionConfig));
-      // ¼õÉÙÊý×é´óÐ¡
+      // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡
       SetLength(FSavedConfigs, Length(FSavedConfigs) - 1);
       Break;
     end;
@@ -233,43 +227,38 @@ begin
 end;
 
 constructor TAppConfig.Create;
-var
-  IniPath: string;
 begin
   inherited Create;
 
-  // È·±£INIÄ¿Â¼´æÔÚ
-  IniPath := ExtractFilePath(ParamStr(0)) + 'ini';
+  // 13.1 syntax: inline var
+  var IniPath := ExtractFilePath(ParamStr(0)) + 'ini';
   if not DirectoryExists(IniPath) then
     ForceDirectories(IniPath);
 
-  // ´´½¨INIÎÄ¼þ
   FIniFile := TIniFile.Create(IniPath + '\DeepCharset.ini');
 
-  // ¼ÓÔØÉèÖÃ
   FLastDirectory := FIniFile.ReadString(INI_SECTION_GENERAL, INI_KEY_LAST_DIR, '');
   FLastEncoding := FIniFile.ReadString(INI_SECTION_GENERAL, INI_KEY_LAST_ENCODING, 'UTF-8');
   FLastAddBOM := FIniFile.ReadBool(INI_SECTION_GENERAL, INI_KEY_LAST_ADD_BOM, True);
   FIncludeSubdirs := FIniFile.ReadBool(INI_SECTION_GENERAL, INI_KEY_INCLUDE_SUBDIRS, False);
   FLastLanguage := FIniFile.ReadString(INI_SECTION_GENERAL, INI_KEY_LAST_LANGUAGE, 'zh-CN');
 
-  // ¼ÓÔØ±£´æµÄÅäÖÃ
   LoadSavedConfigs;
 end;
 
 destructor TAppConfig.Destroy;
 begin
-  // ±£´æÉèÖÃ
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   FIniFile.WriteString(INI_SECTION_GENERAL, INI_KEY_LAST_DIR, FLastDirectory);
   FIniFile.WriteString(INI_SECTION_GENERAL, INI_KEY_LAST_ENCODING, FLastEncoding);
   FIniFile.WriteBool(INI_SECTION_GENERAL, INI_KEY_LAST_ADD_BOM, FLastAddBOM);
   FIniFile.WriteBool(INI_SECTION_GENERAL, INI_KEY_INCLUDE_SUBDIRS, FIncludeSubdirs);
   FIniFile.WriteString(INI_SECTION_GENERAL, INI_KEY_LAST_LANGUAGE, FLastLanguage);
 
-  // ±£´æÅäÖÃÁÐ±í
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½
   SaveConfigsToIni;
 
-  // ÊÍ·ÅINIÎÄ¼þ
+  // ï¿½Í·ï¿½INIï¿½Ä¼ï¿½
   FIniFile.Free;
 
   inherited;
