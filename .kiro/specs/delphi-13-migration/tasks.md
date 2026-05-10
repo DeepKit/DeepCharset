@@ -31,11 +31,11 @@
 
 ## 阶段 2：编译修复
 
-- [ ] 2.1 Clean + Build
+- [x] 2.1 Clean + Build（Win64 成功，20,190 行 / 1.22s，产出 `DeepCharset.exe` 4MB）
 - [x] 2.2 修复 madCollection 迁移（跳过：不使用）
-- [ ] 2.3 修复 SynEdit/VTV/P4D API 变化
-- [ ] 2.4 修复 Skia 路径变化
-- [ ] 2.5 处理 Warning
+- [x] 2.3 修复 SynEdit/VTV/P4D API 变化（无需修复）
+- [x] 2.4 修复 Skia 路径变化（无需修复）
+- [x] 2.5 处理 Warning（评估结论：保持基线，Duplicate resource hint 不影响功能）
 
 ## 阶段 3：语法现代化
 
