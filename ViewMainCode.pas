@@ -5,12 +5,14 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
-  Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.FileCtrl, Vcl.Buttons, Vcl.ComCtrls,
+  Vcl.ExtDlgs, System.IOUtils, System.UITypes, Vcl.Buttons, Vcl.ComCtrls,
   Vcl.Grids, System.Math, Vcl.CheckLst, System.Types, Vcl.Menus, System.Rtti,
+  VirtualTrees, VirtualExplorerTree, MPShellUtilities,
   System.StrUtils, UtilsTypes, ModelEncoding, ModelConfig, HelperUI, HelperFiles,
   ControllerEncoding, Winapi.ShlObj, ViewMemo, Vcl.Themes, ViewSynEdit,
   System.UIConsts, System.IniFiles, ModelLanguage, ControllerLanguage,
-  System.TypInfo, Vcl.Clipbrd, Vcl.ImgList, Vcl.Samples.Spin;
+  System.TypInfo, Vcl.Clipbrd, Vcl.ImgList, Vcl.Samples.Spin,
+  VirtualTrees.BaseAncestorVCL, VirtualTrees.BaseTree, VirtualTrees.AncestorVCL;
 
 Type
 
@@ -24,8 +26,7 @@ Type
     Splitter2: TSplitter;
     Splitter3: TSplitter;
     Splitter4: TSplitter;
-    DriveComboBox1: TDriveComboBox;
-    DirectoryListBox1: TDirectoryListBox;
+    vstDir: TVirtualExplorerTreeview;
     StringGrid1: TStringGrid;
     Panel7: TPanel;
     Splitter5: TSplitter;
@@ -61,17 +62,17 @@ Type
     btnCancel: TButton;
     btnClose: TButton;
     MemLog: TMemo;
+    chkInstantScan: TCheckBox;
+    btnScanDir: TButton;
     procedure btnCloseClick(Sender: TObject);
     procedure btnRefreshClick(Sender: TObject);
     procedure btnConvertClick(Sender: TObject);
     procedure btnSingleFileClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure DirectoryListBox1MouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+    procedure vstDirChange(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure StringGridSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
     procedure TreeViewEncodingsClick(Sender: TObject);
     procedure StringGrid1Click(Sender: TObject);
-    procedure DriveComboBox1Change(Sender: TObject);
     procedure MenuItemConvertClick(Sender: TObject);
     procedure StringGrid1ContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
     procedure MenuItemToggleSelectClick(Sender: TObject);
@@ -79,7 +80,7 @@ Type
     procedure MenuItemConvertCurrentClick(Sender: TObject);
     procedure MenuItemConvertAllFilesClick(Sender: TObject);
     procedure cmbLanguageChange(Sender: TObject);
-    procedure DirectoryListBox1Change(Sender: TObject);
+
     procedure FormShow(Sender: TObject);
     procedure btnShowContentClick(Sender: TObject);
     procedure btnSelectAllExtClick(Sender: TObject);
@@ -98,17 +99,20 @@ Type
     procedure SpinEditDepthChange(Sender: TObject);
     procedure CBoxDirHistoryChange(Sender: TObject);
     procedure CBoxDirHistoryDropDown(Sender: TObject);
-    // procedure btnCancelClick(Sender: TObject); // ��ʱ����
+    procedure chkInstantScanClick(Sender: TObject);
+    procedure btnScanDirClick(Sender: TObject);
+
   private
     FSelectedFolder: string;
     FSelectedRow: Integer;
     FFileExtensions: TStringList;
     FIncludeSubdirs: Boolean;
     FMaxDepth: Integer;
+    FInstantScan: Boolean;
     FLogBuffer: TStringList;
     FBufferingLogs: Boolean;
 
-    // MVC�ܹ����
+
     FConfig: TAppConfig;
     FEncodingModel: TEncodingModel;
     FEncodingController: TEncodingController;
@@ -117,17 +121,17 @@ Type
 
     FOriginalFontSize: Integer;
 
-    // ���ʻ����
+
     FCurrentLanguage: string;
 
-    // ͼ����Դ������TreeView��
+
     FIconList: TImageList;
 
-    // �첽������أ���ʱ���ã�
+
     // FAsyncProcessor: TAsyncFileProcessor;
     // FProgressController: TProgressController;
 
-    // ��ȡ��������Ϣ
+
     function GetLocalizedMessage(const MsgId: string): string;
     function GetLocalizedMessageFmt(const MsgId: string; const Args: array of const): string;
     procedure ShowLocalizedMessage(const MsgId: string);
@@ -137,15 +141,15 @@ Type
     procedure UpdateFileExtensions(const FolderPath: string);
     procedure CheckListBox1ClickCheck(Sender: TObject);
 
-    // ��־��¼
+
     procedure Log(const Msg: string);
     procedure StartLogBuffering;
     procedure EndLogBuffering;
 
-    // ���ˢ�´���
+
     procedure InvalidateForm;
 
-    // ����������ط���
+
     procedure InitializeLanguageManager;
     procedure CreateLanguageSelector;
     procedure ApplyLanguageStrings;
@@ -153,13 +157,15 @@ Type
 
     procedure UpdateSingleFileInGrid(const FilePath: string);
 
-    // ��ʷĿ¼����
+
     procedure LoadDirHistory;
     procedure SaveDirHistory;
     procedure AddDirToHistory(const DirPath: string);
     procedure UpdateDirHistoryUI;
 
-    // �첽������ط�������ʱ���ã�
+    procedure BrowseToDir(const APath: string);
+
+
     // procedure InitializeAsyncComponents;
     // procedure FinalizeAsyncComponents;
     // procedure UpdateFileGridAsync(const FolderPath: string);
@@ -170,13 +176,13 @@ Type
     // procedure ShowProgress;
     // procedure HideProgress;
 
-    // ����������ˮƽ���������õ�����࣬ȷ���ܿ������ڵ�
+
     procedure ScrollEncodingTreeToLeft;
 
-    // ��ʼ��TreeViewͼ��
+
     procedure InitTreeIcons;
 
-    // UI ��ݲ��������ѡ���ļ��������/�Ƴ� UTF-8 BOM
+
     procedure ConvertSelectedFilesToUTF8(const WithBOM: Boolean);
     procedure MenuItemAddUTF8BOMClick(Sender: TObject);
     procedure MenuItemRemoveUTF8BOMClick(Sender: TObject);
@@ -201,18 +207,18 @@ constructor TForm1.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 
-  // ��ʼ����Ա
+
   FSelectedRow := -1;
   FFileExtensions := TStringList.Create;
   FLogBuffer := TStringList.Create;
   FBufferingLogs := False;
 
-  // ��ʼ��MVC�ܹ����
+
   FConfig := TAppConfig.Create;
   FEncodingModel := TEncodingModel.Create;
   FUIHelper := TUIHelper.Create;
 
-  // ���������������ʹ����ʽTProc<string>ǿ�����͵���������
+
   FEncodingController := TEncodingController.Create(
     TProc<string>(
       procedure(const LogMsg: string)
@@ -222,7 +228,7 @@ begin
     )
   );
 
-  // �����ļ����֣�ʹ����ʽTProc<string>ǿ�����͵���������
+
   FFileHelper := TFileHelper.Create(
     TProc<string>(
       procedure(const LogMsg: string)
@@ -232,36 +238,46 @@ begin
     )
   );
 
-  // ���ø�Ŀ¼��INIĿ¼
+
   RootDir := FFileHelper.GetRootDir;
   IniDir := RootDir + '\ini';
-  Log('Root directory: ' + RootDir);
-  Log('INI directory: ' + IniDir);
+  Log(GetLocalizedMessage('LogRootDirectory') + RootDir);
+  Log(GetLocalizedMessage('LogIniDirectory') + IniDir);
 
-  // ��ʼ�����Թ�����
-  InitializeLanguageManager;
 
-  // ��������ѡ����
-  CreateLanguageSelector;
+  try
+    InitializeLanguageManager;
+  except
+    on E: Exception do
+      OutputDebugString(PChar('Constructor: InitializeLanguageManager failed: ' + E.Message));
+  end;
 
-  // ��ʼ���첽�������ʱ���ã�
+
+  try
+    CreateLanguageSelector;
+  except
+    on E: Exception do
+      OutputDebugString(PChar('Constructor: CreateLanguageSelector failed: ' + E.Message));
+  end;
+
+
   // InitializeAsyncComponents;
 
 end;
 
 destructor TForm1.Destroy;
 begin
-  // �ͷ��첽�������ʱ���ã�
+
   // FinalizeAsyncComponents;
 
-  // �ͷ�MVC�ܹ����
+
   FEncodingController.Free;
   FFileHelper.Free;
   FUIHelper.Free;
   FEncodingModel.Free;
   FConfig.Free;
 
-  // �ͷ�������Դ
+
   FLogBuffer.Free;
   FFileExtensions.Free;
   FIconList.Free;
@@ -272,21 +288,20 @@ procedure TForm1.FormShow(Sender: TObject);
 var
   i: Integer;
 begin
-  // Ӧ�õ�ǰ����
+
   ApplyLanguageStrings;
 
-  // ǿ������Ӧ�ý������
+
   Application.ProcessMessages;
 
-  // �����弰���һ���ʱ���������������
   Sleep(100);
 
-  // ǿ�Ƹ�������UIԪ��
+
   for i := 0 to ComponentCount - 1 do
     if Components[i] is TControl then
       TControl(Components[i]).Invalidate;
 
-  // ǿ���ػ���������
+
   InvalidateForm;
 
   // Log UI status
@@ -300,7 +315,7 @@ begin
   Log(' - Select all types button: ' + btnSelectAllExt.Caption);
   Log(' - Show content button: ' + btnShowContent.Caption);
 
-  // Ӧ���п�����
+
   AdjustGridColumnWidths;
 end;
 
@@ -323,14 +338,14 @@ begin
   // Ensure folder path is valid (Fix Deprecation Warning)
   if not System.SysUtils.DirectoryExists(FolderPath) then // Ensure qualified
   begin
-    Log('Please select a valid folder');
+    Log(GetLocalizedMessage('MsgSelectValidFolder'));
     Exit;
   end;
 
   // Get selected encoding info
   if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
   begin
-    ShowMessage('��ѡ��һ��Ŀ����롣');
+    ShowLocalizedMessage('MsgSelectTargetEncoding');
     Exit;
   end;
   SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
@@ -347,7 +362,7 @@ begin
   end;
 
   // Start log buffering
-  Log('Starting batch conversion of ' + IntToStr(Length(SelectedFiles)) + ' files to ' + TargetInfo.Name + '...');
+  Log(GetLocalizedMessageFmt('LogBatchConversionStart', [Length(SelectedFiles), TargetInfo.Name]));
   StartLogBuffering;
 
   // Execute conversion
@@ -355,17 +370,19 @@ begin
   SuccessCount := 0;
 
   try
-    // ʹ��ͬ����ʽִ��ת�����첽��ʱ���ã�
-    FEncodingController.ConvertFiles(SelectedFiles, TargetInfo.ShortName, WithBOM);
-    Log(System.SysUtils.Format('����ת����ɣ�ת���� %s', [TargetInfo.Name]));
 
-    // ����ת����ɺ�ˢ���ļ������Ը��±�����Ϣ
-    if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
+    FEncodingController.ConvertFiles(SelectedFiles, TargetInfo.ShortName, WithBOM);
+    Log(System.SysUtils.Format('%s', [TargetInfo.Name]));
+
+
+    if System.SysUtils.DirectoryExists(FSelectedFolder) then
     begin
-      Log('Refreshing file list to update encoding info...');
-      UpdateFileGrid(DirectoryListBox1.Directory);
-      Log('File list refreshed');
+      Log(GetLocalizedMessage('LogRefreshingFileList'));
+      UpdateFileGrid(FSelectedFolder);
+      Log(GetLocalizedMessage('LogFileListRefreshed'));
     end;
+    AddDirToHistory(FSelectedFolder);
+
   finally
     Screen.Cursor := crDefault;
 
@@ -376,11 +393,11 @@ end;
 
 procedure TForm1.btnRefreshClick(Sender: TObject);
 begin
-  if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
+  if System.SysUtils.DirectoryExists(FSelectedFolder) then
   begin
-    // ʹ��ͬ����ʽˢ���ļ��б���첽��ʱ���ã�
-    UpdateFileGrid(DirectoryListBox1.Directory);
-    Log('Refresh directory: ' + DirectoryListBox1.Directory);
+
+    UpdateFileGrid(FSelectedFolder);
+    Log(GetLocalizedMessage('LogRefreshDirectory') + FSelectedFolder);
   end;
 end;
 
@@ -392,13 +409,13 @@ end;
 
 procedure TForm1.btnToggleSelectClick(Sender: TObject);
 begin
-  // ȫѡ/ȡ��ȫѡ
+
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
 
 procedure TForm1.CheckListBox1ClickCheck(Sender: TObject);
 begin
-  // ��CheckListBox1����Ŀ��ѡ�л�ȡ��ѡ��ʱ�����ļ��б�
+
   UpdateFileGrid(FSelectedFolder);
 end;
 
@@ -407,130 +424,138 @@ var
   Index, LangIndex: Integer;
   LangCode: string;
 begin
-  // ��ȡѡ�е�����
+
   Index := ComboBox1.ItemIndex;
   if Index < 0 then
   begin
-    Log('Warning: Invalid language index');
+    Log(GetLocalizedMessage('LogWarningInvalidLanguage'));
     Exit;
   end;
 
-  // ��ȡ��������
+
   LangIndex := Integer(ComboBox1.Items.Objects[Index]);
 
-  // ��¼�û�ѡ�������
-  Log('User selected language: ' + ComboBox1.Items[Index] + ' (Index: ' + IntToStr(LangIndex) + ')');
 
-  // ��ȡ���Դ���
+  Log(GetLocalizedMessage('LogUserSelectedLanguage') + ComboBox1.Items[Index] + ' (Index: ' + IntToStr(LangIndex) + ')');
+
+
   if (LangIndex >= 0) and (LangIndex <= High(LANGUAGE_MAPPINGS)) then
   begin
     LangCode := LANGUAGE_MAPPINGS[LangIndex].LanguageCode;
-    Log('Switch to language: ' + LangCode);
+    Log(GetLocalizedMessage('LogSwitchToLanguage') + LangCode);
 
-    // �л�����
+
     SwitchToLanguageCode(LangCode);
   end
   else
   begin
-    Log('Warning: Invalid language index: ' + IntToStr(LangIndex));
+    Log(GetLocalizedMessage('LogWarningInvalidLanguage') + ': ' + IntToStr(LangIndex));
   end;
 
-  // ȷ�����漰ʱˢ��
   Application.ProcessMessages;
 end;
 
-procedure TForm1.DirectoryListBox1Change(Sender: TObject);
+// --- VirtualExplorerTree OnChange handler ---
+
+procedure TForm1.vstDirChange(Sender: TBaseVirtualTree; Node: PVirtualNode);
+var
+  SelectedPath: string;
 begin
-  // ����ѡ�е��ļ���
-  FSelectedFolder := DirectoryListBox1.Directory;
-
-  // ���������е����ʹ��Ŀ¼
-  FConfig.LastDirectory := FSelectedFolder;
-  
-  // ��ӵ���ʷ��¼
-  AddDirToHistory(FSelectedFolder);
-
-  // �����ļ��б���ļ���չ���б�
-  Log('ѡ���Ŀ¼: ' + FSelectedFolder);
-  UpdateFileExtensions(FSelectedFolder);
-  UpdateFileGrid(FSelectedFolder);
-end;
-
-procedure TForm1.DirectoryListBox1MouseDown(Sender: TObject; Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer);
-begin
-  // �û����Ŀ¼�б��
-  if Button = mbLeft then
-      begin
-    // ������������ѡ�е��ļ���
-    FSelectedFolder := DirectoryListBox1.Directory;
-  end;
-end;
-
-procedure TForm1.DriveComboBox1Change(Sender: TObject);
-begin
-  Screen.Cursor := crHourGlass;
   try
-    // ��DirectoryListBox��Ŀ¼����Ϊ��ǰѡ���������
-    DirectoryListBox1.Drive := DriveComboBox1.Drive;
-    // ����ѡ�е��ļ���
-    FSelectedFolder := DirectoryListBox1.Directory;
-    Log('������: ' + DriveComboBox1.Drive + ', ѡ���Ŀ¼: ' + FSelectedFolder);
-    // �����ļ��б�
-    UpdateFileExtensions(FSelectedFolder);
-    UpdateFileGrid(FSelectedFolder);
-  finally
-    Screen.Cursor := crDefault;
+    SelectedPath := Trim(vstDir.SelectedPath);
+    if SelectedPath = '' then
+      Exit;
+    if not System.SysUtils.DirectoryExists(SelectedPath) then
+      Exit;
+
+    FSelectedFolder := SelectedPath;
+    FConfig.LastDirectory := FSelectedFolder;
+    if FInstantScan then
+    begin
+      Log(FSelectedFolder);
+      try
+        Screen.Cursor := crHourGlass;
+        UpdateFileExtensions(FSelectedFolder);
+        UpdateFileGrid(FSelectedFolder);
+        AddDirToHistory(FSelectedFolder);
+      finally
+        Screen.Cursor := crDefault;
+      end;
+    end
+    else
+      Log(GetLocalizedMessage('LogRefreshDirectory') + FSelectedFolder);
+  except
+    on E: Exception do
+      OutputDebugString(PChar('vstDirChange: ' + E.Message));
   end;
 end;
 
 class procedure TForm1.Execute;
 begin
-  // ��������ʾ������
+
   Application.CreateForm(TForm1, Form1);
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-  // �������������м����¼�
+
   KeyPreview := True;
 
-  // ��ʼ�����Թ�����
-  InitializeLanguageManager;
 
-  // ����ͳһ�Ľ����ʼ������
-  InitializeUI;
+  try
+    InitializeLanguageManager;
+  except
+    on E: Exception do
+      OutputDebugString(PChar('InitializeLanguageManager failed: ' + E.Message));
+  end;
 
-  // Ӧ�õ�ǰ�����ַ���
-  ApplyLanguageStrings;
-  
-  // ������ʷĿ¼
-  LoadDirHistory;
 
-  // ����ʱΪ�����Ҽ��˵����� UTF-8 BOM �����
+  try
+    InitializeUI;
+  except
+    on E: Exception do
+      OutputDebugString(PChar('InitializeUI failed: ' + E.Message));
+  end;
+
+
+  try
+    ApplyLanguageStrings;
+  except
+    on E: Exception do
+      OutputDebugString(PChar('ApplyLanguageStrings failed: ' + E.Message));
+  end;
+
+
+  try
+    LoadDirHistory;
+  except
+    on E: Exception do
+      OutputDebugString(PChar('LoadDirHistory failed: ' + E.Message));
+  end;
+
+
   try
     var Sep := TMenuItem.Create(GridPopupMenu);
     Sep.Caption := '-';
     GridPopupMenu.Items.Add(Sep);
 
     var ItemAdd := TMenuItem.Create(GridPopupMenu);
-    ItemAdd.Caption := '���UTF-8 BOM';
+    ItemAdd.Caption := '';
     ItemAdd.OnClick := MenuItemAddUTF8BOMClick;
     GridPopupMenu.Items.Add(ItemAdd);
 
     var ItemRemove := TMenuItem.Create(GridPopupMenu);
-    ItemRemove.Caption := '�Ƴ�UTF-8 BOM';
+    ItemRemove.Caption := '';
     ItemRemove.OnClick := MenuItemRemoveUTF8BOMClick;
     GridPopupMenu.Items.Add(ItemRemove);
   except
-    // ���Բ˵������쳣������Ӱ��������
+
   end;
 end;
 
 procedure TForm1.TreeViewEncodingsClick(Sender: TObject);
 begin
-  // ���û����TreeViewEncodings�е���Ŀʱ����
-  // ��������������⣨���ڵ㣩��ȡ��ѡ��
+
   if (TreeViewEncodings.Selected <> nil) and (TreeViewEncodings.Selected.Level = 0) then
     begin
     TreeViewEncodings.Selected := nil;
@@ -543,98 +568,98 @@ var
   TimeStamp: string;
 begin
   try
-    // ���ʱ���
+
     TimeStamp := FormatDateTime('hh:nn:ss.zzz', Now);
 
-    // ��ȫ������Ϣ��ֻ�Ƴ������ַ�
+
     SafeMsg := Msg;
     SafeMsg := StringReplace(SafeMsg, #0, '', [rfReplaceAll]);
     SafeMsg := StringReplace(SafeMsg, #13#10, ' ', [rfReplaceAll]);
     SafeMsg := StringReplace(SafeMsg, #13, ' ', [rfReplaceAll]);
     SafeMsg := StringReplace(SafeMsg, #10, ' ', [rfReplaceAll]);
 
-    // ��ʽ����־��Ϣ
+
     SafeMsg := Format('[%s] %s', [TimeStamp, SafeMsg]);
 
-    // ���MemLog�Ƿ��Ѵ���
+
     if not Assigned(MemLog) then
     begin
-      // ���MemLog��δ������ֻ��������Դ���
+
       try
-        OutputDebugString(PChar('��־: ' + SafeMsg));
+        OutputDebugString(PChar('' + SafeMsg));
       except
         on E: Exception do
         begin
-          // �����������Դ���ʧ�ܣ�����ʹ�ø���ȫ�ķ�ʽ
+
           try
-            OutputDebugString(PChar('��־: (�������)'));
+            OutputDebugString(PChar(''));
           except
-            // �������д���
+
           end;
         end;
       end;
       Exit;
     end;
 
-    // ���FLogBuffer�Ƿ��ѳ�ʼ��
+
     if FBufferingLogs then
     begin
-      // ����ģʽ������־��ӵ�������
+
       try
         if Assigned(FLogBuffer) then
           FLogBuffer.Add(SafeMsg)
         else
-          OutputDebugString(PChar('����: ��־������δ��ʼ�����޷���¼��־: ' + SafeMsg));
+          OutputDebugString(PChar('' + SafeMsg));
       except
         on E: EEncodingError do
         begin
           try
             if Assigned(FLogBuffer) then
-              FLogBuffer.Add('(����������־)');
-            OutputDebugString(PChar('�������: �޷������־��������'));
+              FLogBuffer.Add('');
+            OutputDebugString(PChar(''));
           except
-            // �������д���
+
           end;
         end;
         on E: Exception do
         begin
           try
-            OutputDebugString(PChar('����: �����־��������ʱ����: ' + E.Message));
+            OutputDebugString(PChar('' + E.Message));
           except
-            // �������д���
+
           end;
         end;
       end;
     end
     else
     begin
-      // ����ģʽ��ֱ����ӵ�MemLog
+
       try
         if Assigned(FUIHelper) then
           FUIHelper.AppendLog(MemLog, SafeMsg)
         else
         begin
-          // ���FUIHelper��δ������ֱ����ӵ�MemLog
+
           try
             MemLog.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + SafeMsg);
           except
             on E: EEncodingError do
             begin
-              // �ر���������
+
               try
-                MemLog.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + '(����������־)');
-                OutputDebugString(PChar('�������: �޷������־��MemLog'));
+                MemLog.Lines.Add(FormatDateTime('[yyyy-mm-dd hh:nn:ss] ', Now) + '');
+                OutputDebugString(PChar(''));
               except
-                // �������д���
+
               end;
             end;
             on E: Exception do
             begin
-              // ���������쳣
+
               try
-                OutputDebugString(PChar('����: �����־��MemLogʱ����: ' + E.Message));
+                OutputDebugString(PChar('' + E.Message));
               except
-                // �������д���
+
               end;
             end;
           end;
@@ -642,11 +667,11 @@ begin
       except
         on E: Exception do
         begin
-          // ���������쳣
+
           try
-            OutputDebugString(PChar('����: ��¼��־ʱ����: ' + E.Message));
+            OutputDebugString(PChar('' + E.Message));
           except
-            // �������д���
+
           end;
         end;
       end;
@@ -654,55 +679,54 @@ begin
   except
     on E: Exception do
     begin
-      // �������п��ܵ��쳣��ȷ����־��¼���ᵼ�³������
+
       try
-        OutputDebugString(PChar('���ش���: ��־��¼�����г���δ������쳣: ' + E.Message));
+        OutputDebugString(PChar('' + E.Message));
       except
-        // �������д���
+
       end;
     end;
   end;
 end;
 
-// ��ʼ��־����
+
 procedure TForm1.StartLogBuffering;
 begin
   try
-    // ���û����־
+
     FBufferingLogs := True;
 
-    // ��ȫ��飺ȷ��FLogBuffer�ѳ�ʼ��
     if not Assigned(FLogBuffer) then
     begin
       try
-        OutputDebugString(PChar('����: ��־������δ��ʼ�����޷���ʼ����'));
-        // �����µĻ�����
+        OutputDebugString(PChar(''));
+
         FLogBuffer := TStringList.Create;
       except
         on E: Exception do
         begin
           try
-            OutputDebugString(PChar('������־������ʱ����: ' + E.Message));
+            OutputDebugString(PChar('' + E.Message));
           except
-            // �������д���
+
           end;
-          // ���û���ģʽ
+
           FBufferingLogs := False;
         end;
       end;
     end
     else
     begin
-      // ��ջ�����
+
       try
         FLogBuffer.Clear;
       except
         on E: Exception do
         begin
           try
-            OutputDebugString(PChar('�����־������ʱ����: ' + E.Message));
+            OutputDebugString(PChar('' + E.Message));
           except
-            // �������д���
+
           end;
         end;
       end;
@@ -711,17 +735,16 @@ begin
     on E: Exception do
     begin
       try
-        OutputDebugString(PChar('��ʼ��־����ʱ����: ' + E.Message));
+        OutputDebugString(PChar('' + E.Message));
       except
-        // �������д���
+
       end;
-      // ȷ������ģʽ������
+
       FBufferingLogs := False;
     end;
   end;
 end;
 
-// ������־���岢һ���Ը���MemLog
 procedure TForm1.EndLogBuffering;
 var
   i: Integer;
@@ -729,52 +752,50 @@ var
   LogCount: Integer;
 begin
   try
-    // �������ñ�־�������ڴ���������������־
+
     FBufferingLogs := False;
 
-    // ��ȫ��飺ȷ��FLogBuffer�ѳ�ʼ��
     if not Assigned(FLogBuffer) then
     begin
       try
-        OutputDebugString(PChar('����: ��־������δ��ʼ�����޷�ˢ����־'));
+        OutputDebugString(PChar(''));
       except
-        // �������д���
+
       end;
       Exit;
     end;
 
-    // ��ȫ��飺ȷ��MemLog�ѳ�ʼ��
     if not Assigned(MemLog) then
     begin
       try
-        OutputDebugString(PChar('����: MemLogδ��ʼ�����޷�ˢ����־'));
+        OutputDebugString(PChar(''));
       except
-        // �������д���
+
       end;
       Exit;
     end;
 
-    // һ����������л������־
+
     LogCount := FLogBuffer.Count;
     if LogCount > 0 then
     begin
       try
-        // ��������UI
+
         MemLog.Lines.BeginUpdate;
         try
-          // �����־̫�ֻ࣬��ʾ���100��
+
           if LogCount > 100 then
           begin
             StartIndex := LogCount - 100;
             try
-              MemLog.Lines.Add('���� ' + IntToStr(LogCount) + ' ����־��ֻ��ʾ���100��...');
+              MemLog.Lines.Add('' + IntToStr(LogCount) + '');
             except
               on E: Exception do
               begin
                 try
-                  OutputDebugString(PChar('�����־ժҪ��Ϣʱ����: ' + E.Message));
+                  OutputDebugString(PChar('' + E.Message));
                 except
-                  // �������д���
+
                 end;
               end;
             end;
@@ -782,7 +803,7 @@ begin
           else
             StartIndex := 0;
 
-          // ���������־����������ÿ����־���쳣
+
           for i := StartIndex to LogCount - 1 do
           begin
             try
@@ -792,20 +813,20 @@ begin
               on E: EEncodingError do
               begin
                 try
-                  MemLog.Lines.Add('(����������־��)');
-                  OutputDebugString(PChar('�������: �޷������־�� ' + IntToStr(i)));
+                  MemLog.Lines.Add('');
+                  OutputDebugString(PChar('' + IntToStr(i)));
                 except
-                  // �������д���
+
                 end;
               end;
               on E: Exception do
               begin
                 try
-                  OutputDebugString(PChar('�����־��ʱ����: ' + E.Message));
+                  OutputDebugString(PChar('' + E.Message));
                 except
-                  // �������д���
+
                 end;
-                // ����������һ����־
+
                 Continue;
               end;
             end;
@@ -817,15 +838,15 @@ begin
             on E: Exception do
             begin
               try
-                OutputDebugString(PChar('������������ʱ����: ' + E.Message));
+                OutputDebugString(PChar('' + E.Message));
               except
-                // �������д���
+
               end;
             end;
           end;
         end;
 
-        // �������ײ�
+
         try
           MemLog.SelStart := Length(MemLog.Text);
           MemLog.SelLength := 0;
@@ -834,23 +855,23 @@ begin
           on E: Exception do
           begin
             try
-              OutputDebugString(PChar('�������ײ�ʱ����: ' + E.Message));
+              OutputDebugString(PChar('' + E.Message));
             except
-              // �������д���
+
             end;
           end;
         end;
 
-        // ��ջ�����
+
         try
           FLogBuffer.Clear;
         except
           on E: Exception do
           begin
             try
-              OutputDebugString(PChar('�����־������ʱ����: ' + E.Message));
+              OutputDebugString(PChar('' + E.Message));
             except
-              // �������д���
+
             end;
           end;
         end;
@@ -858,9 +879,9 @@ begin
         on E: Exception do
         begin
           try
-            OutputDebugString(PChar('ˢ����־������ʱ����: ' + E.Message));
+            OutputDebugString(PChar('' + E.Message));
           except
-            // �������д���
+
           end;
         end;
       end;
@@ -869,9 +890,9 @@ begin
     on E: Exception do
     begin
       try
-        OutputDebugString(PChar('���ش���: ������־��������г���δ������쳣: ' + E.Message));
+        OutputDebugString(PChar('' + E.Message));
       except
-        // �������д���
+
       end;
     end;
   end;
@@ -908,16 +929,15 @@ begin
 
   // Confirmation dialog
   if Application.MessageBox(
-    PChar(System.SysUtils.Format('ȷ��Ҫ�������ļ� (%d ��) ת��Ϊ��ǰѡ��ı���? ', [Length(AllFiles)])),
-    '����ת��ȷ��',
+    PChar(System.SysUtils.Format('%s', [Length(AllFiles)])),
+    '',
     MB_YESNO + MB_ICONQUESTION) <> IDYES then
   begin
-    Log('ȡ������ת��');
+    Log('User cancelled batch conversion.');
     Exit;
   end;
 
-  // Start batch conversion
-  Log('��ʼ����ת�������ļ�...');
+  Log('Starting batch conversion...');
   StartLogBuffering;
   SuccessCount := 0;
 
@@ -935,20 +955,22 @@ begin
       if FEncodingController.ConvertSingleFile(AllFiles[i], FEncodingModel.GetEncodingName(Encoding), True) then
       begin
         Inc(SuccessCount);
-        Log('- �ɹ�ת��: ' + AllFiles[i] + ' (�� ' + DetectedEncoding + ' �� ' +
+        Log('' + AllFiles[i] + '' + DetectedEncoding + '' +
           FEncodingModel.GetEncodingName(Encoding) + ')');
       end
       else
       begin
-        Log('- ת��ʧ��: ' + AllFiles[i]);
+        Log('' + AllFiles[i]);
       end;
     end;
 
     // Complete batch conversion, show result
-    Log(System.SysUtils.Format('����ת�����: �ɹ� %d/%d ���ļ�', [SuccessCount, Length(AllFiles)]));
+    Log(System.SysUtils.Format('%s', [SuccessCount, Length(AllFiles)]));
     if SuccessCount < Length(AllFiles) then
-      Log(System.SysUtils.Format('ע��: %d ���ļ�δ�ܳɹ�ת�� (�����Ƿ��ı��ļ����޷�����)',
+      Log(System.SysUtils.Format('%s',
         [Length(AllFiles) - SuccessCount]));
+  
+    AddDirToHistory(FSelectedFolder);
   finally
     // Restore cursor
     Screen.Cursor := crDefault;
@@ -968,88 +990,90 @@ var
   DetectedEncoding: string;
   i: Integer;
 begin
-  // ��¼��ʼ����
-  Log('��ʼ�����Ҽ��˵���ת��ѡ���ļ�������');
+
+  Log('');
 
   if StringGrid1.RowCount <= 1 then
   begin
-    Log('�����û���ļ�������ȡ��');
+    Log('');
     Exit; // No files loaded
   end;
 
-  // ��ȡѡ�еı�����Ϣ
+
   if (TreeViewEncodings.Selected = nil) or (TreeViewEncodings.Selected.Level = 0) then
   begin
-    Log('δѡ��Ŀ����룬����ȡ��');
+    Log('');
     ShowLocalizedMessage('MsgSelectTargetEncoding');
     Exit;
   end;
   SelectedIndex := Integer(TreeViewEncodings.Selected.Data);
   TargetInfo := FEncodingModel.Encodings[SelectedIndex];
   WithBOM := TargetInfo.HasBOM;
-  Log('ѡ���Ŀ�����: ' + TargetInfo.Name + ', BOM: ' + BoolToStr(WithBOM, True));
+  Log('' + TargetInfo.Name + ', BOM: ' + BoolToStr(WithBOM, True));
 
-  // ��ȡѡ�е��ļ�
+
   SelectedFiles := FUIHelper.GetSelectedFiles(StringGrid1, FSelectedFolder);
-  Log('�ҵ� ' + IntToStr(Length(SelectedFiles)) + ' ��ѡ�е��ļ�');
+  Log('' + IntToStr(Length(SelectedFiles)) + '');
 
   if Length(SelectedFiles) = 0 then
   begin
-    Log('û��ѡ���ļ�������ȡ��');
-    ShowMessage('������ѡ��һ���ļ�����ת����');
+    Log('');
+    ShowLocalizedMessage('MsgSelectFiles');
     Exit;
   end;
 
-  // ��ʼ����ת��
-  Log('��ʼ����ת��ѡ�е��ļ�...');
+
+  Log('');
   StartLogBuffering;
   SuccessCount := 0;
 
   try
-    // ���õȴ����
+
     Screen.Cursor := crHourGlass;
 
-    // ��������ѡ�е��ļ�����ת��
+
     for i := 0 to High(SelectedFiles) do
     begin
       FilePath := SelectedFiles[i];
 
-      // ����ļ��Ƿ����
+
       if not FileExists(FilePath) then
       begin
-        Log('�ļ������ڣ�����: ' + FilePath);
+        Log('' + FilePath);
         Continue;
       end;
 
-      // ��⵱ǰ����
-      DetectedEncoding := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
-      Log('��⵽�ļ�����: ' + FilePath + ' - ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
 
-      // ����ת��
+      DetectedEncoding := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
+      Log('' + FilePath + ' - ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+
+
       if FEncodingController.ConvertSingleFile(FilePath, TargetInfo.ShortName, WithBOM) then
       begin
         Inc(SuccessCount);
-        Log('- �ɹ�ת��: ' + FilePath + ' (�� ' + DetectedEncoding + ' �� ' + TargetInfo.Name + ')');
+        Log('' + FilePath + '' + DetectedEncoding + '' + TargetInfo.Name + ')');
 
-        // ���±���и��ļ���״̬
+
         UpdateSingleFileInGrid(FilePath);
       end
       else
       begin
-        Log('- ת��ʧ��: ' + FilePath);
+        Log('' + FilePath);
       end;
     end;
 
-    // �������ת������ʾ���
-    Log(System.SysUtils.Format('����ת�����: �ɹ� %d/%d ���ļ�', [SuccessCount, Length(SelectedFiles)]));
+
+    Log(System.SysUtils.Format('%s', [SuccessCount, Length(SelectedFiles)]));
 
     if SuccessCount < Length(SelectedFiles) then
-      Log(System.SysUtils.Format('ע��: %d ���ļ�δ�ܳɹ�ת�� (�����Ƿ��ı��ļ����޷�����)',
+      Log(System.SysUtils.Format('%s',
         [Length(SelectedFiles) - SuccessCount]));
 
-    ShowMessage(System.SysUtils.Format('ת�����: �ɹ� %d/%d ���ļ�', [SuccessCount, Length(SelectedFiles)]));
+    ShowMessage(System.SysUtils.Format('Conversion result: %d/%d files successful', [SuccessCount, Length(SelectedFiles)]));
+  
+    AddDirToHistory(FSelectedFolder);
   finally
-    // �ָ����
+
     Screen.Cursor := crDefault;
     EndLogBuffering;
   end;
@@ -1067,42 +1091,41 @@ var
   CurrentRowFile: string;
   FileName: string;
 begin
-  // ��¼��ʼ����
-  Log('��ʼ�����Ҽ��˵�ת���ļ�����');
 
-  // ���ȼ�鵱ǰѡ�е����Ƿ���Ч
+  Log('');
+
   if (FSelectedRow > 0) and (FSelectedRow < StringGrid1.RowCount) and
      (StringGrid1.Cells[2, FSelectedRow] <> '') and
-     (StringGrid1.Cells[2, FSelectedRow] <> '(���ļ�)') and
-     (StringGrid1.Cells[2, FSelectedRow] <> '(Ŀ¼������)') and
-     (StringGrid1.Cells[2, FSelectedRow] <> '(��ѡ������һ���ļ�����)') then
+     (StringGrid1.Cells[2, FSelectedRow] <> '') and
+     (StringGrid1.Cells[2, FSelectedRow] <> '') and
+     (StringGrid1.Cells[2, FSelectedRow] <> '') then
   begin
-    // ��ȡ�ļ���
+
     FileName := StringGrid1.Cells[2, FSelectedRow];
-    Log('��ǰѡ���е��ļ���: ' + FileName);
+    Log('' + FileName);
 
-    // ��������·��
+
     CurrentRowFile := IncludeTrailingPathDelimiter(FSelectedFolder) + FileName;
-    Log('����������·��: ' + CurrentRowFile);
+    Log('' + CurrentRowFile);
 
-    // ����ļ��Ƿ����
+
     if FileExists(CurrentRowFile) then
     begin
       SetLength(SelectedFiles, 1);
       SelectedFiles[0] := CurrentRowFile;
-      Log('ʹ�õ�ǰ�е��ļ�: ' + CurrentRowFile);
+      Log('' + CurrentRowFile);
     end
     else
     begin
-      Log('�ļ�������: ' + CurrentRowFile);
-      ShowMessage('�ļ�������: ' + CurrentRowFile);
+      Log('' + CurrentRowFile);
+      ShowMessage('File not found: ' + CurrentRowFile);
       Exit;
     end;
   end
   else
   begin
-    // �����ǰ����Ч�����Ի�ȡѡ�е��ļ�
-    Log('��ǰ����Ч�����Ի�ȡѡ�е��ļ�');
+
+    Log('');
     SelectedFiles := FFileHelper.GetSelectedFilesInFolder(FSelectedFolder, FFileExtensions,
       function(const FilePath: string): Boolean
       begin
@@ -1123,11 +1146,11 @@ begin
       FIncludeSubdirs
     );
 
-    // �����Ȼû���ļ���ת����ֱ���˳�
+
     if Length(SelectedFiles) = 0 then
     begin
-      Log('û��ѡ���ļ���Ҳû����Ч�ĵ�ǰ���ļ�������ȡ��');
-      ShowMessage('��ѡ��Ҫת�����ļ�');
+      Log('');
+      ShowLocalizedMessage('MsgSelectFiles');
       Exit;
     end;
   end;
@@ -1136,7 +1159,7 @@ begin
   Encoding := FEncodingModel.GetSelectedEncoding;
 
   // Start batch conversion
-  Log('��ʼת��ѡ�е��ļ�...');
+  Log('');
   StartLogBuffering;
   SuccessCount := 0;
 
@@ -1156,7 +1179,7 @@ begin
       if FEncodingController.ConvertSingleFile(FilePath, FEncodingModel.GetEncodingName(Encoding), True) then
       begin
         Inc(SuccessCount);
-        Log('- �ɹ�ת��: ' + FilePath + ' (�� ' + DetectedEncoding + ' �� ' +
+        Log('' + FilePath + '' + DetectedEncoding + '' +
           FEncodingModel.GetEncodingName(Encoding) + ')');
 
         // Update the status of this file in the grid
@@ -1164,18 +1187,18 @@ begin
       end
       else
       begin
-        Log('- ת��ʧ��: ' + FilePath);
+        Log('' + FilePath);
       end;
     end;
 
     // Complete batch conversion, show result
-    Log(System.SysUtils.Format('����ת�����: �ɹ� %d/%d ���ļ�', [SuccessCount, Length(SelectedFiles)]));
+    Log(System.SysUtils.Format('%s', [SuccessCount, Length(SelectedFiles)]));
 
     if SuccessCount < Length(SelectedFiles) then
-      Log(System.SysUtils.Format('ע��: %d ���ļ�δ�ܳɹ�ת�� (�����Ƿ��ı��ļ����޷�����)',
+      Log(System.SysUtils.Format('%s',
         [Length(SelectedFiles) - SuccessCount]));
 
-    ShowMessage(System.SysUtils.Format('ת�����: �ɹ� %d/%d ���ļ�', [SuccessCount, Length(SelectedFiles)]));
+    ShowMessage(System.SysUtils.Format('Conversion result: %d/%d files successful', [SuccessCount, Length(SelectedFiles)]));
   finally
     // Restore cursor
     Screen.Cursor := crDefault;
@@ -1185,13 +1208,13 @@ end;
 
 procedure TForm1.MenuItemToggleSelectClick(Sender: TObject);
 begin
-  // ȫѡ/ȡ��ȫѡ
+
   FUIHelper.ToggleAllSelections(StringGrid1);
 end;
 
 procedure TForm1.MenuItemViewContentClick(Sender: TObject);
 begin
-  // ֱ�ӵ��ð�ť�ĵ���¼�
+
   btnShowContentClick(Sender);
 end;
 
@@ -1199,21 +1222,21 @@ procedure TForm1.MenuItemCopyFullPathClick(Sender: TObject);
 var
   FullPath: string;
 begin
-  // ȷ��ѡ������Ч����
+
   if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
   begin
     ShowLocalizedMessage('MsgSelectFile');
     Exit;
   end;
 
-  // ��ȡѡ�е��ļ�ȫ·��
+
   FullPath := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, FSelectedRow];
 
-  // ���Ƶ�������
+
   Clipboard.AsText := FullPath;
 
-  // ��¼��־
-  Log('�Ѹ����ļ�ȫ·����������: ' + FullPath);
+
+  Log('' + FullPath);
 end;
 
 procedure TForm1.StringGrid1Click(Sender: TObject);
@@ -1228,20 +1251,20 @@ begin
     Exit;
   P := Grid.ScreenToClient(Mouse.CursorPos);
 
-  // ��ȡ��ǰ���λ�ö�Ӧ�ĵ�Ԫ��
+
   Grid.MouseToCell(P.X, P.Y, Col, Row);
 
-  // ��������Ч�У����Ǳ�ͷ��
+
   if Row > 0 then
   begin
-    // ѡ������
+
     Grid.Row := Row;
     FSelectedRow := Row;
 
-    // ��������һ�У�Checkbox�У�
+
     if Col = 0 then
     begin
-      // �л�Checkbox״̬
+
       if Grid.Cells[Col, Row] = TUIHelper.GetCheckMark then
         Grid.Cells[Col, Row] := ''
       else
@@ -1256,17 +1279,17 @@ var
 begin
   GridCoord := StringGrid1.MouseCoord(MousePos.X, MousePos.Y);
 
-  // ȷ�����������Ч��������
+
   if (GridCoord.Y > 0) and (GridCoord.Y < StringGrid1.RowCount) then
   begin
     StringGrid1.Row := GridCoord.Y;
     FSelectedRow := GridCoord.Y;
-    // ��ʽ������˵�������������Ĭ����Ϊ
+
     GridPopupMenu.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y);
   end
   else
   begin
-    // ���������Ĳ˵�
+
     MenuItemConvertCurrent.Enabled := False;
     MenuItemToggleSelect.Enabled := False;
     MenuItemViewContent.Enabled := False;
@@ -1276,7 +1299,7 @@ end;
 
 procedure TForm1.StringGridSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
 begin
-  // ��¼ѡ�е���
+
   FSelectedRow := ARow;
 end;
 
@@ -1286,126 +1309,118 @@ var
   i: Integer;
   SafePath: string;
 begin
-  // ��ȫ��飺ȷ��UI����ѳ�ʼ��
   if not Assigned(CheckListBox1) then
   begin
-    Log('����: CheckListBox1δ��ʼ��');
+    Log('');
     Exit;
   end;
 
-  // ��ȫ��飺ȷ��FFileExtensions�ѳ�ʼ��
   if not Assigned(FFileExtensions) then
   begin
-    Log('����: FFileExtensionsδ��ʼ��');
+    Log('');
     Exit;
   end;
 
-  // ��ȫ��飺ȷ��FFileHelper�ѳ�ʼ��
   if not Assigned(FFileHelper) then
   begin
-    Log('����: FFileHelperδ��ʼ��');
+    Log('');
     Exit;
   end;
 
-  // ���CheckListBox
+
   try
     CheckListBox1.Clear;
     FFileExtensions.Clear;
   except
     on E: Exception do
     begin
-      Log('����б�ʱ����: ' + E.Message);
-      // ����ִ�У�������������б�
+      Log('' + E.Message);
+
     end;
   end;
 
-  // ��ȫ��飺ȷ��Ŀ¼·����Ч
   if FolderPath = '' then
   begin
-    Log('����: �ṩ��Ŀ¼·��Ϊ��');
+    Log('');
     Exit;
   end;
 
-  // �淶��·���������������
   try
     SafePath := ExcludeTrailingPathDelimiter(FolderPath);
     SafePath := IncludeTrailingPathDelimiter(SafePath);
   except
     on E: Exception do
     begin
-      Log('·����ʽ������: ' + E.Message);
-      SafePath := FolderPath; // ʹ��ԭʼ·��
+      Log('' + E.Message);
+      SafePath := FolderPath;
     end;
   end;
 
-  // ��ȫ��飺ȷ��Ŀ¼����
   if not System.SysUtils.DirectoryExists(SafePath) then
   begin
-    Log('Ŀ¼������: ' + SafePath);
+    Log('' + SafePath);
     Exit;
   end;
 
   try
-    // ��ȡ�ļ����е�������չ��
+
     try
-      Log('���ڻ�ȡĿ¼�е��ļ���չ��: ' + SafePath);
+      Log('' + SafePath);
       Extensions := FFileHelper.GetFileExtensions(SafePath);
     except
       on E: Exception do
       begin
-        Log('��ȡ�ļ���չ��ʱ����: ' + E.Message);
-        SetLength(Extensions, 0); // ȷ��Extensions��һ��������
+        Log('' + E.Message);
+        SetLength(Extensions, 0);
       end;
     end;
 
-    // ��ȫ��飺ȷ�����ص�������Ч
     if Length(Extensions) = 0 then
     begin
-      Log('δ�ҵ��κ��ļ���չ��');
+      Log('');
       Exit;
     end;
 
-    // ��ӵ�CheckListBox��FFileExtensions
+
     for i := 0 to High(Extensions) do
     begin
       try
-        // ��ȫ��飺ȷ����չ����Ч
         if Extensions[i] = '' then
           Continue;
 
-        // ��ӵ�UI���ڲ��б�
+
         CheckListBox1.Items.Add(Extensions[i]);
         FFileExtensions.Add(Extensions[i]);
 
-        // Ĭ��ѡ�г���.exe��.dll�����������չ��
+
         if (Extensions[i] <> '.exe') and (Extensions[i] <> '.dll') then
           CheckListBox1.Checked[i] := True;
       except
         on E: Exception do
         begin
-          Log('�����չ��ʱ����: ' + Extensions[i] + ' - ' + E.Message);
-          // ����������һ����չ��
+          Log('' + Extensions[i] + ' - ' + E.Message);
+
           Continue;
         end;
       end;
     end;
 
-    // ��¼�ɹ���Ϣ
+
     if CheckListBox1.Items.Count > 0 then
-      Log('�ɹ����� ' + IntToStr(CheckListBox1.Items.Count) + ' ���ļ���չ��')
+      Log('' + IntToStr(CheckListBox1.Items.Count) + '')
     else
-      Log('δ�ܼ����κ��ļ���չ��');
+      Log('');
   except
     on E: EEncodingError do
     begin
-      Log('�������: ' + E.Message);
-      // �ر���������
+      Log('' + E.Message);
+
       try
-        // ����ʹ��Ĭ�ϱ���
-        Log('����ʹ��Ĭ�ϱ��봦��·��');
+
+        Log('');
         Extensions := FFileHelper.GetFileExtensions('C:\');
 
-        // ����ɹ���ȡ����չ������ӵ��б�
+
         if Length(Extensions) > 0 then
         begin
           for i := 0 to High(Extensions) do
@@ -1414,24 +1429,24 @@ begin
               CheckListBox1.Items.Add(Extensions[i]);
               FFileExtensions.Add(Extensions[i]);
 
-              // Ĭ��ѡ�г���.exe��.dll�����������չ��
+
               if (Extensions[i] <> '.exe') and (Extensions[i] <> '.dll') then
                 CheckListBox1.Checked[i] := True;
             except
               Continue;
             end;
           end;
-          Log('ʹ��Ĭ��Ŀ¼�ɹ����� ' + IntToStr(CheckListBox1.Items.Count) + ' ���ļ���չ��');
+          Log('' + IntToStr(CheckListBox1.Items.Count) + '');
         end;
       except
         on E2: Exception do
-          Log('ʹ��Ĭ�ϱ��봦��·��Ҳʧ��: ' + E2.Message);
+          Log('' + E2.Message);
       end;
     end;
     on E: Exception do
     begin
-      Log('�����ļ���չ���б�ʱ����: ' + E.Message);
-      // ͨ���쳣����
+      Log('' + E.Message);
+
     end;
   end;
 end;
@@ -1445,17 +1460,15 @@ var
   EncodingName: string;
   ExtSelected: Boolean;
   HasBOM: Boolean;
-  SelectedFileNames: TStringList; // ���ڴ洢ˢ��ǰѡ�е��ļ���
+  SelectedFileNames: TStringList;
   HasSelectedExtensions: Boolean;
   FileCount: Integer;
 begin
-  // ��ʼ��־���壬����UI����
   StartLogBuffering;
 
-  // ���浱ǰѡ�е��ļ����Ա���ˢ�º�ָ�ѡ��״̬
   SelectedFileNames := TStringList.Create;
   try
-    // ��ȡ��ǰѡ�е��ļ���
+
     for i := 1 to StringGrid1.RowCount - 1 do
     begin
       if (StringGrid1.Cells[0, i] = TUIHelper.GetCheckMark) and (StringGrid1.Cells[2, i] <> '') then
@@ -1463,22 +1476,22 @@ begin
 
     end;
 
-    // ��ձ��
+
     FUIHelper.ClearGrid(StringGrid1);
 
     // (Fix Deprecation Warning)
     if not System.SysUtils.DirectoryExists(FolderPath) then // Ensure qualified
     begin
-      StringGrid1.Cells[2, 1] := '(Ŀ¼������)';
-      // ȷ���п���ȷ
+      StringGrid1.Cells[2, 1] := '';
+
       AdjustGridColumnWidths;
-      EndLogBuffering; // ������־����
+      EndLogBuffering;
       Exit;
     end;
 
     Screen.Cursor := crHourGlass;
     try
-      // ��ȡѡ�е��ļ���չ��
+
       SetLength(FileExtensions, 0);
       HasSelectedExtensions := False;
 
@@ -1492,62 +1505,62 @@ begin
         end;
       end;
 
-      // ���û��ѡ���κ��ļ����ͣ���ʾ��ʾ���˳�
+
       if not HasSelectedExtensions then
       begin
-        Log('δѡ���κ��ļ����ͣ�����ʾ�ļ�');
-        StringGrid1.Cells[2, 1] := '(��ѡ������һ���ļ�����)';
-        // ȷ���п���ȷ
+        Log('');
+        StringGrid1.Cells[2, 1] := '';
+
         AdjustGridColumnWidths;
-        EndLogBuffering; // ������־����
+        EndLogBuffering;
         Exit;
       end;
 
-      // ��¼�������ã�ʹ��Ӣ�ģ�����Դ�ļ��������⣩
-      Log('Start searching files: ' + FolderPath + ', include subdirectories: ' + BoolToStr(FIncludeSubdirs, True));
 
-      // ���������Ŀ¼���ڽ�������ȷ��ʾ��ʹ�ñ��ػ���Ϣ��
+      Log(GetLocalizedMessageFmt('LogStartSearching', [FolderPath, BoolToStr(FIncludeSubdirs, True)]));
+
+
       if FIncludeSubdirs then
         Log(GetLocalizedMessage('LogSubdirEnabled'))
       else
         Log(GetLocalizedMessage('LogSubdirDisabled'));
 
-      // ��ʾ����������ʾ
+
       ProgressBar1.Visible := True;
       lblProgress.Visible := True;
       lblProgress.Caption := GetLocalizedMessage('ProgressSearchingFiles');
       ProgressBar1.Position := 0;
       Application.ProcessMessages;
 
-      // ��ȡ�ļ��б� - ʹ��FIncludeSubdirs��FMaxDepth����
+
       Files := FFileHelper.GetFilesInFolder(FolderPath, FileExtensions, FIncludeSubdirs, FMaxDepth);
 
-      // ��¼�ҵ����ļ�����
+
       FileCount := Length(Files);
       Log(GetLocalizedMessageFmt('LogFilesFound', [FileCount]));
 
-      // �ļ�����ȷ�ϻ��� �� �ڹؼ���ֵ�������û�ȷ��
+
       if FileCount >= 2000 then
       begin
         var ConfirmThresholds: array of Integer;
         var ThresholdCaptions: array of string;
         var ti: Integer;
         ConfirmThresholds := [2000, 5000, 20000, 100000, 500000];
-        ThresholdCaptions := ['2,000', '5,000', '2��', '10��', '50��'];
+        ThresholdCaptions := ['2,000', '5,000', '', '', ''];
 
-        // �ҵ���ǰ�ļ�����Ӧ�������ֵ
+
         ti := High(ConfirmThresholds);
         while (ti >= 0) and (FileCount < ConfirmThresholds[ti]) do
           Dec(ti);
 
         if ti >= 0 then
         begin
-          var Msg := Format('��ɨ�赽 %d ���ļ������� %s ��ֵ�����Ƿ������',
+          var Msg := Format('%s',
             [FileCount, ThresholdCaptions[ti]]);
-          if Application.MessageBox(PChar(Msg), '�ļ�����ȷ��',
+          if Application.MessageBox(PChar(Msg), '',
             MB_YESNO or MB_ICONQUESTION) = IDNO then
           begin
-            Log('�û�ȡ���˴��ģ�ļ�ɨ��');
+            Log('');
             ProgressBar1.Visible := False;
             lblProgress.Visible := False;
             EndLogBuffering;
@@ -1556,7 +1569,7 @@ begin
         end;
       end;
 
-      // ���ý�������Χ
+
       if FileCount > 0 then
       begin
         ProgressBar1.Max := FileCount;
@@ -1565,43 +1578,43 @@ begin
         Application.ProcessMessages;
       end;
 
-      // ����UI���£��������
+
       StringGrid1.BeginUpdate;
       try
-        // Ԥ�����ñ�����������⶯̬����
-        // ע�⣺��������Ϊ2����AddFileToGridAt�Զ���������
+
+
         StringGrid1.RowCount := 2;
 
-        // ��ӵ����
+
         for i := 0 to High(Files) do
         begin
           FileName := ExtractFileName(Files[i]);
 
-          // ����ļ�����
+
           EncodingName := FFileHelper.DetectFileEncoding(Files[i], HasBOM);
 
-          // �����ļ��Ƿ�Ӧ�ñ�ѡ�� - ���֮ǰѡ�й������ѡ��
+
           ExtSelected := SelectedFileNames.IndexOf(FileName) >= 0;
 
-          // ��ӵ����ʹ�ñ����ѡ��״̬����������1��ʼ��
+
           FUIHelper.AddFileToGridAt(StringGrid1, i + 1, FileName, EncodingName, ExtSelected);
 
-          // �����ļ�������̬��������Ƶ�ʣ�����UI����
-          var UpdateInterval := 50; // Ĭ��50���ļ�����һ��
+
+          var UpdateInterval := 50;
           if FileCount < 100 then
-            UpdateInterval := 10  // С��100���ļ�ʱ10������һ��
+            UpdateInterval := 10
           else if FileCount > 1000 then
-            UpdateInterval := 100; // ����1000���ļ�ÿ100������һ��
+            UpdateInterval := 100;
 
           if (i > 0) and ((i mod UpdateInterval = 0) or (i = High(Files))) then
           begin
             ProgressBar1.Position := i;
             lblProgress.Caption := GetLocalizedMessageFmt('ProgressDetecting', [i, FileCount, i / FileCount * 100]);
-            Application.ProcessMessages; // ����UI��Ӧ
+            Application.ProcessMessages;
           end;
         end;
 
-        // �����½���Ϊ100%
+
         if FileCount > 0 then
         begin
           ProgressBar1.Position := FileCount;
@@ -1612,18 +1625,18 @@ begin
         StringGrid1.EndUpdate;
       end;
 
-      // ���û���ļ��������ʾ
-      if (FileCount = 0) or (StringGrid1.Cells[2, 1] = '') then
-        StringGrid1.Cells[2, 1] := '(���ļ�)';
 
-      // ȷ���п���ȷ
+      if (FileCount = 0) or (StringGrid1.Cells[2, 1] = '') then
+        StringGrid1.Cells[2, 1] := '';
+
+
       AdjustGridColumnWidths;
 
-      // ��¼�����Ϣ
+
       Log(GetLocalizedMessageFmt('LogDetectionComplete', [FileCount]));
       
-      // ���ؽ�����
-      Sleep(300); // ��΢�ӳ��Ա��û��������״̬
+
+      Sleep(300);
       ProgressBar1.Visible := False;
       lblProgress.Visible := False;
     finally
@@ -1631,15 +1644,14 @@ begin
     end;
   finally
     SelectedFileNames.Free;
-    EndLogBuffering; // ������־���壬һ���Ը�����־
+    EndLogBuffering;
   end;
 end;
 
 procedure TForm1.InvalidateForm;
 begin
-  // ʹ�ü̳еķ����ػ洰��
   inherited Invalidate;
-  // ǿ�ƴ���������Ϣ�����е��¼�
+
   Application.ProcessMessages;
 end;
 
@@ -1650,10 +1662,10 @@ var
   RttiType: TRttiType;
   RttiField: TRttiField;
 begin
-  // ��ȡ��ǰ���Ե��ַ���
+
   LangStrings := ControllerLanguage.GetLanguageStrings(FCurrentLanguage);
 
-  // ʹ���ִ�RTTI��ȡ����ֵ
+
   Context := TRttiContext.Create;
   try
     RttiType := Context.GetType(TypeInfo(TLanguageStrings));
@@ -1664,13 +1676,13 @@ begin
       begin
         Result := RttiField.GetValue(@LangStrings).AsString;
         if Result = '' then
-          Result := MsgId; // ����ֶ�ֵΪ�գ�������ϢID
+          Result := MsgId;
       end
       else
-        Result := MsgId; // ����ֶβ����ڣ�������ϢID
+        Result := MsgId;
     end
     else
-      Result := MsgId; // ���������Ϣ�����ڣ�������ϢID
+      Result := MsgId;
   finally
     Context.Free;
   end;
@@ -1681,27 +1693,27 @@ begin
   Result := System.SysUtils.Format(GetLocalizedMessage(MsgId), Args);
 end;
 
-// ��ʾ���ػ�����Ϣ�Ի���
+
 procedure TForm1.ShowLocalizedMessage(const MsgId: string);
 var
   Title: string;
 begin
-  // ��ȡ��ǰ���ԵĴ��ڱ���
+
   Title := ControllerLanguage.GetLanguageStrings(FCurrentLanguage).WindowTitle;
 
-  // ��ʾ��Ϣ�Ի���
+
   Application.MessageBox(PChar(GetLocalizedMessage(MsgId)), PChar(Title), MB_OK + MB_ICONINFORMATION);
 end;
 
-// ��ʾ��ʽ���ı��ػ���Ϣ�Ի���
+
 procedure TForm1.ShowLocalizedMessageFmt(const MsgId: string; const Args: array of const);
 var
   Title: string;
 begin
-  // ��ȡ��ǰ���ԵĴ��ڱ���
+
   Title := ControllerLanguage.GetLanguageStrings(FCurrentLanguage).WindowTitle;
 
-  // ��ʾ��ʽ������Ϣ�Ի���
+
   Application.MessageBox(PChar(GetLocalizedMessageFmt(MsgId, Args)), PChar(Title), MB_OK + MB_ICONINFORMATION);
 end;
 
@@ -1713,29 +1725,29 @@ var
   i: Integer;
   Found: Boolean;
 begin
-  // ��ȡ�ļ���
+
   FileName := ExtractFileName(FilePath);
 
-  // ����ļ�����
+
   EncodingName := FFileHelper.DetectFileEncoding(FilePath, HasBOM);
 
-  // �ڱ���в��Ҹ��ļ�
+
   Found := False;
   for i := 1 to StringGrid1.RowCount - 1 do
   begin
     if StringGrid1.Cells[2, i] = FileName then
     begin
-      // ���±�����Ϣ
+
       StringGrid1.Cells[1, i] := EncodingName;
       Found := True;
       Break;
     end;
   end;
 
-  // ��������û�и��ļ���������Ҫ���������
+
   if not Found and (FileName <> '') then
   begin
-    Log('�ļ� ' + FileName + ' ת����ɣ�����: ' + EncodingName);
+    Log('' + FileName + '' + EncodingName);
   end;
 end;
 
@@ -1747,14 +1759,14 @@ var
   HasBOM: Boolean;
   Encoding: TEncoding;
 begin
-  // ȷ��ѡ������Ч����
+
   if (FSelectedRow <= 0) or (FSelectedRow >= StringGrid1.RowCount) then
   begin
     ShowLocalizedMessage('MsgSelectFile');
     Exit;
   end;
 
-  // ��ȡѡ�е��ļ�·��
+
   SelectedFile := IncludeTrailingPathDelimiter(FSelectedFolder) + StringGrid1.Cells[2, FSelectedRow];
   if not FileExists(SelectedFile) then
   begin
@@ -1762,7 +1774,7 @@ begin
     Exit;
   end;
 
-  // ����Ƿ�Ϊ�ı��ļ�
+
   if not FFileHelper.IsNormalTextFile(SelectedFile) then
   begin
     ShowLocalizedMessageFmt('MsgNotTextFile', [ExtractFileName(SelectedFile)]);
@@ -1770,79 +1782,79 @@ begin
   end;
 
   try
-    // ����ļ�����
-    Log('���ڼ���ļ�����: ' + SelectedFile);
+
+    Log('' + SelectedFile);
     HasBOM := False;
     DetectedEncoding := FFileHelper.DetectFileEncoding(SelectedFile, HasBOM);
-    Encoding := nil; // ���ǽ�ʹ�����ƶ����Ǳ������
+    Encoding := nil;
 
-    Log('��⵽�ļ�����: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+    Log('' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
 
-    // ��ȫ�ش�����ǰ��ʵ��
+
     if Assigned(SynEditForm) then
     begin
-      // ���ʵ���Ѵ��ڣ��������ض����ͷ�
+
       try
         if SynEditForm.Visible then
         begin
           SynEditForm.Hide;
-          Log('������ǰ��SynEditFormʵ��');
+          Log('');
         end;
       except
         on E: Exception do
         begin
-          Log('����SynEditFormʧ��: ' + E.Message);
-          // �������ʧ�ܣ������ͷ�
+          Log('' + E.Message);
+
           try
             FreeAndNil(SynEditForm);
-            Log('�ͷ���ǰ��SynEditFormʵ��');
+            Log('');
           except
             on E2: Exception do
             begin
-              Log('�ͷ�SynEditFormʧ��: ' + E2.Message);
-              // �����ͷŴ��󣬼���������ʵ��
+              Log('' + E2.Message);
+
             end;
           end;
         end;
       end;
     end;
 
-    // ȷ��ʵ��Ϊ��
+
     if Assigned(SynEditForm) then
     begin
-      // ���ʵ����Ȼ���ڣ�����������
-      Log('��������SynEditFormʵ��');
+
+      Log('');
     end
     else
     begin
-      // �����µ�SynEditFormʵ��
-      Log('���ڴ����µ�SynEditFormʵ��...');
+
+      Log('');
       try
         SynEditForm := TSynEditForm.Create(Self, FFileHelper);
         if not Assigned(SynEditForm) then
         begin
           ShowLocalizedMessage('MsgCannotCreateViewer');
-          Log('����SynEditFormʧ��: ʵ��Ϊ��');
+          Log('');
           Exit;
         end;
-        Log('�ɹ������µ�SynEditFormʵ��');
+        Log('');
       except
         on E: Exception do
         begin
           ShowLocalizedMessageFmt('MsgCannotCreateViewer', [E.Message]);
-          Log('����SynEditFormʧ��: ' + E.Message);
+          Log('' + E.Message);
           Exit;
         end;
       end;
     end;
 
-    // ʹ��ʵ�������ļ�
-    Log('���ڴ��ļ�: ' + SelectedFile);
-    try
-      // ʹ�ü�⵽�ı�������ļ�
-      Log('ʹ�ü�⵽�ı�������ļ�: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
 
-      // ���ݼ�⵽�ı��봴����Ӧ��TEncoding����
+    Log('' + SelectedFile);
+    try
+
+      Log('' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+
+
       var FileEncoding: TEncoding := nil;
       try
         if SameText(DetectedEncoding, 'UTF-8') or SameText(DetectedEncoding, 'UTF-8 with BOM') then
@@ -1852,18 +1864,18 @@ begin
         else if SameText(DetectedEncoding, 'UTF-16BE') then
           FileEncoding := TEncoding.BigEndianUnicode
         else if SameText(DetectedEncoding, 'GBK') or SameText(DetectedEncoding, 'GB2312') then
-          FileEncoding := TEncoding.GetEncoding(936) // GBK����ҳ
+          FileEncoding := TEncoding.GetEncoding(936)
         else if SameText(DetectedEncoding, 'BIG5') then
-          FileEncoding := TEncoding.GetEncoding(950) // BIG5����ҳ
+          FileEncoding := TEncoding.GetEncoding(950)
         else
           FileEncoding := TEncoding.Default;
 
-        // ʹ��ָ����������ļ�
+
         SynEditForm.SetFileInfo(SelectedFile);
         SynEditForm.LoadFileWithEncoding(SelectedFile, FileEncoding, DetectedEncoding, HasBOM);
-        Log('�ɹ������ļ���SynEditForm������: ' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
+        Log('' + DetectedEncoding + ', BOM: ' + BoolToStr(HasBOM, True));
       finally
-        // �ͷŷǱ�׼�������
+
         if Assigned(FileEncoding) and
            (FileEncoding <> TEncoding.UTF8) and
            (FileEncoding <> TEncoding.Unicode) and
@@ -1875,52 +1887,49 @@ begin
       on E: Exception do
       begin
         ShowLocalizedMessageFmt('MsgCannotLoadFile', [E.Message]);
-        Log('LoadFileWithEncodingʧ��: ' + E.Message);
+        Log('' + E.Message);
 
-        // �������ʧ�ܣ�����ʹ��Ĭ�ϱ���
+
         try
-          Log('����ʹ��Ĭ�ϱ�������ļ�...');
+          Log('');
           SynEditForm.LoadFile(SelectedFile);
-          Log('ʹ��Ĭ�ϱ���ɹ������ļ�');
+          Log('');
         except
           on E2: Exception do
           begin
-            Log('ʹ��Ĭ�ϱ�������ļ�Ҳʧ��: ' + E2.Message);
-            // ���ͷ�ʵ����ֻ���˳�
+            Log('' + E2.Message);
+
             Exit;
           end;
         end;
       end;
     end;
 
-    // ��λ�������������Ҳ�(�����Ļ�ռ��㹻)
     try
       if Self.Left + Self.Width + 20 + 600 < Screen.Width then
         SynEditForm.Left := Self.Left + Self.Width + 20
       else
         SynEditForm.Left := (Screen.Width - SynEditForm.Width) div 2;
 
-      SynEditForm.Top := Self.Top + 50; // ��΢ƫ��
+      SynEditForm.Top := Self.Top + 50;
 
-      // �����С�������ʱ���ã���������ʱ����
 
-      // ��ʾʵ������ģ̬��
       SynEditForm.Show;
-      SynEditForm.BringToFront; // ȷ�����ڿɼ�
-      Log('�ɹ���ʾ�ļ�: ' + SelectedFile);
+      SynEditForm.BringToFront;
+      Log('' + SelectedFile);
     except
       on E: Exception do
       begin
         ShowLocalizedMessageFmt('MsgViewerError', [E.Message]);
-        Log('��ʾSynEditFormʧ��: ' + E.Message);
-        // ���ͷ�ʵ����ֻ�Ǽ�¼����
+        Log('' + E.Message);
+
       end;
     end;
   except
     on E: Exception do
     begin
       ShowLocalizedMessageFmt('MsgViewerError', [E.Message]);
-      Log('�鿴�ļ�ʧ��: ' + E.Message);
+      Log('' + E.Message);
     end;
   end;
 end;
@@ -1933,13 +1942,13 @@ var
   LangStrings: TLanguageStrings;
 begin
   try
-    // ��ȡ��ǰ�����ַ���
+
     LangStrings := ControllerLanguage.GetLanguageStrings(FCurrentLanguage);
 
-    // ��¼������ʼ
-    Log('ѡ��/ȡ��ѡ�������ļ����Ͳ�����ʼ');
 
-    // ����Ƿ�������Ŀ���Ѿ�ѡ��
+    Log('');
+
+
     AllChecked := True;
     AnyChecked := False;
     SelectedCount := 0;
@@ -1958,16 +1967,15 @@ begin
         Break;
     end;
 
-    // ��ʾ״̬��Ϣ
-    Log('��ǰ״̬: ȫ��ѡ��=' + BoolToStr(AllChecked, True) +
-        ', ����ѡ��=' + BoolToStr(AnyChecked, True) +
-        ', ѡ������=' + IntToStr(SelectedCount));
 
-    // ������ж�ѡ�л򲿷�ѡ�У���ȫ��ȡ��ѡ��
-    // �����ûѡ�У���ȫ��ѡ��
+    Log('' + BoolToStr(AllChecked, True) +
+        '' + BoolToStr(AnyChecked, True) +
+        '' + IntToStr(SelectedCount));
+
+
     if AllChecked or AnyChecked then
     begin
-      // ȫ��ȡ��ѡ��
+
       for i := 0 to CheckListBox1.Items.Count - 1 do
       begin
         CheckListBox1.Checked[i] := False;
@@ -1978,7 +1986,7 @@ begin
     end
     else
     begin
-      // ȫ��ѡ��
+
       for i := 0 to CheckListBox1.Items.Count - 1 do
       begin
         CheckListBox1.Checked[i] := True;
@@ -1988,34 +1996,34 @@ begin
       Log(LangStrings.LogSelectAllFileTypes);
     end;
 
-    // ֱ�ӵ���UpdateFileCountLabel������״̬��ʾ
+
     UpdateFileCountLabel;
 
-    // ȷ��Ŀ¼��Ч
-    if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
+
+    if System.SysUtils.DirectoryExists(FSelectedFolder) then
     begin
-      // ��ղ����¼����ļ��б�
+
       Log(LangStrings.LogForceUpdateFileList);
-      StringGrid1.RowCount := 2; // ���ñ��ֻ���������
-      StringGrid1.Rows[1].Clear(); // ��յ�һ��������
+      StringGrid1.RowCount := 2;
+      StringGrid1.Rows[1].Clear();
 
-      // ֱ�Ӹ����ļ��б�
-      UpdateFileGrid(DirectoryListBox1.Directory);
 
-      // ��¼��ǰѡ�е��ļ���������
+      UpdateFileGrid(FSelectedFolder);
+
+
       SelectedCount := 0;
       for i := 0 to CheckListBox1.Items.Count - 1 do
         if CheckListBox1.Checked[i] then
           Inc(SelectedCount);
 
-      Log('�ļ��б��Ѹ��£���ǰѡ��' + IntToStr(SelectedCount) + '���ļ�����');
+      Log('' + IntToStr(SelectedCount) + '');
 
-      // ǿ�Ƹ���UI
+
       Application.ProcessMessages;
     end;
   except
     on E: Exception do
-      Log('ȫѡ���Ͱ�ť��������: ' + E.Message);
+      Log('' + E.Message);
   end;
 end;
 
@@ -2024,25 +2032,25 @@ var
   i, SelectedCount: Integer;
   TotalFiles: Integer;
 begin
-  // ����ѡ�е��ļ���������
+
   SelectedCount := 0;
   for i := 0 to CheckListBox1.Items.Count - 1 do
     if CheckListBox1.Checked[i] then
       Inc(SelectedCount);
 
-  // ��ȡ���ļ�����
+
   TotalFiles := 0;
   for i := 1 to StringGrid1.RowCount - 1 do
     if (StringGrid1.Cells[2, i] <> '') and
-       (StringGrid1.Cells[2, i] <> '(���ļ�)') and
-       (StringGrid1.Cells[2, i] <> '(Ŀ¼������)') and
-       (StringGrid1.Cells[2, i] <> '(��ѡ������һ���ļ�����)') then
+       (StringGrid1.Cells[2, i] <> '') and
+       (StringGrid1.Cells[2, i] <> '') and
+       (StringGrid1.Cells[2, i] <> '') then
       Inc(TotalFiles);
 
-  // �������־
-  Log('�ļ�����ͳ��: ��ѡ�� ' + IntToStr(SelectedCount) + '/' +
-      IntToStr(CheckListBox1.Items.Count) + ' �����ͣ��� ' +
-      IntToStr(TotalFiles) + ' ���ļ�');
+
+  Log('' + IntToStr(SelectedCount) + '/' +
+      IntToStr(CheckListBox1.Items.Count) + '' +
+      IntToStr(TotalFiles) + '');
 end;
 
 procedure TForm1.TreeViewEncodingsAdvancedCustomDrawItem(Sender: TCustomTreeView;
@@ -2064,7 +2072,7 @@ begin
     IsSelected := cdsSelected in State;
 
     case Node.Level of
-      0: // ���ڵ�
+      0:
       begin
         Tree.Canvas.Font.Style := [fsBold];
         Tree.Canvas.Font.Size := FOriginalFontSize + 2;
@@ -2074,7 +2082,7 @@ begin
           Tree.Canvas.Font.Color := clHighlightText;
       end;
 
-      1: // ����ڵ�
+      1:
       begin
         Tree.Canvas.Font.Style := [fsBold];
         Tree.Canvas.Font.Size := FOriginalFontSize + 1;
@@ -2084,14 +2092,14 @@ begin
           Tree.Canvas.Font.Color := clHighlightText;
       end;
 
-      else // ����ڵ㣨��˵����
+      else
       begin
         NodeText := Node.Text;
         BracketPos := Pos('(', NodeText);
 
         if BracketPos > 0 then
         begin
-          DefaultDraw := False; // �����Ի��ı�
+          DefaultDraw := False;
 
           EncodingPart := Trim(Copy(NodeText, 1, BracketPos - 1));
           DescPart := Copy(NodeText, BracketPos, MaxInt);
@@ -2100,16 +2108,16 @@ begin
 
           if IsSelected then
           begin
-            // ѡ��״̬����
+
             Tree.Canvas.Brush.Color := clHighlight;
             Tree.Canvas.FillRect(TextRect);
 
-            // ���ƣ���ɫ�Ӵ֣�
+
             Tree.Canvas.Font.Style := [fsBold];
             Tree.Canvas.Font.Color := clHighlightText;
             Tree.Canvas.TextOut(TextRect.Left, TextRect.Top, EncodingPart);
 
-            // ��������ɫ��ͨ��
+
             TextWidth := Tree.Canvas.TextWidth(EncodingPart);
             Tree.Canvas.Font.Style := [];
             Tree.Canvas.Font.Color := clHighlightText;
@@ -2117,7 +2125,7 @@ begin
           end
           else
           begin
-            // δѡ�У����ƺ�ɫ�Ӵ֣�������ɫ
+
             Tree.Canvas.Font.Style := [fsBold];
             Tree.Canvas.Font.Size := FOriginalFontSize;
             Tree.Canvas.Font.Color := clWindowText;
@@ -2133,7 +2141,7 @@ begin
         end
         else
         begin
-          // ��˵�������Ӵ�����
+
           Tree.Canvas.Font.Style := [fsBold];
           Tree.Canvas.Font.Size := FOriginalFontSize;
           if not IsSelected then
@@ -2154,14 +2162,14 @@ var
     bmp.SetSize(16, 16);
     bmp.PixelFormat := pf32bit;
     bmp.Canvas.Brush.Style := bsSolid;
-    // ��Ϳ����Ϊ͸��ɫ����
+
     bmp.Canvas.Brush.Color := clWhite;
     bmp.Canvas.Pen.Color := clWhite;
     bmp.Canvas.Rectangle(0, 0, 16, 16);
     SetBkMode(bmp.Canvas.Handle, TRANSPARENT);
     bmp.Transparent := True;
     bmp.TransparentColor := clWhite;
-    // ��������
+
     DrawProc(bmp.Canvas);
     if not Assigned(FIconList) then
     begin
@@ -2179,7 +2187,7 @@ var
 
   procedure AddIconNoClear(const DrawProc: TProc<Vcl.Graphics.TCanvas>);
   begin
-    // ��ͬһ��imagelist��׷��
+
     bmp.SetSize(16, 16);
     bmp.PixelFormat := pf32bit;
     bmp.Canvas.Brush.Color := clWhite;
@@ -2192,13 +2200,12 @@ var
     FIconList.AddMasked(bmp, clWhite);
   end;
 begin
-  // ����ѳ�ʼ�����������㣬ֱ�ӷ���
   if Assigned(FIconList) and (FIconList.Count >= 10) then
     Exit;
 
   bmp := Vcl.Graphics.TBitmap.Create;
   try
-    // ����/���ImageList����������Ӹ���ͼ��
+
     // 0: Root (App)
     AddIcon(
       procedure(C: Vcl.Graphics.TCanvas)
@@ -2229,7 +2236,7 @@ begin
         C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
       end);
 
-    // 2: Asian (��)
+
     AddIconNoClear(
       procedure(C: Vcl.Graphics.TCanvas)
       var R: TRect; TW, TH: Integer; S: string;
@@ -2238,7 +2245,7 @@ begin
         C.Brush.Color := RGB(0, 160, 80);
         C.Pen.Color := RGB(0,120,60);
         C.RoundRect(R.Left, R.Top, R.Right, R.Bottom, 3, 3);
-        S := '��';
+        S := '';
         C.Font.Color := clWhite; C.Font.Size := 7; C.Font.Style := [fsBold];
         TW := C.TextWidth(S); TH := C.TextHeight(S);
         C.TextOut(R.Left + (R.Right-R.Left-TW) div 2, R.Top + (R.Bottom-R.Top-TH) div 2, S);
@@ -2339,19 +2346,19 @@ begin
       procedure(C: Vcl.Graphics.TCanvas)
       var R: TRect;
       begin
-        // ���������ĵ�ͼ�꣺���۽Ǻ���������
+
         R := Rect(3,2,13,14);
-        // �ĵ�����
+
         C.Brush.Color := clWhite;
         C.Pen.Color := RGB(150,150,150);
         C.Rectangle(R.Left, R.Top, R.Right, R.Bottom);
-        // �����۽�
+
         C.Pen.Color := RGB(180,180,180);
         C.MoveTo(R.Right-5, R.Top);
         C.LineTo(R.Right-1, R.Top+4);
         C.LineTo(R.Right-1, R.Bottom-1);
         C.LineTo(R.Left, R.Bottom-1);
-        // �ĵ�����
+
         C.Pen.Color := RGB(110,110,110);
         C.MoveTo(R.Left+2, R.Top+4); C.LineTo(R.Right-2, R.Top+4);
         C.MoveTo(R.Left+2, R.Top+6); C.LineTo(R.Right-2, R.Top+6);
@@ -2370,42 +2377,40 @@ var
   NodeLevel: Integer;
 begin
   try
-    // ����TreeView�е����нڵ�
+
     for i := 0 to TreeViewEncodings.Items.Count - 1 do
     begin
       Node := TreeViewEncodings.Items[i];
       NodeLevel := Node.Level;
 
-      // ������б���ڵ㣨�Ǹ��ڵ�ͷǷ������ڵ㣩
-      // ע�⣺����HelperUI.SetupEncodingList��ʵ�֣�����ڵ������Level=1��Level=2
+
       if (NodeLevel > 0) and (Integer(Node.Data) >= 0) then
       begin
         NodeData := Integer(Node.Data);
 
-        // ����Ƿ�ΪUTF-8 BOM�ڵ�
+
         if (NodeData >= 0) and (NodeData < FEncodingModel.EncodingCount) then
         begin
-          // �������Ƿ�ΪUTF-8����BOM
+
           if (FEncodingModel.Encodings[NodeData].CodePage = 65001) and
              (FEncodingModel.Encodings[NodeData].HasBOM) then
           begin
-            // ѡ�иýڵ�
+
             TreeViewEncodings.Selected := Node;
 
-            // ȷ���ýڵ�ɼ���չ�����ڵ㣩
             Node.MakeVisible;
 
-            // ��¼��־
-            Log('Ĭ��ѡ�б���: ' + Node.Text);
 
-            // �ҵ����˳�ѭ��
+            Log('' + Node.Text);
+
+
             Exit;
           end;
         end;
       end;
     end;
 
-    // ���û���ҵ�UTF-8 BOM�����Բ�����ͨUTF-8����BOM��
+
     for i := 0 to TreeViewEncodings.Items.Count - 1 do
     begin
       Node := TreeViewEncodings.Items[i];
@@ -2416,23 +2421,23 @@ begin
 
         if (NodeData >= 0) and (NodeData < FEncodingModel.EncodingCount) then
         begin
-          // ������ͨUTF-8
+
           if (FEncodingModel.Encodings[NodeData].CodePage = 65001) and
              (not FEncodingModel.Encodings[NodeData].HasBOM) then
           begin
             TreeViewEncodings.Selected := Node;
             Node.MakeVisible;
-            Log('û���ҵ�UTF-8 BOM��ѡ����ͨUTF-8: ' + Node.Text);
+            Log('' + Node.Text);
             Exit;
           end;
         end;
       end;
     end;
 
-    Log('δ�ҵ�UTF-8����ڵ㣬δ����Ĭ�ϱ���');
+    Log('');
   except
     on E: Exception do
-      Log('����Ĭ�ϱ���ʧ��: ' + E.Message);
+      Log('' + E.Message);
   end;
 end;
 
@@ -2441,218 +2446,202 @@ begin
   try
     if Assigned(TreeViewEncodings) and TreeViewEncodings.HandleAllocated then
     begin
-      // ��ˮƽ�������ƶ��������
+
       TreeViewEncodings.Perform(WM_HSCROLL, SB_LEFT, 0);
-      // �ٴ�ȷ���ɼ����������ʼ
+
       TreeViewEncodings.Perform(WM_HSCROLL, SB_LEFT, 0);
     end;
   except
-    // �����κι����쳣
+
   end;
 end;
 
 procedure TForm1.AdjustGridColumnWidths;
 begin
-  // �����п�
-  StringGrid1.ColWidths[0] := 40;        // ѡ�����
-  StringGrid1.ColWidths[1] := 112;       // ������ (���ٵ�ԭ����һ��)
-  StringGrid1.ColWidths[2] := 613;       // �ļ����� (���ӱ����м��ٵĲ���)
 
-  // ǿ���ػ�
+  StringGrid1.ColWidths[0] := 40;
+  StringGrid1.ColWidths[1] := 112;
+  StringGrid1.ColWidths[2] := 613;
+
+
   StringGrid1.Invalidate;
 end;
 
 procedure TForm1.InitializeUI;
 begin
-  // ��ʼ������
+
   FUIHelper.InitStringGrid(StringGrid1);
   FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
 
-  // ��ʼ����ͼ��
+
   InitTreeIcons;
   TreeViewEncodings.Images := FIconList;
 
-  // �󶨱������ĸ߼��Զ�������¼���ʵ�ַ���ڵ���ɫ������Ӵ�
+
   TreeViewEncodings.OnAdvancedCustomDrawItem := TreeViewEncodingsAdvancedCustomDrawItem;
 
-  // �ֶ������п� (��ʹInitStringGrid�Ѿ����ù���������һ��ȷ����Ч)
+
   AdjustGridColumnWidths;
 
-  // Ĭ��ѡ��UTF-8 BOM����
+
   SelectUTF8BOMInTreeView;
 
-  // ��ˮƽ��������������࣬ȷ����ʾ���ڵ�
+
   ScrollEncodingTreeToLeft;
 
-  // ���¼�
+
   CheckListBox1.OnClickCheck := CheckListBox1ClickCheck;
   StringGrid1.PopupMenu := GridPopupMenu;
   btnShowContent.OnClick := btnShowContentClick;
   btnSelectAllExt.OnClick := btnSelectAllExtClick;
 
-  // ��ʼ����ť��ʾ��Ϣ
-  btnShowContent.Hint := '�鿴ѡ���ļ�������';
+
+  btnShowContent.Hint := '';
   btnShowContent.ShowHint := True;
 
-  btnSelectAllExt.Hint := 'ѡ���ȡ��ѡ�������ļ�����';
+  btnSelectAllExt.Hint := '';
   btnSelectAllExt.ShowHint := True;
 
-  // Ӧ�������ַ���
+
   ApplyLanguageStrings;
 
-  // ��ʼ��"������Ŀ¼"��ѡ��
+
   chkIncludeSubdirs.Checked := False;
   FIncludeSubdirs := False;
   chkIncludeSubdirs.OnClick := chkIncludeSubdirsClick;
 
-  // ��ʼ��ɨ����ȿ���
+  // Init instant scan toggle
+  FInstantScan := FConfig.InstantScan;
+  chkInstantScan.Checked := FInstantScan;
+  chkInstantScan.OnClick := chkInstantScanClick;
+  btnScanDir.Visible := not FInstantScan;
+  btnScanDir.OnClick := btnScanDirClick;
+
+
   FMaxDepth := 2;
   SpinEditDepth.Value := FMaxDepth;
   SpinEditDepth.OnChange := SpinEditDepthChange;
   SpinEditDepth.Visible := False;
   lblDepth.Visible := False;
 
-  // ʹ�ø���ȫ��Ĭ��Ŀ¼
-  try
-    // ���ȳ���ʹ���ϴμ�¼��Ŀ¼�����������Ч��
+  // Setup Shell-aware directory tree (TVirtualExplorerTreeview)
+  // Pattern from DeepLaunch: set Active:=False, configure, HandleNeeded, then Active:=True
+  begin
+    vstDir.Active := False;
+    vstDir.RootFolder := rfDesktop;
+    vstDir.FileObjects := [foFolders, foHidden];
+    vstDir.TreeOptions.VETFolderOptions :=
+      vstDir.TreeOptions.VETFolderOptions + [toFoldersExpandable] - [toHideRootFolder];
+    vstDir.OnChange := vstDirChange;
+
+    // Force handle creation before Shell COM calls
+    vstDir.HandleNeeded;
+    vstDir.Active := True;
+
+    // Resolve startup directory
     if (FConfig.LastDirectory <> '') and System.SysUtils.DirectoryExists(FConfig.LastDirectory) then
     begin
-      Log('ʹ���ϴμ�¼��Ŀ¼: ' + FConfig.LastDirectory);
+      Log('' + FConfig.LastDirectory);
       FSelectedFolder := FConfig.LastDirectory;
     end
     else
     begin
-      // ����ʹ���û��ĵ�Ŀ¼
       try
         FSelectedFolder := IncludeTrailingPathDelimiter(GetEnvironmentVariable('USERPROFILE')) + 'Documents';
-        Log('ʹ���û��ĵ�Ŀ¼: ' + FSelectedFolder);
+        Log('' + FSelectedFolder);
       except
-        // �����ȡ��������ʧ�ܣ�ʹ�ó�������Ŀ¼
         FSelectedFolder := ExtractFilePath(ParamStr(0));
-        Log('ʹ�ó�������Ŀ¼: ' + FSelectedFolder);
+        Log('' + FSelectedFolder);
       end;
     end;
 
-    // �����Ŀ¼�Ƿ���ڣ���������ʹ��C��
     if not System.SysUtils.DirectoryExists(FSelectedFolder) then
     begin
       FSelectedFolder := 'C:\';
-      Log('��ѡĿ¼�����ڣ�ʹ��C��: ' + FSelectedFolder);
+      Log('' + FSelectedFolder);
     end;
 
-    // ����DirectoryListBox��Ŀ¼ - ����try..except��
-    try
-      DirectoryListBox1.Directory := FSelectedFolder;
-    except
-      on E: Exception do
-      begin
-        Log('����Ŀ¼ʧ��: ' + E.Message);
-        // �������Ŀ¼ʧ�ܣ�����ʹ��C�̸�Ŀ¼
-        try
-          FSelectedFolder := 'C:\';
-          DirectoryListBox1.Directory := FSelectedFolder;
-        except
-          Log('�޷������κ�Ŀ¼����������޷���������');
-        end;
-      end;
-    end;
-  except
-    on E: Exception do
-    begin
-      Log('��ʼ��Ŀ¼����: ' + E.Message);
-      // ������������ʹ��C��
-      FSelectedFolder := 'C:\';
-      try
-        DirectoryListBox1.Directory := FSelectedFolder;
-      except
-        Log('�޷�����Ŀ¼�����Դ˴��󲢼���');
-      end;
-    end;
+    BrowseToDir(FSelectedFolder);
   end;
 
-  // �ӳٸ����ļ��б�������ڳ�ʼ���׶β�������I/O
+
   try
-    // ��ȫ��飺ȷ��FSelectedFolder��Ч
     if (FSelectedFolder = '') or (not System.SysUtils.DirectoryExists(FSelectedFolder)) then
     begin
-      Log('ѡ���Ŀ¼��Ч��ʹ��C����ΪĬ��Ŀ¼');
+      Log('');
       FSelectedFolder := 'C:\';
     end;
 
-    // ��ȫ��飺ȷ��FFileHelper�ѳ�ʼ��
     if not Assigned(FFileHelper) then
     begin
-      Log('�ļ�����δ��ʼ���������ļ���չ������');
+      Log('');
     end
     else
     begin
       try
-        // ����ֻ�����ļ���չ���б���������ļ�
-        Log('���ڸ����ļ���չ���б��Ŀ¼: ' + FSelectedFolder);
+
+        Log('' + FSelectedFolder);
         UpdateFileExtensions(FSelectedFolder);
-        Log('�ļ���չ���б�������');
+        Log('');
       except
         on E: Exception do
         begin
-          Log('�����ļ���չ���б�ʱ����: ' + E.Message);
-          // ����ִ�У���Ҫ�жϳ�ʼ������
+          Log('' + E.Message);
+
         end;
       end;
     end;
 
-    // �ڱ������ʾ��ʾ��Ϣ
+
     try
-      StringGrid1.Cells[2, 1] := '�����ˢ�¡���ť�����ļ�...';
+      StringGrid1.Cells[2, 1] := '';
       AdjustGridColumnWidths;
     except
       on E: Exception do
       begin
-        Log('���ñ����ʾ��Ϣʱ����: ' + E.Message);
-        // ����ִ�У���Ҫ�жϳ�ʼ������
+        Log('' + E.Message);
+
       end;
     end;
 
-    // ����һ����ʱ�����ڳ��������X���ټ����ļ�
-    // (����ֱ�Ӻ��ԣ����û��ֶ����ˢ�°�ť)
 
-    // ��¼��־�������Զ�����
-    Log('�����ʼ����ɣ�����ˢ�°�ť�����ļ��б�');
+    Log('');
   except
     on E: Exception do
     begin
-      Log('��ʼ���ļ��б����: ' + E.Message);
+      Log('' + E.Message);
       try
-        StringGrid1.Cells[2, 1] := '���ش����볢�Ե��ˢ�°�ť';
+        StringGrid1.Cells[2, 1] := '';
         AdjustGridColumnWidths;
       except
-        // �����κ�UI���´���
-        Log('���ô�����ʾ��Ϣʱ����');
+
+        Log('');
       end;
     end;
   end;
 
-  // ��������ѡ����������ǿ���л�����
+
   CreateLanguageSelector;
 
-  // ��¼�����־
-  Log('�������������ǰ���ԣ�' + FCurrentLanguage);
+
+  Log('' + FCurrentLanguage);
 
   FOriginalFontSize := TreeViewEncodings.Font.Size;
 end;
 
 class procedure TForm1.Initialize;
 begin
-  // ��ʼ�����Թ�����
+
   ControllerLanguage.InitializeLanguageManager;
 end;
 
 procedure TForm1.InitializeLanguageManager;
 begin
-  // ��ʼ�����Թ�����
+
   ControllerLanguage.InitializeLanguageManager;
 
-  // ��¼��־
-  Log('���Թ������ѳ�ʼ��');
+
+  Log('');
 end;
 
 procedure TForm1.CreateLanguageSelector;
@@ -2663,49 +2652,48 @@ var
   SystemLangCode: string;
   MatchedLangCode: string;
 begin
-  // �������ѡ���
+
   ComboBox1.Items.Clear;
-  ComboBox1.Items.AddObject('English', TObject(1)); // Ĭ�����Ӣ��
+  ComboBox1.Items.AddObject('English', TObject(1));
   FoundLanguages := 1;
 
-  // ��¼��־
-  Log('��ʼ���������ļ���Ŀ¼: ' + IniDir);
 
-  // ����LANGUAGE_MAPPINGSȥ������Ӧ��ini�ļ�
+  Log('' + IniDir);
+
+
   for i := 0 to High(LANGUAGE_MAPPINGS) do
   begin
     LangFile := IniDir + '\' + LANGUAGE_MAPPINGS[i].LanguageCode + '.ini';
 
-    // ��¼��־
-    Log('��������ļ�: ' + LangFile);
+
+    Log('' + LangFile);
 
     if FileExists(LangFile) then
     begin
-      // �ҵ������ļ�����ӵ�����ѡ���
+
       ComboBox1.Items.AddObject(LANGUAGE_MAPPINGS[i].DisplayName, TObject(i));
       Inc(FoundLanguages);
 
-      // ��¼��־
-      Log('�ҵ������ļ�: ' + LANGUAGE_MAPPINGS[i].LanguageCode + ' - ' + LANGUAGE_MAPPINGS[i].DisplayName);
+
+      Log('' + LANGUAGE_MAPPINGS[i].LanguageCode + ' - ' + LANGUAGE_MAPPINGS[i].DisplayName);
     end
     else
     begin
-      // ��¼��־
-      Log('δ�ҵ������ļ�: ' + LANGUAGE_MAPPINGS[i].LanguageCode);
+
+      Log('' + LANGUAGE_MAPPINGS[i].LanguageCode);
     end;
   end;
 
-  // ��ȡϵͳ���ԣ��� LanguageManager.Initialize ͨ�� Windows API ��⣩
-  SystemLangCode := ControllerLanguage.GetCurrentLanguage;
-  Log('Windows ϵͳ����: ' + SystemLangCode);
 
-  // ����ϵͳ�����Զ�ѡ��ƥ����
+  SystemLangCode := ControllerLanguage.GetCurrentLanguage;
+  Log('' + SystemLangCode);
+
+
   MatchedLangCode := '';
-  ComboBox1.ItemIndex := 0; // Ĭ��ѡ�е�һ�English��
+  ComboBox1.ItemIndex := 0;
 
   if SystemLangCode <> '' then
   begin
-    // �Ⱦ�ȷƥ�䣨�� zh-CN��
     for i := 0 to ComboBox1.Items.Count - 1 do
     begin
       if Integer(ComboBox1.Items.Objects[i]) <= High(LANGUAGE_MAPPINGS) then
@@ -2719,7 +2707,6 @@ begin
       end;
     end;
 
-    // ��ȷƥ��ʧ��ʱ����������ǰ׺ƥ�䣨�� zh-CN �� zh-TW��
     if MatchedLangCode = '' then
     begin
       var LangPrefix := Copy(SystemLangCode, 1, 2);
@@ -2737,32 +2724,31 @@ begin
       end;
     end;
 
-    // Ӧ��ƥ�䵽������
     if MatchedLangCode <> '' then
     begin
       SwitchToLanguageCode(MatchedLangCode);
-      Log('�Զ����� Windows ����: ' + MatchedLangCode);
+      Log('' + MatchedLangCode);
     end
     else
     begin
       SwitchToLanguageCode('en-US');
-      Log('ϵͳ������ƥ���ʹ��Ӣ��');
+      Log('');
     end;
   end;
 
-  // ��¼��־
-  Log('����ѡ�����Ѵ������ҵ� ' + IntToStr(FoundLanguages) + ' ������');
-  Log('��ǰѡ������: ' + ComboBox1.Text);
+
+  Log('' + IntToStr(FoundLanguages) + '');
+  Log('' + ComboBox1.Text);
 end;
 
 procedure TForm1.ApplyLanguageStrings;
 var
   LangStrings: TLanguageStrings;
 begin
-  // ��ȡ��ǰ���Ե��ַ���
+
   LangStrings := ControllerLanguage.GetLanguageStrings(FCurrentLanguage);
 
-  // Ӧ�õ�����
+
   Self.Caption := LangStrings.WindowTitle;
   btnConvert.Caption := LangStrings.BtnConvert;
   btnSingleFile.Caption := LangStrings.BtnSingleFile + LangStrings.SingleFileConvertSuffix;
@@ -2774,36 +2760,38 @@ begin
   StringGrid1.Cells[1, 0] := LangStrings.EncodingColumn;
   StringGrid1.Cells[2, 0] := LangStrings.FileNameColumn;
 
-  // �˵���
+
   MenuItemConvert.Caption := LangStrings.PopupMenuConvert;
   MenuItemToggleSelect.Caption := LangStrings.PopupMenuToggleSelect;
   MenuItemConvertCurrent.Caption := LangStrings.BtnSingleFile + LangStrings.SingleFileConvertSuffix;
   MenuItemConvertAllFiles.Caption := LangStrings.BtnConvert;
   MenuItemViewContent.Caption := LangStrings.BtnPreview;
 
-  // ��ѡ��
+
   chkIncludeSubdirs.Caption := LangStrings.ChkIncludeSubdirs;
+  chkInstantScan.Caption := LangStrings.ChkInstantScan;
+  btnScanDir.Caption := LangStrings.BtnScanDir;
   lblDepth.Caption := LangStrings.LblDepth;
 
-  // ������ť
+
   btnSelectAllExt.Caption := LangStrings.BtnAllFileTypes;
   btnShowContent.Caption := LangStrings.BtnCheckContent;
 
-  // �ؽ���������ͼ�Ը���������ʾ
+
   TreeViewEncodings.Items.BeginUpdate;
   try
-    // ��סѡ�еı���
+
     var SelectedEncoding: Integer := -1;
     if TreeViewEncodings.Selected <> nil then
       SelectedEncoding := Integer(TreeViewEncodings.Selected.Data);
 
-    // ��ղ����¹��������б�
+
     FUIHelper.SetupEncodingList(TreeViewEncodings, FEncodingModel);
 
-    // ���֮ǰ��ѡ�еı��룬���Իָ�ѡ��
+
     if SelectedEncoding >= 0 then
     begin
-      // ���Բ��Ҳ�ѡ��֮ǰѡ�еĽڵ�
+
       for var i := 0 to TreeViewEncodings.Items.Count - 1 do
       begin
         var Node := TreeViewEncodings.Items[i];
@@ -2812,25 +2800,24 @@ begin
         begin
           TreeViewEncodings.Selected := Node;
           Node.MakeVisible;
-          Log('�ѻָ�ѡ�еı���ڵ�');
+          Log('');
           Break;
         end;
       end;
     end
     else
     begin
-      // ���֮ǰû��ѡ�нڵ㣬Ĭ��ѡ��UTF-8 BOM
       SelectUTF8BOMInTreeView;
     end;
   finally
     TreeViewEncodings.Items.EndUpdate;
   end;
 
-  // ����TreeView������࣬����ˮƽ������ͣ���м�
+
   ScrollEncodingTreeToLeft;
 
-  // ��¼��־
-  Log('��Ӧ�������ַ���: ' + FCurrentLanguage);
+
+  Log('' + FCurrentLanguage);
 end;
 
 procedure TForm1.SwitchToLanguageCode(const LangCode: string);
@@ -2838,17 +2825,17 @@ var
   LangInfo: TLanguageInfo;
   i: Integer;
 begin
-  // �����ϸ��־��������
-  Log('�����л�������: ' + LangCode);
 
-  // ��������
+  Log('' + LangCode);
+
+
   ControllerLanguage.SetLanguage(LangCode);
   FCurrentLanguage := LangCode;
 
-  // Ӧ�������ַ������˷������Ѱ����ؽ������б���߼���
+
   ApplyLanguageStrings;
 
-  // ��������ѡ����ѡ����
+
   LangInfo := ControllerLanguage.GetLanguageInfo(LangCode);
   for i := 0 to ComboBox1.Items.Count - 1 do
   begin
@@ -2862,14 +2849,14 @@ end;
 
 procedure TForm1.ShowFileContent(const FileName: string; Encoding: TEncoding; const DetectedEncoding: string; HasBOM: Boolean);
 begin
-  // ����ļ��Ƿ����
+
   if not FileExists(FileName) then
   begin
     ShowMessage(GetLocalizedMessageFmt('MsgFileNotExists', [FileName]));
     Exit;
   end;
 
-  // ����Ƿ�Ϊ�ı��ļ�
+
   if not FFileHelper.IsNormalTextFile(FileName) then
   begin
     ShowMessage(GetLocalizedMessageFmt('MsgNotTextFile', [ExtractFileName(FileName)]));
@@ -2877,7 +2864,7 @@ begin
   end;
 
   try
-    // ����SynEditFormʵ���������δ������
+
     if not Assigned(SynEditForm) then
     begin
       try
@@ -2885,105 +2872,109 @@ begin
       except
         on E: Exception do
         begin
-          ShowMessage('�޷������ļ��鿴��: ' + E.Message);
-          Log('����SynEditFormʧ��: ' + E.Message);
+          ShowMessage('Error: ' + E.Message);
+          Log('' + E.Message);
           Exit;
         end;
       end;
     end;
 
-    // ֱ�Ӽ����ļ����ݣ�SynEdit���Զ��������
+
     try
       SynEditForm.LoadFile(FileName);
     except
       on E: Exception do
       begin
-        ShowMessage('�޷������ļ�: ' + E.Message);
-        Log('SynEditForm.LoadFileʧ��: ' + E.Message);
+        ShowMessage('Error: ' + E.Message);
+        Log('' + E.Message);
         Exit;
       end;
     end;
 
-    // ��λ�������������Ҳ�(�����Ļ�ռ��㹻)
     try
       if Self.Left + Self.Width + 20 + 600 < Screen.Width then
         SynEditForm.Left := Self.Left + Self.Width + 20
       else
         SynEditForm.Left := (Screen.Width - SynEditForm.Width) div 2;
 
-      SynEditForm.Top := Self.Top + 50; // ��΢ƫ��
+      SynEditForm.Top := Self.Top + 50;
 
-      // �����С�������ʱ���ã���������ʱ����
 
-      // ��ʾ����(��ģ̬)
       SynEditForm.Show;
 
-      // ��¼��־
-      Log('�Ѵ��ļ�: ' + FileName);
+
+      Log('' + FileName);
     except
       on E: Exception do
       begin
-        ShowMessage('��ʾ����ʱ��������: ' + E.Message);
-        Log('��ʾSynEditFormʧ��: ' + E.Message);
+        ShowMessage('Error: ' + E.Message);
+        Log('' + E.Message);
       end;
     end;
   except
     on E: Exception do
     begin
-      ShowMessage('�޷����ļ�: ' + E.Message);
-      Log('���ļ�ʧ��: ' + E.Message);
+      ShowMessage('Error: ' + E.Message);
+      Log('' + E.Message);
     end;
   end;
 end;
 
 procedure TForm1.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  // �������Shift+Ctrl+W��ϼ������������п�
+
   if (Key = Ord('W')) and (ssCtrl in Shift) and (ssShift in Shift) then
   begin
     AdjustGridColumnWidths;
-    Log('�ѵ�������п�');
+    Log('');
   end;
 end;
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  // ��ȫ�ͷ�ȫ�ֵ�SynEditFormʵ��
+  // Deactivate Shell tree to prevent late COM callbacks during shutdown
+  try
+    vstDir.OnChange := nil;
+    vstDir.Active := False;
+  except
+  end;
+
+
   try
     if Assigned(SynEditForm) then
     begin
-      // ���ȳ������ش���
+
       try
         if SynEditForm.Visible then
         begin
           SynEditForm.Hide;
-          Log('������SynEditForm����');
+          Log('');
           Application.ProcessMessages;
           Sleep(100);
         end;
       except
         on E: Exception do
         begin
-          Log('����SynEditFormʧ��: ' + E.Message);
+          Log('' + E.Message);
         end;
       end;
 
-      // Ȼ�����ͷ�ʵ��
+
       try
         SynEditForm.Release;
         SynEditForm := nil;
-        Log('���ͷ�SynEditFormʵ��');
+        Log('');
       except
         on E: Exception do
         begin
-          Log('�ͷ�SynEditFormʧ��: ' + E.Message);
+          Log('' + E.Message);
           try
             FreeAndNil(SynEditForm);
-            Log('ʹ��FreeAndNil�ͷ�SynEditFormʵ��');
+            Log('');
           except
             on E2: Exception do
             begin
-              Log('ʹ��FreeAndNil�ͷ�SynEditFormҲʧ��: ' + E2.Message);
+              Log('' + E2.Message);
             end;
           end;
         end;
@@ -2992,53 +2983,81 @@ begin
   except
     on E: Exception do
     begin
-      Log('�ر�ʱ����SynEditFormʧ��: ' + E.Message);
+      Log('' + E.Message);
     end;
   end;
 
-  // �ͷ���־������
+
   try
     FUIHelper.FreeLogBuffer;
-    Log('���ͷ���־������');
+    Log('');
   except
     on E: Exception do
     begin
-      Log('�ͷ���־������ʧ��: ' + E.Message);
+      Log('' + E.Message);
     end;
   end;
 end;
 
 procedure TForm1.chkIncludeSubdirsClick(Sender: TObject);
 begin
-  // ������Ŀ¼����״̬
+
   FIncludeSubdirs := chkIncludeSubdirs.Checked;
 
-  // ��ȿ��ƽ�������Ŀ¼ʱ��ʾ
+
   SpinEditDepth.Visible := FIncludeSubdirs;
   lblDepth.Visible := FIncludeSubdirs;
 
-  // ��¼״̬�仯���ڽ������ṩ�����ķ���
   if FIncludeSubdirs then
   begin
-    Log('��������Ŀ¼���� - ���: ' + IntToStr(FMaxDepth));
+    Log('' + IntToStr(FMaxDepth));
     ShowLocalizedMessage('MsgSubdirEnabled');
   end
   else
-    Log('�ѽ�����Ŀ¼���� - ֻ������ǰ�ļ���');
+    Log('');
 
-  // �����ļ��б��Է�ӳ��Ŀ¼����״̬
+
   UpdateFileGrid(FSelectedFolder);
 
-  // ����־����ʾ�ļ�������Ϣ
-  Log('�ļ��б��Ѹ��£���ǰ����ʾ ' + IntToStr(StringGrid1.RowCount - 1) + ' ���ļ�');
+
+  Log('' + IntToStr(StringGrid1.RowCount - 1) + '');
 end;
 
 procedure TForm1.SpinEditDepthChange(Sender: TObject);
 begin
   FMaxDepth := SpinEditDepth.Value;
-  Log('ɨ������ѵ���Ϊ: ' + IntToStr(FMaxDepth));
+  Log('' + IntToStr(FMaxDepth));
   if FIncludeSubdirs then
     UpdateFileGrid(FSelectedFolder);
+end;
+
+procedure TForm1.chkInstantScanClick(Sender: TObject);
+begin
+  FInstantScan := chkInstantScan.Checked;
+  FConfig.InstantScan := FInstantScan;
+  btnScanDir.Visible := not FInstantScan;
+  if btnScanDir.Visible then
+    Log(GetLocalizedMessage('LogInstantScanOff'))
+  else
+    Log(GetLocalizedMessage('LogInstantScanOn'));
+end;
+
+procedure TForm1.btnScanDirClick(Sender: TObject);
+begin
+  if (FSelectedFolder = '') or (not System.SysUtils.DirectoryExists(FSelectedFolder)) then
+  begin
+    ShowLocalizedMessage('MsgSelectValidFolder');
+    Exit;
+  end;
+  Log(FSelectedFolder);
+  try
+    Screen.Cursor := crHourGlass;
+    UpdateFileExtensions(FSelectedFolder);
+    UpdateFileGrid(FSelectedFolder);
+    AddDirToHistory(FSelectedFolder);
+  finally
+    Screen.Cursor := crDefault;
+  end;
 end;
 
 {
@@ -3046,7 +3065,7 @@ procedure TForm1.btnCancelClick(Sender: TObject);
 begin
   if Assigned(FAsyncProcessor) then
   begin
-    Log('�û�����ȡ����ǰ����');
+    Log('');
     FAsyncProcessor.Cancel;
     HideProgress;
   end;
@@ -3056,7 +3075,7 @@ end;
 {
 procedure TForm1.InitializeAsyncComponents;
 begin
-  // �����첽������
+
   FAsyncProcessor := TAsyncFileProcessor.Create(
     TProc<string>(
       procedure(const LogMsg: string)
@@ -3066,11 +3085,11 @@ begin
     )
   );
 
-  // �������ȿ�����
+
   FProgressController := TProgressController.Create(ProgressBar1, lblProgress, btnCancel);
   FProgressController.OnCancel := btnCancelClick;
 
-  Log('�첽�����ʼ�����');
+  Log('');
 end;
 }
 
@@ -3078,21 +3097,21 @@ end;
 procedure TForm1.FinalizeAsyncComponents;
 begin
   try
-    // ȡ���������е�����
+
     if Assigned(FAsyncProcessor) then
     begin
       FAsyncProcessor.Cancel;
-      FAsyncProcessor.WaitForCompletion(3000); // �ȴ����3��
+      FAsyncProcessor.WaitForCompletion(3000);
     end;
 
-    // �ͷ����
+
     FreeAndNil(FAsyncProcessor);
     FreeAndNil(FProgressController);
 
-    Log('�첽������ͷ�');
+    Log('');
   except
     on E: Exception do
-      Log('�ͷ��첽���ʱ����: ' + E.Message);
+      Log('' + E.Message);
   end;
 end;
 }
@@ -3114,32 +3133,32 @@ end;
 {
 procedure TForm1.OnFileScanProgress(const Progress: TFileScanProgress);
 begin
-  // �����߳��и��½���
+
   if Assigned(FProgressController) then
     FProgressController.UpdateProgress(Progress);
 
-  // ����״̬��������UIԪ��
+
   if Progress.TotalFiles > 0 then
   begin
     var ProgressPercent := (Progress.ProcessedFiles * 100) div Progress.TotalFiles;
     Caption := Format(FLanguageStrings.WindowTitleScanProgress,
       [ProgressPercent, Progress.ProcessedFiles, Progress.TotalFiles]);
 
-    // ����Ƿ����
+
     if Progress.ProcessedFiles >= Progress.TotalFiles then
     begin
-      // ֱ�������߳��д�������¼�
+
       HideProgress;
       Caption := FLanguageStrings.WindowTitleDefault;
 
       var Results := FAsyncProcessor.GetResults;
       Log(Format(FLanguageStrings.LogAsyncScanComplete, [Length(Results)]));
 
-      // ���û���ļ�����ʾ��ʾ
-      if Length(Results) = 0 then
-        StringGrid1.Cells[2, 1] := '(���ļ�)';
 
-      // �����п�
+      if Length(Results) = 0 then
+        StringGrid1.Cells[2, 1] := '';
+
+
       AdjustGridColumnWidths;
     end;
   end;
@@ -3149,26 +3168,26 @@ end;
 {
 procedure TForm1.OnFileScanResult(const Result: TFileScanResult);
 begin
-  // �����߳�������ļ������
+
   var RowIndex := StringGrid1.RowCount;
   StringGrid1.RowCount := RowIndex + 1;
 
-  StringGrid1.Cells[0, RowIndex] := ''; // ѡ����
-  StringGrid1.Cells[1, RowIndex] := Result.Encoding; // ������
-  StringGrid1.Cells[2, RowIndex] := Result.FileName; // �ļ�����
+  StringGrid1.Cells[0, RowIndex] := '';
+  StringGrid1.Cells[1, RowIndex] := Result.Encoding;
+  StringGrid1.Cells[2, RowIndex] := Result.FileName;
 
-  // ÿ���50���ļ�ˢ��һ�ν���
+
   if (RowIndex mod 50 = 0) then
     Application.ProcessMessages;
 end;
 
 procedure TForm1.OnConversionProgress(const Progress: TBatchConversionResult);
 begin
-  // �����߳��и���ת������
+
   if Assigned(FProgressController) then
     FProgressController.UpdateConversionProgress(Progress);
 
-  // ���´������
+
   if Progress.TotalFiles > 0 then
   begin
     var ProcessedFiles := Progress.SuccessCount + Progress.FailCount + Progress.SkippedCount;
@@ -3176,18 +3195,18 @@ begin
     Caption := Format(FLanguageStrings.WindowTitleConvertProgress,
       [ProgressPercent, Progress.SuccessCount, Progress.FailCount]);
 
-    // ����Ƿ����
+
     if ProcessedFiles >= Progress.TotalFiles then
     begin
-      // ֱ�������߳��д�������¼�
+
       HideProgress;
       Caption := FLanguageStrings.WindowTitleDefault;
 
-      // ˢ���ļ��б�����ʾ���º�ı���
+
       UpdateFileGrid(FSelectedFolder);
 
-      Log('�첽����ת�����');
-      ShowMessage(Format('����ת�����: �ɹ� %d, ʧ�� %d', [Progress.SuccessCount, Progress.FailCount]));
+      Log('');
+      ShowMessage(Format('Batch conversion result: %d success, %d failed', [Progress.SuccessCount, Progress.FailCount]));
     end;
   end;
 end;
@@ -3198,15 +3217,15 @@ var
   i: Integer;
   HasSelectedExtensions: Boolean;
 begin
-  // ���Ŀ¼�Ƿ����
+
   if not System.SysUtils.DirectoryExists(FolderPath) then
   begin
-    StringGrid1.Cells[2, 1] := '(Ŀ¼������)';
+    StringGrid1.Cells[2, 1] := '';
     AdjustGridColumnWidths;
     Exit;
   end;
 
-  // ��ȡѡ�е��ļ���չ��
+
   SetLength(FileExtensions, 0);
   HasSelectedExtensions := False;
 
@@ -3220,25 +3239,25 @@ begin
     end;
   end;
 
-  // ���û��ѡ���κ��ļ����ͣ���ʾ��ʾ���˳�
+
   if not HasSelectedExtensions then
   begin
-    Log('δѡ���κ��ļ����ͣ�����ʾ�ļ�');
-    StringGrid1.Cells[2, 1] := '(��ѡ������һ���ļ�����)';
+    Log('');
+    StringGrid1.Cells[2, 1] := '';
     AdjustGridColumnWidths;
     Exit;
   end;
 
-  // ��ձ��
+
   FUIHelper.ClearGrid(StringGrid1);
 
-  // ��ʾ����
+
   ShowProgress;
 
-  // ��¼��ʼɨ��
-  Log('��ʼ�첽ɨ���ļ�: ' + FolderPath + ', ������Ŀ¼: ' + BoolToStr(FIncludeSubdirs, True));
 
-  // ����첽ɨ��
+  Log('' + FolderPath + '' + BoolToStr(FIncludeSubdirs, True));
+
+
   FAsyncProcessor.ScanFolderAsync(
     FolderPath,
     FileExtensions,
@@ -3252,18 +3271,18 @@ procedure TForm1.ConvertFilesAsync(const Files: TArray<string>; const TargetEnco
 begin
   if Length(Files) = 0 then
   begin
-    ShowMessage('û��ѡ��Ҫת�����ļ�');
+    ShowLocalizedMessage('MsgSelectFiles');
     Exit;
   end;
 
-  // ��ʾ����
+
   ShowProgress;
 
-  // ��¼��ʼת��
-  Log(Format('��ʼ�첽����ת�� %d ���ļ��� %s (BOM: %s)',
+
+  Log(Format('%s',
     [Length(Files), TargetEncoding, BoolToStr(WithBOM, True)]));
 
-  // ����첽ת��
+
   FAsyncProcessor.ConvertFilesAsync(
     Files,
     TargetEncoding,
@@ -3273,7 +3292,7 @@ begin
 end;
 }
 
-{ ��ʷĿ¼���� }
+{ Directory History }
 
 procedure TForm1.LoadDirHistory;
 var
@@ -3295,10 +3314,10 @@ begin
         CBoxDirHistory.Items.Add(DirPath);
     end;
     
-    Log(Format('������ %d ����ʷĿ¼', [CBoxDirHistory.Items.Count]));
+    Log(Format('%s', [CBoxDirHistory.Items.Count]));
   except
     on E: Exception do
-      Log('������ʷĿ¼ʧ��: ' + E.Message);
+      Log('' + E.Message);
   end;
 end;
 
@@ -3310,23 +3329,23 @@ begin
     Exit;
     
   try
-    // ���������
+
     FConfig.IniFile.EraseSection('DirHistory');
     
-    // ��������
+
     FConfig.IniFile.WriteInteger('DirHistory', 'Count', CBoxDirHistory.Items.Count);
     
-    // ����ÿ��Ŀ¼
+
     for i := 0 to CBoxDirHistory.Items.Count - 1 do
       FConfig.IniFile.WriteString('DirHistory', 'Dir' + IntToStr(i), CBoxDirHistory.Items[i]);
       
-    // ˢ�� INI �ļ�
+
     FConfig.IniFile.UpdateFile;
       
-    Log(Format('������ %d ����ʷĿ¼', [CBoxDirHistory.Items.Count]));
+    Log(Format('%s', [CBoxDirHistory.Items.Count]));
   except
     on E: Exception do
-      Log('������ʷĿ¼ʧ��: ' + E.Message);
+      Log('' + E.Message);
   end;
 end;
 
@@ -3334,7 +3353,7 @@ procedure TForm1.AddDirToHistory(const DirPath: string);
 var
   Index: Integer;
 const
-  MAX_HIDeepStory = 20; // ��ౣ�� 20 ����ʷĿ¼
+  MAX_HIDeepStory = 20;
 begin
   if not Assigned(CBoxDirHistory) then
     Exit;
@@ -3342,31 +3361,30 @@ begin
   if (DirPath = '') or not System.SysUtils.DirectoryExists(DirPath) then
     Exit;
     
-  // ����Ƿ��Ѵ���
+
   Index := CBoxDirHistory.Items.IndexOf(DirPath);
   
   if Index >= 0 then
   begin
-    // �Ѵ��ڣ��ƶ�������
+
     CBoxDirHistory.Items.Move(Index, 0);
   end
   else
   begin
-    // �����ڣ���ӵ�����
+
     CBoxDirHistory.Items.Insert(0, DirPath);
     
-    // ��������
+
     while CBoxDirHistory.Items.Count > MAX_HIDeepStory do
       CBoxDirHistory.Items.Delete(CBoxDirHistory.Items.Count - 1);
   end;
   
-  // ����UI
+
   UpdateDirHistoryUI;
   
-  // ���浽����
   SaveDirHistory;
   
-  Log('���Ŀ¼����ʷ: ' + DirPath);
+  Log('' + DirPath);
 end;
 
 procedure TForm1.UpdateDirHistoryUI;
@@ -3382,7 +3400,24 @@ begin
   else
   begin
     CBoxDirHistory.ItemIndex := -1;
-    CBoxDirHistory.Text := '����ʷ��¼';
+    CBoxDirHistory.Text := '';
+  end;
+end;
+
+procedure TForm1.BrowseToDir(const APath: string);
+begin
+  if Trim(APath) = '' then
+    Exit;
+  if not System.SysUtils.DirectoryExists(APath) then
+    Exit;
+
+  try
+    if not vstDir.Active then
+      vstDir.Active := True;
+    vstDir.BrowseTo(APath, True);
+  except
+    on E: Exception do
+      OutputDebugString(PChar('BrowseToDir failed: ' + E.Message));
   end;
 end;
 
@@ -3400,19 +3435,15 @@ begin
   
   if System.SysUtils.DirectoryExists(SelectedDir) then
   begin
-    // ����Ŀ¼�б��
-    DirectoryListBox1.Directory := SelectedDir;
-    
-    // ���´���ѡ��
-    if Length(SelectedDir) >= 2 then
-      DriveComboBox1.Drive := UpCase(SelectedDir[1]);
-      
-    Log('����ʷѡ��Ŀ¼: ' + SelectedDir);
+
+    FSelectedFolder := SelectedDir;
+    BrowseToDir(FSelectedFolder);
+    Log('' + SelectedDir);
   end
   else
   begin
-    ShowMessage('Ŀ¼������: ' + SelectedDir);
-    // ����ʷ���Ƴ�
+    ShowMessage('Directory not found: ' + SelectedDir);
+
     CBoxDirHistory.Items.Delete(CBoxDirHistory.ItemIndex);
     SaveDirHistory;
     UpdateDirHistoryUI;
@@ -3426,30 +3457,30 @@ begin
   if not Assigned(CBoxDirHistory) then
     Exit;
     
-  // ����ʱˢ���б���Ƴ������ڵ�Ŀ¼
+
   i := CBoxDirHistory.Items.Count - 1;
   while i >= 0 do
   begin
     if not System.SysUtils.DirectoryExists(CBoxDirHistory.Items[i]) then
     begin
-      Log('�Ƴ���ЧĿ¼: ' + CBoxDirHistory.Items[i]);
+      Log('' + CBoxDirHistory.Items[i]);
       CBoxDirHistory.Items.Delete(i);
     end;
     Dec(i);
   end;
   
   if CBoxDirHistory.Items.Count = 0 then
-    CBoxDirHistory.Text := '����ʷ��¼';
+    CBoxDirHistory.Text := '';
 end;
 
-// ������ѡ���ļ�ת��Ϊ UTF-8����ѡ�Ƿ�� BOM��
+
 procedure TForm1.ConvertSelectedFilesToUTF8(const WithBOM: Boolean);
 var
   SelectedFiles: TArray<string>;
   SuccessCount, i: Integer;
   FilePath: string;
 begin
-  // ��ȡѡ�е��ļ�
+
   SelectedFiles := FUIHelper.GetSelectedFiles(StringGrid1, FSelectedFolder);
   if Length(SelectedFiles) = 0 then
   begin
@@ -3457,7 +3488,7 @@ begin
     Exit;
   end;
 
-  Log(Format('��ʼ����%s UTF-8 BOM���� %d ���ļ�...', [IfThen(WithBOM, '���', '�Ƴ�'), Length(SelectedFiles)]));
+  Log(Format('%s', [IfThen(WithBOM, '', ''), Length(SelectedFiles)]));
   StartLogBuffering;
   Screen.Cursor := crHourGlass;
   SuccessCount := 0;
@@ -3471,31 +3502,35 @@ begin
         UpdateSingleFileInGrid(FilePath);
       end
       else
-        Log('- ת��ʧ��: ' + FilePath);
+        Log('' + FilePath);
     end;
 
-    Log(Format('��ɣ��ɹ� %d/%d ���ļ���Ŀ�꣺%s��',
+    Log(Format('%s',
       [SuccessCount, Length(SelectedFiles), IfThen(WithBOM, 'UTF-8 with BOM', 'UTF-8 (no BOM)')]));
 
-    // ˢ���ļ�����
-    if System.SysUtils.DirectoryExists(DirectoryListBox1.Directory) then
-      UpdateFileGrid(DirectoryListBox1.Directory);
+
+    if System.SysUtils.DirectoryExists(FSelectedFolder) then
+      UpdateFileGrid(FSelectedFolder);
+      AddDirToHistory(FSelectedFolder);
   finally
     Screen.Cursor := crDefault;
     EndLogBuffering;
   end;
 end;
 
-// �Ҽ��˵������ UTF-8 BOM
+
 procedure TForm1.MenuItemAddUTF8BOMClick(Sender: TObject);
 begin
   ConvertSelectedFilesToUTF8(True);
 end;
 
-// �Ҽ��˵����Ƴ� UTF-8 BOM
+
 procedure TForm1.MenuItemRemoveUTF8BOMClick(Sender: TObject);
 begin
   ConvertSelectedFilesToUTF8(False);
 end;
+
+initialization
+  RegisterClasses([TVirtualExplorerTreeview]);
 
 end.

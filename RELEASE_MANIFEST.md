@@ -1,275 +1,155 @@
-﻿# DeepCharset v2.0.0beta Release Package Manifest
+﻿# DeepCharset v2.0.1 Release Package Manifest
 
-**Generated**: 2025-11-13  
-**Version**: 2.0.0beta  
-**Status**: �?RELEASE READY
-
----
-
-## Package Contents Verification
-
-### �?Core Executable
-- **Location**: `bin/Win64/_build/DeepCharset.exe`
-- **Size**: 5,030,400 bytes (5.03 MB)
-- **Platform**: Windows 64-bit (Win64)
-- **Status**: �?Compiled successfully
-- **Version String**: DeepCharset v2.0.0beta
-
-### �?Documentation Files
-
-#### Root Documentation
-- [x] `README.md` - Project overview and features
-- [x] `CHANGELOG.md` - Version hiDeepDeepDeepDeepDeepStory (Batch 10-14 improvements)
-- [x] `RELEASE_NOTES.md` - Release highlights and quick start
-- [x] `RELEASE_MANIFEST.md` - This package manifest
-
-#### User Guides (docs/)
-- [x] `Quick_Start_Guide.md` - Startup optimization and Probe diagnostics
-- [x] `CommandLine_Usage.md` - Full CLI reference with examples
-- [x] `Detection_Settings.md` - Encoding detection parameter tuning
-- [x] `Error_Handling.md` - Exception handling and troubleshooting
-
-#### Technical Reports (docs/)
-- [x] `Batch14_Compilation_Baseline.md` - Final compilation metrics (17,420 lines, 0.62s, 0 W1057)
-- [x] `Performance Benchmark.md` - Performance testing results
-- [x] `Release_Check_Report_2025-11-05.md` - Pre-release verification
-- [x] `Development_Completion_Report_2025-11-03.md` - Complete development hiDeepDeepDeepDeepDeepStory
-- [x] `BugFix_Report_2025-11-03.md` - Bug fixes and resolutions
-
-#### Reference Documentation (docs/)
-- [x] `EncodingImprovement.md` - Encoding detection improvements
-- [x] `Report_Schema.md` - Exception report schema
-- [x] `CommandLine_Usage.md` - Extended CLI documentation
-- [x] `PerformanceBenchmark.md` - Performance analysis
-
-### �?Configuration Files
-
-#### UI Configuration
-- [x] `ini/ui.ini` - UI settings and detection parameters
-- [x] `ini/en-US.ini` - English language pack
-- [x] `ini/zh-CN.ini` - Simplified Chinese language pack
-- [x] `ini/zh-TW.ini` - Traditional Chinese language pack
-- [x] `ini/ja-JP.ini` - Japanese language pack
-- [x] `ini/ko-KR.ini` - Korean language pack
-- [x] `ini/de-DE.ini` - German language pack
-- [x] `ini/fr-FR.ini` - French language pack
-- [x] `ini/es-ES.ini` - Spanish language pack
-- [x] `ini/it-IT.ini` - Italian language pack
-- [x] `ini/pt-BR.ini` - Portuguese (Brazil) language pack
-- [x] `ini/ru-RU.ini` - Russian language pack
-- [x] `ini/ar-SA.ini` - Arabic language pack
-- [x] `ini/th-TH.ini` - Thai language pack
-- [x] `ini/vi-VN.ini` - Vietnamese language pack
-- [x] `ini/nl-NL.ini` - Dutch language pack
-- [x] `ini/pl-PL.ini` - Polish language pack
+**Generated**: 2025-12-18
+**Version**: 2.0.1
+**Status**: ✅ RELEASE READY
 
 ---
 
-## Quality Assurance Checklist
+## Package Contents
 
-### �?Compilation & Build
-- [x] Clean compilation (no errors)
-- [x] W1057 warnings: 0 (from 31 in Batch 10)
-- [x] Acceptable warnings documented in Batch14_Compilation_Baseline.md
-- [x] Build time: 0.62 seconds (optimal)
-- [x] Binary size: 5.03 MB (reasonable)
-- [x] Lines of code: 17,420 (stable)
+### ✅ Core Executable
 
-### �?Binary Verification
-- [x] Executable runs successfully
-- [x] Version string correct: "DeepCharset v2.0.0beta"
-- [x] CLI help interface working
-- [x] Encoding detection functioning
-- [x] File conversion working
-- [x] Exception handling active
+| Item | Path | Platform |
+|------|------|----------|
+| Main binary | `bin/DeepCharset.exe` | Win64 |
+| CLI version string | `DeepCharset v2.0.1` | - |
+| Self-test runner | `bin/SelfTest_Encoding.exe` | Win64 |
 
-### �?Documentation
-- [x] All 14 markdown files present
-- [x] Quick Start Guide verified
-- [x] Command Line Usage documented
-- [x] Error Handling guide complete
-- [x] Detection Settings documented
-- [x] Release Notes created
-- [x] Compilation baseline established
+### ✅ Runtime Configuration
 
-### �?Language Support
-- [x] 17 language packs included
-- [x] Configuration files valid
-- [x] UI translations complete
+| Item | Path |
+|------|------|
+| UI config | `ini/ui.ini` |
+| Language packs | `ini/{en-US,zh-CN,zh-TW,ja-JP,ko-KR,de-DE,fr-FR,es-ES,it-IT,pt-BR,ru-RU,ar-SA,th-TH,vi-VN,nl-NL,pl-PL}.ini` |
+| Code page aliases | `ini/codes.ini` |
 
-### �?Batch 10-14 Stability
-- [x] Batch 10 improvements preserved (Detection flush, JCL fix, Platform abstraction)
-- [x] Batch 12 W1057 suppressions intact (0 warnings)
-- [x] Batch 13 code cleanup stable (no regressions)
-- [x] Batch 14 version and baseline complete
+### ✅ Root Documentation
 
----
+| File | Purpose |
+|------|---------|
+| `README.md` | Project overview |
+| `CHANGELOG.md` | Version history |
+| `RELEASE_NOTES.md` | Release highlights for v2.0.1 |
+| `RELEASE_MANIFEST.md` | This file |
+| `LICENSE` | MIT license |
+| `CLAUDE.md` / `WARP.md` | AI tool integration guides |
 
-## File Count Summary
+### ✅ Technical Documentation (`docs/`)
 
-| Category | Count | Status |
-|----------|-------|--------|
-| Executables | 1 | �?Ready |
-| Root Documentation | 4 | �?Complete |
-| User Guides | 4 | �?Complete |
-| Technical Reports | 5 | �?Complete |
-| Reference Docs | 4 | �?Complete |
-| Configuration Files | 17 | �?Complete |
-| **TOTAL** | **39** | **�?COMPLETE** |
+| File | Purpose |
+|------|---------|
+| `Quick_Start_Guide.md` | Getting started |
+| `CommandLine_Usage.md` | CLI reference |
+| `Detection_Settings.md` | Detection parameter tuning |
+| `Error_Handling.md` | Troubleshooting |
+| `EurekaLog_Integration.md` | Exception reporting (legacy) |
+| `madExcept_Integration.md` | Exception reporting (current) |
+| `PerformanceBenchmark.md` | Performance analysis |
+| `Report_Schema.md` | Crash report format |
 
 ---
 
-## Version Information
+## Quality Assurance
 
-### Current Release
-- **Version**: 2.0.0beta
-- **Release Date**: 2025-11-13
-- **Build**: Win64 (x86-64)
-- **Status**: Release Candidate �?Ready for Deployment
+### ✅ Build
 
-### Development Phases Completed
-1. **Batch 10**: Core improvements (Detection flush, JCL fix, Platform abstraction)
-2. **Batch 11**: Analysis & conservative strategy definition
-3. **Batch 12**: W1057 elimination (31 �?0) �?
-4. **Batch 13**: Code cleanup & stability �?
-5. **Batch 14**: Release finalization �?
+- Compiler: Embarcadero Delphi 12/13 (Win64 target)
+- Build status: 0 errors
+- W1057 implicit string cast warnings: 0
+- Remaining acceptable warnings: H2077, H2164, W1002 (documented)
 
----
+### ✅ Bug Fixes Since v2.0.0beta
 
-## Deployment Instructions
+| Bug | Severity | Summary |
+|-----|----------|---------|
+| #5 | Critical | CodePageCache thread safety |
+| #7 | Critical (security) | Path traversal & system directory protection |
+| #9 | Medium (security) | Temp file secure naming & deletion |
+| #10 | Medium (quality) | Unified BOM cleanup |
+| #11 | Medium | Cross-volume atomic replace failure |
+| #12 | Medium (security) | Path traversal bypass via normalization |
+| #14 | Medium | FTempFileList thread safety |
+| #15 | Low | FProtectedPaths empty slot |
+| #16 | High | Large file memory overflow (via ConvertFileStreaming) |
+| #18 | Critical | Missing EncodingExceptions unit |
+| #19 | Low | W1057 warnings in test runner |
+| v2.0.1-P0.4 | High | CLI Halt() bypassing finalization |
+| v2.0.1-P1.1 | High | ConvertFile auto-route to streaming |
+| v2.0.1-P1.2 | Medium | BOM-only file false error |
+| v2.0.1-P2.1 | Low (UX) | CLI default backup enabled |
 
-### For End Users
+### ✅ Test Coverage
 
-1. **Download**: Obtain `DeepCharset.exe` (5.03 MB)
-2. **Extract**: Place in desired directory (e.g., C:\Program Files\DeepCharset\)
-3. **Run**: 
-   - **GUI**: Double-click `DeepCharset.exe`
-   - **CLI**: Run `DeepCharset.exe --help` for command options
-4. **Configuration** (optional):
-   - Place `ini/*.ini` files in same directory for custom settings
-   - Edit `ui.ini` for UI preferences and detection parameters
-
-### For Administrators
-
-1. **Deployment**:
-   ```batch
-   xcopy DeepCharset.exe "\\server\deploy\" /Y
-   xcopy docs "\\server\deploy\docs\" /Y
-   xcopy ini "\\server\deploy\ini\" /Y
-   ```
-
-2. **Configuration Management**:
-   - Centralize `ini/ui.ini` with custom detection parameters
-   - Distribute via GPO or deployment scripts
-
-3. **Rollback** (if needed):
-   - Previous version 1.2.0 binaries should be retained separately
-   - All changes in Batch 12-14 are backward-compatible with data
+- `Tests/SelfTest_Encoding.dpr` - Integration suite (12+ test cases)
+- `Tests/Test_BoundaryCases.pas` - Boundary conditions
+- `Tests/Test_ConversionIntegrity.pas` - Data integrity validation
+- Cross-codepage regression: GBK/Big5 → UTF-8 verified
+- UTF-8 BOM cleanup: 8 scenarios verified
 
 ---
 
-## Release Artifacts Included
+## Deployment
 
-### Binary Package
+### Minimal Package
+
+For end-user distribution, only these files are required:
+
 ```
-DeepCharset/
-├── bin/Win64/_build/
-�?  └── DeepCharset.exe          # Main executable (5.03 MB)
+DeepCharset.exe           # Main executable (~5 MB)
+ini/                      # Config files (UI + languages)
+  ├── ui.ini
+  ├── codes.ini
+  └── *.ini               # Language packs
+README.md
+RELEASE_NOTES.md
+LICENSE
 ```
 
-### Documentation Package
+### Full Package
+
+For developers / evaluators, add:
+
 ```
-docs/
-├── Quick_Start_Guide.md          # User startup guide
-├── CommandLine_Usage.md          # CLI reference
-├── Detection_Settings.md         # Parameter tuning
-├── Error_Handling.md             # Troubleshooting
-├── Batch14_Compilation_Baseline.md  # Build metrics
-├── Performance Benchmark.md      # Performance analysis
-├── Release_Check_Report_2025-11-05.md
-├── Development_Completion_Report_2025-11-03.md
-└── ... (9 more technical files)
+docs/                     # Technical documentation
+Tests/                    # Test runners
+CHANGELOG.md
+bugfix.md                 # Bug fix history
 ```
 
-### Configuration Package
-```
-ini/
-├── ui.ini                        # Main configuration
-├── en-US.ini, zh-CN.ini, ...    # 17 language packs
-```
+### Installation
 
-### Release Notes Package
-```
-├── RELEASE_NOTES.md              # Release highlights
-├── CHANGELOG.md                  # Version hiDeepDeepDeepDeepDeepStory
-├── README.md                     # Project overview
-├── RELEASE_MANIFEST.md           # This file
-```
+1. Extract to any directory
+2. For GUI: double-click `DeepCharset.exe`
+3. For CLI: `DeepCharset.exe --help`
 
 ---
 
-## Testing Verification Results
+## Known Limitations
 
-| Test | Result | Evidence |
-|------|--------|----------|
-| Version String | �?PASS | `DeepCharset v2.0.0beta` |
-| CLI Help | �?PASS | Help interface responsive |
-| Encoding Detection | �?PASS | UTF-8 BOM detected correctly |
-| File Conversion | �?PASS | 1 file converted successfully |
-| Binary Size | �?PASS | 5.03 MB (within spec) |
-| Compilation Time | �?PASS | 0.62 seconds (optimal) |
-| W1057 Warnings | �?PASS | 0 warnings (target achieved) |
+- Detection sampling window: files larger than 4 MB sampled by first 4 MB only
+- Mixed-encoding files not automatically split
+- Safe-mode UI for low-confidence conversions still on v2.1.0 roadmap
+- Async scanning / conversion currently disabled (v2.2.0 target)
 
 ---
 
-## Known Limitations & Future Improvements
+## Version History (condensed)
 
-### Acceptable Warnings (Preserved)
-- **H2077** (~24): Unused variable assignments (safe, for future optimization)
-- **H2164** (~7): Declared but unused error handling variables (safe)
-- **W1002** (4): Platform-specific Windows APIs (expected, Win64-specific)
-
-### Future Optimization Opportunities
-1. **H2077/H2164 Cleanup**: Can be addressed in next iteration with unit testing
-2. **Platform Abstraction Expansion**: Extend cross-platform support beyond Win64
-3. **Performance**: Additional benchmarking and optimization opportunities identified
-4. **Detection Algorithm**: Further language-specific detection improvements
+- **v2.0.1** (2025-12-18) - Quality hotfix, 15 bugs fixed
+- **v2.0.0beta** (2025-11-13) - Batch 14 release
+- **v1.2.0** - Earlier development milestone
 
 ---
 
-## Release Sign-Off
+## Sign-off
 
-### Build Verification
-- **Compiler**: Embarcadero Delphi 36.0
-- **Platform**: Windows 64-bit
-- **Build Status**: �?SUCCESSFUL (0 errors)
-- **Warning Baseline**: �?ESTABLISHED & DOCUMENTED
+- Build: ✅ Clean compilation, 0 errors, 0 W1057 warnings
+- Testing: ✅ SelfTest suite passes; manual GUI + CLI verification complete
+- Documentation: ✅ README rewritten, release notes aligned with bug fix history
+- Repository hygiene: ✅ Temp artifacts purged, .gitignore updated
+- Security: ✅ Path traversal, temp file predictability, large-file OOM all mitigated
 
-### Quality Verification
-- **Code Review**: �?PASSED (Batch 12-14 improvements verified)
-- **Functional Testing**: �?PASSED (Core features verified)
-- **Documentation**: �?COMPLETE (All guides and reports generated)
-- **Package Assembly**: �?COMPLETE (All files present and verified)
+**Approval**: Ready for distribution
 
-### Release Approval
-- **Version**: 2.0.0beta
-- **Status**: �?**APPROVED FOR RELEASE**
-- **Date**: 2025-11-13
-- **Next Steps**: Stable v2.0.0 release �?Production deployment
-
----
-
-## Contact & Support
-
-For questions or issues:
-1. Review documentation in `docs/` directory
-2. Check `Error_Handling.md` for troubleshooting
-3. Consult `CommandLine_Usage.md` for CLI examples
-4. See `Detection_Settings.md` for parameter configuration
-
----
-
-**Release Package**: COMPLETE �? 
-**Status**: Ready for Distribution 🚀
-
-Generated: 2025-11-13 11:13 UTC
+Generated: 2025-12-18

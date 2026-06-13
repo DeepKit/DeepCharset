@@ -1,220 +1,144 @@
-﻿# DeepCharset v2.0.0beta Release Notes
+﻿# DeepCharset v2.0.1 Release Notes
 
-**Release Date**: 2025-11-13  
-**Version**: 2.0.0beta  
-**Platform**: Windows 64-bit (Win64)  
-**Status**: 🎉 **Release Ready**
-
----
-
-## What's New in v2.0.0beta
-
-This release represents a major quality improvement phase (Batches 12-14) focusing on compiler warning elimination, code stability, and comprehensive documentation.
-
-### �?Batch 14: Final Release Preparation
-- **Version bump** to v2.0.0beta
-- **W1057 warning elimination**: Achieved 100% success (31 �?0 warnings)
-- **Compilation baseline**: 17,420 lines, 0.62s build time
-- **Binary verification**: All core features working (encoding detection, file conversion, CLI)
-- **Documentation completion**: Release-ready with comprehensive guides
-
-### �?Batch 13: Code Cleanup & Stability
-- Conservative code cleanup: Removed only provably unused code
-- Batch 12 W1057 suppressions preserved across all files
-- Zero new errors introduced
-
-### �?Batch 12: W1057 Implicit String Cast Elimination
-- Reduced W1057 warnings from 31 to 0
-- Strategic {$WARN IMPLICIT_STRING_CAST OFF/ON} directives
-- Performance: Build time 0.56s
-- Quick_Start_Guide.md created with Probe diagnostics
-
-### �?Batch 10: Core Improvements
-- Detection final-batch flush guarantee
-- JCL deprecation warnings resolved
-- Platform abstraction layer (UtilsPlatform.pas)
-- Configurable detection parameters via ui.ini
-- Full Win64 compatibility verification
+**Release Date**: 2025-12-18
+**Version**: 2.0.1
+**Platform**: Windows 64-bit (Win64)
+**Status**: 🎉 Release Ready
 
 ---
 
-## Installation & Quick Start
+## 概述
 
-### Minimum Requirements
-- Windows 7 SP1 or later (64-bit)
-- .NET Framework 4.5+ (for UI, optional for CLI)
+v2.0.1 是一个**质量修复版**，在 v2.0.0beta 的基础上整合了从 2025-11 至 2025-12 期间发现并修复的 15 个 Bug（Bug #5 ~ #19），覆盖线程安全、路径安全、命令注入、大文件内存、资源管理等多个维度。
 
-### Installation
-1. Extract DeepCharset.exe to a directory
-2. For CLI: Run `DeepCharset.exe --help` to see command options
-3. For GUI: Double-click `DeepCharset.exe`
+---
 
-### Quick CLI Example
+## 本次修复亮点
+
+### 🔒 安全性加固
+
+- **路径遍历防护** (Bug #7, #12)：全面拦截 `C:\temp\..\Windows\system32\` 等路径遍历尝试；在路径规范化**之前**检查 `..` 字符，杜绝绕过
+- **系统目录保护** (Bug #7)：自动识别并拒绝写入 `Windows\System32`、`Program Files` 等受保护位置
+- **临时文件安全** (Bug #9, #14)：使用 GUID 生成不可预测的临时文件名；使用多次覆写进行安全删除；类级文件列表加锁保护多线程并发
+- **跨卷原子替换** (Bug #11)：临时文件直接在目标目录生成，避免 `RenameFile` 跨卷失败
+
+### 🧵 线程安全
+
+- **CodePage 缓存加锁** (Bug #5)：`CodePageCache` 加入 `TCriticalSection`，多线程批量转换不再竞争
+
+### 📦 大文件支持
+
+- **流式处理** (Bug #16)：新增 `ConvertFileStreaming` 方法，64KB 分块处理任意大小文件（2GB 内），内存占用恒定；v2.0.1 默认自动对 >16 MB 文件走流式路径
+- **CLI 默认备份** (v2.0.1 新增)：CLI 模式 `--backup` 默认开启，首次误覆盖风险降低
+
+### 🧹 代码质量
+
+- **统一 BOM 清理** (Bug #10)：消除 200+ 行重复代码，`TBOMCleaner` 成为唯一真相源
+- **W1057 警告归零**：通过精准的编译器指令维持 0 警告
+- **异常层次结构** (P2-4)：`EncodingExceptions` 单元定义领域异常，替代裸 `Exception`
+
+### 🐛 其他关键修复
+
+- **CLI 资源清理** (v2.0.1)：`Halt(ExitCode)` 前显式调用 `TTempFileSecurityManager.CleanupAllTempFiles`，避免残留 .tmp 文件
+- **BOM-only 文件误报**：仅包含 BOM 的源文件不再被判为"数据丢失"并拒绝写入
+- **编码置信度配置** (Issue #4)：检测器接入 `MinChineseConfidence` / `MinJapaneseConfidence` / `MinKoreanConfidence`，不再硬编码 0.75
+
+---
+
+## 安装与快速开始
+
+### 系统要求
+
+- Windows 7 SP1 或更高版本（64 位）
+
+### 快速使用
+
 ```bash
-# Convert GBK file to UTF-8
+# GBK 转 UTF-8（默认自动备份为 .bak）
 DeepCharset.exe -s GBK -t UTF-8 input.txt
 
-# Recursive directory conversion with backup
-DeepCharset.exe -s auto -t UTF-8 -r -b C:\MyFiles\
+# 递归转换整个目录
+DeepCharset.exe -s auto -t UTF-8 -r C:\MyFiles\
+
+# 指定输出路径
+DeepCharset.exe -s Big5 -t UTF-8 --add-bom input.txt -o output.txt
 ```
 
 ---
 
-## Key Features
+## 与 v2.0.0beta 的差异
 
-- **Multi-Encoding Support**: UTF-8, UTF-16, GBK, GB2312, Shift_JIS, EUC-KR, and 20+ more
-- **Intelligent Detection**: Automatic encoding detection with language-specific analysis
-- **Batch Processing**: High-performance directory conversion with configurable parameters
-- **Cross-Platform CLI**: Full command-line interface for automation
-- **Exception Handling**: Comprehensive error recovery with detailed diagnostics
-- **Internationalization**: 15+ language UI support
-- **Backup Management**: Automatic backup creation before conversion
-
----
-
-## Documentation Structure
-
-### User Documentation
-- **[Quick_Start_Guide.md](docs/Quick_Start_Guide.md)** - Startup optimization, Probe diagnostics, parameter tuning
-- **[CommandLine_Usage.md](docs/CommandLine_Usage.md)** - Full CLI reference with examples
-- **[Detection_Settings.md](docs/Detection_Settings.md)** - Configuring encoding detection parameters
-- **[Error_Handling.md](docs/Error_Handling.md)** - Exception handling and troubleshooting
-
-### Technical Documentation
-- **[Batch14_Compilation_Baseline.md](docs/Batch14_Compilation_Baseline.md)** - Final build metrics, warning baseline
-- **[Performance Benchmark.md](docs/PerformanceBenchmark.md)** - Performance testing results
-- **[Release_Check_Report.md](docs/Release_Check_Report_2025-11-05.md)** - Pre-release verification
-- **[Development_Completion_Report.md](docs/Development_Completion_Report_2025-11-03.md)** - Complete development hiDeepDeepDeepDeepDeepStory
-
-### Build & Configuration
-- **[CHANGELOG.md](CHANGELOG.md)** - Version hiDeepDeepDeepDeepDeepStory and improvements
-- **[README.md](README.md)** - Project overview
-- **bin/Win64/_build/DeepCharset.exe** - Release binary (5.03 MB)
-- **ini/ui.ini** - UI configuration and detection parameters
+| 维度 | v2.0.0beta (2025-11-13) | v2.0.1 (2025-12-18) |
+|------|-------------------------|---------------------|
+| 版本状态 | beta | 稳定 |
+| Bug 修复 | Bug #1-#4 | +Bug #5-#19 |
+| 线程安全 | ❌ CodePageCache 无锁 | ✅ 加锁保护 |
+| 路径安全 | ❌ 未实现 | ✅ `UtilsPathSecurity` |
+| 临时文件 | ❌ 时间戳命名 | ✅ GUID + 安全删除 |
+| 大文件 | ❌ 全量加载 | ✅ 自动流式 |
+| CLI 备份 | ❌ 默认关闭 | ✅ 默认开启 |
+| CLI 退出 | ❌ 泄漏临时文件 | ✅ 显式清理 |
 
 ---
 
-## Build Statistics
-
-| Metric | Value |
-|--------|-------|
-| Lines of Code | 17,420 |
-| Compilation Time | 0.62 seconds |
-| Code Size (Win64) | 3,975,692 bytes |
-| W1057 Warnings | **0** �?|
-| Test Coverage | Core features verified |
-
----
-
-## Known Warnings (Acceptable)
-
-These warnings are intentionally preserved and do not affect functionality:
-
-- **H2077** (~24): Unused variable assignments in detection logic (safe)
-- **H2164** (~7): Declared but unused variables for error handling paths
-- **W1002** (4): Platform-specific Windows API usage (expected)
-- **W1000** (1): JCL external library deprecation notice
-- **H2219** (1): Private method (marked for future removal)
-
-Full details in [Batch14_Compilation_Baseline.md](docs/Batch14_Compilation_Baseline.md).
-
----
-
-## Supported Encoding List
+## 支持的编码
 
 ### Unicode
-- UTF-8, UTF-16LE, UTF-16BE, UTF-32LE, UTF-32BE
+UTF-8, UTF-16LE, UTF-16BE, UTF-32LE, UTF-32BE
 
-### Chinese
-- GBK, GB2312, GB18030, Big5
+### 中文
+GBK, GB2312, GB18030, Big5
 
-### Japanese
-- Shift-JIS, EUC-JP, ISO-2022-JP
+### 日文
+Shift-JIS, EUC-JP, ISO-2022-JP
 
-### Korean
-- EUC-KR, JOHAB
+### 韩文
+EUC-KR, JOHAB
 
-### European & Other
-- Windows-1252, ISO-8859-1, ASCII, and 15+ more
+### 欧洲与其他
+Windows-1250..1258, ISO-8859-1..15, KOI8-R, KOI8-U, ASCII
 
-### Code Pages
-- Numeric code page support (e.g., 936 for GBK, 65001 for UTF-8)
-
----
-
-## Version HiDeepDeepDeepDeepDeepStory
-
-### v2.0.0beta (Current)
-- W1057 elimination milestone achieved
-- Final compilation baseline established
-- Release package assembly complete
-- Ready for stable v2.0.0 release
-
-### v1.2.0
-- Prior development phase
+### 代码页
+支持数字代码页（936 / 950 / 65001 / 1200 等）
 
 ---
 
-## Support & Issues
+## 已知限制
 
-For issues, feature requests, or questions:
-1. Check [Error_Handling.md](docs/Error_Handling.md) for common issues
-2. Review [CommandLine_Usage.md](docs/CommandLine_Usage.md) for CLI examples
-3. See [Detection_Settings.md](docs/Detection_Settings.md) for parameter tuning
-
----
-
-## File Manifest
-
-```
-DeepCharset/
-├── bin/Win64/_build/DeepCharset.exe    # Release binary
-├── docs/                                 # Documentation files
-�?  ├── Quick_Start_Guide.md
-�?  ├── CommandLine_Usage.md
-�?  ├── Detection_Settings.md
-�?  ├── Error_Handling.md
-�?  ├── Batch14_Compilation_Baseline.md
-�?  └── ... (11+ more technical docs)
-├── ini/
-�?  ├── ui.ini                           # Configuration
-�?  ├── *.ini                            # Language packs
-├── CHANGELOG.md                          # Version hiDeepDeepDeepDeepDeepStory
-├── README.md                             # Project overview
-└── RELEASE_NOTES.md                      # This file
-```
+- **检测采样窗口**：超大文件 (>4 MB) 编码检测仅读取前 4 MB 样本
+- **混合编码文件**：无法对"前半 GBK + 后半 UTF-8"的文件做分段转换，建议先拆分
+- **Unicode → 单字节损失**：UTF-8 转 GBK 等单字节编码时，未覆盖的 Unicode 字符会被替换为 `?`
+- **安全模式 UI**：低置信度转换的"安全模式"开关尚在 v2.1.0 路线图中
 
 ---
 
-## Legal & Credits
+## 文档导航
 
-**DeepCharset** - Comprehensive File Encoding Conversion Tool  
-**Version**: 2.0.0beta  
-**Copyright**: © 2024-2025 DeepCharset Team  
-**License**: [See LICENSE file if included]
-
-### Key Components
-- JEDI Code Library (JCL) for exception handling
-- SynEdit for advanced text editing
-- System.IOUtils for file operations
-
-### Development
-- Batch 10-11: Core improvements and platform abstraction
-- Batch 12: W1057 warning elimination (31 �?0)
-- Batch 13: Conservative code cleanup
-- Batch 14: Release finalization and baseline documentation
+- `README.md` - 项目概览
+- `CHANGELOG.md` - 版本历史
+- `docs/Quick_Start_Guide.md` - 快速上手
+- `docs/CommandLine_Usage.md` - CLI 完整参考
+- `docs/Detection_Settings.md` - 检测参数调优
+- `docs/Error_Handling.md` - 故障排查
+- `docs/EncodingSafetyAndUsage.md` - 安全使用与适用范围（v2.1.0）
 
 ---
 
-## Next Steps
+## 升级建议
 
-1. **For End Users**: See [Quick_Start_Guide.md](docs/Quick_Start_Guide.md)
-2. **For CLI Developers**: See [CommandLine_Usage.md](docs/CommandLine_Usage.md)
-3. **For Technical Details**: See [Batch14_Compilation_Baseline.md](docs/Batch14_Compilation_Baseline.md)
-4. **For Troubleshooting**: See [Error_Handling.md](docs/Error_Handling.md)
+从 v2.0.0beta 升级到 v2.0.1：
+- **强烈建议升级**：本版修复了 CLI 临时文件泄漏和潜在路径遍历安全问题
+- **兼容性**：完全向后兼容，无配置变更
+- **唯一行为差异**：CLI `-b/--backup` 默认从关闭改为开启，如需保持旧行为请加 `--no-backup`
 
 ---
 
-**Status**: Ready for Release 🚀
+## 支持
 
-Thank you for using DeepCharset v2.0.0beta!
+- 问题反馈：见 `docs/Error_Handling.md`
+- 作者：ODDFounder / Fuyi / 付乙
+- Website: www.goodmem.cn
+
+---
+
+Thank you for using DeepCharset v2.0.1！

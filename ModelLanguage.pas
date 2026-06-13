@@ -1,4 +1,4 @@
-unit ModelLanguage;
+ï»¿unit ModelLanguage;
 
 interface
 
@@ -6,49 +6,49 @@ uses
   System.SysUtils, System.Classes, System.Generics.Collections;
 
 type
-  // Ó¦ÓÃ³ÌĞòÖ§³ÖµÄÓïÑÔÃ¶¾Ù
+  // åº”ç”¨ç¨‹åºæ”¯æŒçš„è¯­è¨€æšä¸¾
   TAppLanguage = (
-    alChinese,              // ¼òÌåÖĞÎÄ
-    alEnglish,              // Ó¢Óï
-    alJapanese,             // ÈÕÓï
-    alKorean,               // º«Óï
-    alSpanish,              // Î÷°àÑÀÓï
-    alFrench,               // ·¨Óï
-    alGerman,               // µÂÓï
-    alItalian,              // Òâ´óÀûÓï
-    alChineseTraditional,   // ·±ÌåÖĞÎÄ
-    alRussian,              // ¶íÓï
-    alPortuguese,           // ÆÏÌÑÑÀÓï
-    alArabic,               // °¢À­²®Óï
-    alDutch,                // ºÉÀ¼Óï
-    alThai,                 // Ì©Óï
-    alVietnamese,           // Ô½ÄÏÓï
-    alPolish,               // ²¨À¼Óï
-    alSwahili,              // Ë¹ÍßÏ£ÀïÓï
-    alAmharic               // °¢Ä·¹şÀ­Óï
+    alChinese,              // ç®€ä½“ä¸­æ–‡
+    alEnglish,              // è‹±è¯­
+    alJapanese,             // æ—¥è¯­
+    alKorean,               // éŸ©è¯­
+    alSpanish,              // è¥¿ç­ç‰™è¯­
+    alFrench,               // æ³•è¯­
+    alGerman,               // å¾·è¯­
+    alItalian,              // æ„å¤§åˆ©è¯­
+    alChineseTraditional,   // ç¹ä½“ä¸­æ–‡
+    alRussian,              // ä¿„è¯­
+    alPortuguese,           // è‘¡è„ç‰™è¯­
+    alArabic,               // é˜¿æ‹‰ä¼¯è¯­
+    alDutch,                // è·å…°è¯­
+    alThai,                 // æ³°è¯­
+    alVietnamese,           // è¶Šå—è¯­
+    alPolish,               // æ³¢å…°è¯­
+    alSwahili,              // æ–¯ç“¦å¸Œé‡Œè¯­
+    alAmharic               // é˜¿å§†å“ˆæ‹‰è¯­
   );
 
-  // ÓïÑÔĞÅÏ¢¼ÇÂ¼
+  // è¯­è¨€ä¿¡æ¯è®°å½•
   TLanguageInfo = record
-    Code: string;           // ÓïÑÔ´úÂë (Èç 'zh-CN', 'en-US')
-    Name: string;           // ÓïÑÔÃû³Æ (Èç 'Chinese', 'English')
-    NativeName: string;     // ±¾µØÓïÑÔÃû³Æ (Èç '¼òÌåÖĞÎÄ', 'English')
-    FileName: string;       // ÓïÑÔÎÄ¼şÃû
+    Code: string;           // è¯­è¨€ä»£ç  (å¦‚ 'zh-CN', 'en-US')
+    Name: string;           // è¯­è¨€åç§° (å¦‚ 'Chinese', 'English')
+    NativeName: string;     // æœ¬åœ°è¯­è¨€åç§° (å¦‚ 'ç®€ä½“ä¸­æ–‡', 'English')
+    FileName: string;       // è¯­è¨€æ–‡ä»¶å
   end;
 
-  // ÓïÑÔÓ³Éä¼ÇÂ¼
+  // è¯­è¨€æ˜ å°„è®°å½•
   TLanguageMapping = record
     AppLanguage: TAppLanguage;
     LanguageCode: string;
     DisplayName: string;
   end;
 
-  // ÓïÑÔ×Ö·û´®¼ÇÂ¼ - °üº¬ËùÓĞUIÎÄ±¾
+  // è¯­è¨€å­—ç¬¦ä¸²è®°å½• - åŒ…å«æ‰€æœ‰UIæ–‡æœ¬
   TLanguageStrings = record
-    // ´°¿Ú±êÌâ
+    // çª—å£æ ‡é¢˜
     WindowTitle: string;
 
-    // °´Å¥ÎÄ±¾
+    // æŒ‰é’®æ–‡æœ¬
     BtnConvert: string;
     BtnSingleFile: string;
     BtnRefresh: string;
@@ -58,31 +58,31 @@ type
     BtnAllFileTypes: string;
     BtnCheckContent: string;
 
-    // ±êÇ©ÎÄ±¾
+    // æ ‡ç­¾æ–‡æœ¬
     LanguageGroupCaption: string;
     DirectoryListBoxLabel: string;
     FileListLabel: string;
     CurrentEncodingLabel: string;
 
-    // ±í¸ñÁĞ±êÌâ
+    // è¡¨æ ¼åˆ—æ ‡é¢˜
     FileSelectColumn: string;
     FileNameColumn: string;
     EncodingColumn: string;
 
-    // ²Ëµ¥Ïî
+    // èœå•é¡¹
     PopupMenuConvert: string;
     PopupMenuToggleSelect: string;
 
-    // ×´Ì¬ºÍÌáÊ¾ÎÄ±¾
+    // çŠ¶æ€å’Œæç¤ºæ–‡æœ¬
     NoFilesText: string;
     ReadErrorText: string;
     LogSelectedDirectory: string;
 
-    // ¸´Ñ¡¿ò
+    // å¤é€‰æ¡†
     ChkIncludeSubdirs: string;
     LblDepth: string;
 
-    // µ¯´°ÏûÏ¢
+    // å¼¹çª—æ¶ˆæ¯
     MsgSelectTargetEncoding: string;
     MsgSelectFiles: string;
     MsgNoMatchingFiles: string;
@@ -99,22 +99,39 @@ type
     MsgSubdirEnabled: string;
     MsgConversionSuccess: string;
 
-    // ½ø¶ÈÌáÊ¾ÎÄ±¾
+    // è¿›åº¦æç¤ºæ–‡æœ¬
     ProgressSearchingFiles: string;
     ProgressDetectingEncoding: string;
     ProgressDetecting: string;
     ProgressComplete: string;
     ProgressCompleteFiles: string;
 
-    // ÈÕÖ¾ÏûÏ¢
+    // æ—¥å¿—æ¶ˆæ¯
     LogDetectionComplete: string;
     LogFilesFound: string;
     LogDeselectAllFileTypes: string;
     LogSelectAllFileTypes: string;
     LogForceUpdateFileList: string;
     LogAsyncScanComplete: string;
+    LogBatchConversionStart: string;
+    LogRefreshDirectory: string;
+    LogStartSearching: string;
+    LogRefreshingFileList: string;
+    LogFileListRefreshed: string;
+    LogWarningInvalidLanguage: string;
+    LogUserSelectedLanguage: string;
+    LogSwitchToLanguage: string;
+    LogRootDirectory: string;
+    LogIniDirectory: string;
+    LogUserCancelled: string;
+    LogConversionSkipped: string;
+    MsgSelectValidFolder: string;
+    ChkInstantScan: string;
+    BtnScanDir: string;
+    LogInstantScanOn: string;
+    LogInstantScanOff: string;
 
-    // UI¶¯Ì¬ÎÄ±¾
+    // UIåŠ¨æ€æ–‡æœ¬
     BtnSelectAllFileTypes: string;
     BtnDeselectAllFileTypes: string;
     WindowTitleDefault: string;
@@ -122,15 +139,15 @@ type
     WindowTitleConvertProgress: string;
     SingleFileConvertSuffix: string;
 
-    // ±àÂë·ÖÀà±êÌâ
+    // ç¼–ç åˆ†ç±»æ ‡é¢˜
     EncCategoryUnicode: string;
     EncCategoryAsian: string;
     EncCategoryEuropean: string;
     EncCategoryOther: string;
-    EncCategoryLatinAmerican: string;  // ĞÂÔö£ºÀ­¶¡ÃÀÖŞ±àÂë·ÖÀà
-    EncCategoryAfrican: string;        // ĞÂÔö£º·ÇÖŞ±àÂë·ÖÀà
+    EncCategoryLatinAmerican: string;  // æ–°å¢ï¼šæ‹‰ä¸ç¾æ´²ç¼–ç åˆ†ç±»
+    EncCategoryAfrican: string;        // æ–°å¢ï¼šéæ´²ç¼–ç åˆ†ç±»
 
-    // Unicode±àÂëÃèÊö
+    // Unicodeç¼–ç æè¿°
     EncUTF8Desc: string;
     EncUTF8BOMDesc: string;
     EncUTF16LEDesc: string;
@@ -144,7 +161,7 @@ type
     EncUCS4LEDesc: string;
     EncUCS4BEDesc: string;
     
-    // ÑÇÖŞ±àÂëÃèÊö
+    // äºšæ´²ç¼–ç æè¿°
     EncGB2312Desc: string;
     EncGBKDesc: string;
     EncGB18030Desc: string;
@@ -156,7 +173,7 @@ type
     EncISO2022JP2Desc: string;
     EncEUCKRDesc: string;
     
-    // Å·ÖŞ±àÂëÃèÊö
+    // æ¬§æ´²ç¼–ç æè¿°
     EncISO8859_1Desc: string;
     EncISO8859_2Desc: string;
     EncISO8859_3Desc: string;
@@ -172,41 +189,41 @@ type
     EncIBM850Desc: string;
     EncDOSLatinUSDesc: string;
     
-    // À­¶¡ÃÀÖŞ±àÂëÃèÊö
-    EncQuechuaDesc: string;         // ĞÂÔö£º¿ËÇğÑÇÓï±àÂë
-    EncAymaraDesc: string;          // ĞÂÔö£º°¬ÂíÀ­Óï±àÂë
-    EncGuaraniDesc: string;         // ĞÂÔö£º¹ÏÀ­ÄáÓï±àÂë
-    EncMayaDesc: string;            // ĞÂÔö£ºÂêÑÅÓï±àÂë
-    EncNahuatlDesc: string;         // ĞÂÔö£ºÄÉÍßÌØ¶ûÓï±àÂë
+    // æ‹‰ä¸ç¾æ´²ç¼–ç æè¿°
+    EncQuechuaDesc: string;         // æ–°å¢ï¼šå…‹ä¸˜äºšè¯­ç¼–ç 
+    EncAymaraDesc: string;          // æ–°å¢ï¼šè‰¾é©¬æ‹‰è¯­ç¼–ç 
+    EncGuaraniDesc: string;         // æ–°å¢ï¼šç“œæ‹‰å°¼è¯­ç¼–ç 
+    EncMayaDesc: string;            // æ–°å¢ï¼šç›é›…è¯­ç¼–ç 
+    EncNahuatlDesc: string;         // æ–°å¢ï¼šçº³ç“¦ç‰¹å°”è¯­ç¼–ç 
     
-    // ·ÇÖŞ±àÂëÃèÊö
-    EncSwahiliDesc: string;         // ĞÂÔö£ºË¹ÍßÏ£ÀïÓï±àÂë
-    EncHausaDesc: string;           // ĞÂÔö£ººÀÈøÓï±àÂë
-    EncYorubaDesc: string;          // ĞÂÔö£ºÔ¼Â³°ÍÓï±àÂë
-    EncZuluDesc: string;            // ĞÂÔö£º×æÂ³Óï±àÂë
-    EncAmharicDesc: string;         // ĞÂÔö£º°¢Ä·¹şÀ­Óï±àÂë
-    EncTigrinyaDesc: string;        // ĞÂÔö£ºÌá¸ñÀ×ÄáÑÇÓï±àÂë
-    EncOromoDesc: string;           // ĞÂÔö£º°ÂÂŞÄªÓï±àÂë
-    EncSomaliDesc: string;          // ĞÂÔö£ºË÷ÂíÀïÓï±àÂë
-    EncBerberDesc: string;          // ĞÂÔö£º°Ø°Ø¶ûÓï±àÂë
-    EncMalagasyDesc: string;        // ĞÂÔö£ºÂí´ï¼ÓË¹¼ÓÓï±àÂë
+    // éæ´²ç¼–ç æè¿°
+    EncSwahiliDesc: string;         // æ–°å¢ï¼šæ–¯ç“¦å¸Œé‡Œè¯­ç¼–ç 
+    EncHausaDesc: string;           // æ–°å¢ï¼šè±ªè¨è¯­ç¼–ç 
+    EncYorubaDesc: string;          // æ–°å¢ï¼šçº¦é²å·´è¯­ç¼–ç 
+    EncZuluDesc: string;            // æ–°å¢ï¼šç¥–é²è¯­ç¼–ç 
+    EncAmharicDesc: string;         // æ–°å¢ï¼šé˜¿å§†å“ˆæ‹‰è¯­ç¼–ç 
+    EncTigrinyaDesc: string;        // æ–°å¢ï¼šææ ¼é›·å°¼äºšè¯­ç¼–ç 
+    EncOromoDesc: string;           // æ–°å¢ï¼šå¥¥ç½—è«è¯­ç¼–ç 
+    EncSomaliDesc: string;          // æ–°å¢ï¼šç´¢é©¬é‡Œè¯­ç¼–ç 
+    EncBerberDesc: string;          // æ–°å¢ï¼šæŸæŸå°”è¯­ç¼–ç 
+    EncMalagasyDesc: string;        // æ–°å¢ï¼šé©¬è¾¾åŠ æ–¯åŠ è¯­ç¼–ç 
   end;
 
-  // ÓïÑÔ±ä¸üÊÂ¼şÀàĞÍ
+  // è¯­è¨€å˜æ›´äº‹ä»¶ç±»å‹
   TOnLanguageChangeEvent = procedure(const LangCode: string) of object;
 
-  // »ñÈ¡ÓïÑÔ×Ö·û´®»Øµ÷º¯ÊıÀàĞÍ
+  // è·å–è¯­è¨€å­—ç¬¦ä¸²å›è°ƒå‡½æ•°ç±»å‹
   TGetLanguageStringsCallback = function(const LangCode: string): TLanguageStrings of object;
 
-// ´´½¨Ä¬ÈÏµÄÓïÑÔ×Ö·û´®
+// åˆ›å»ºé»˜è®¤çš„è¯­è¨€å­—ç¬¦ä¸²
 function CreateDefaultLanguageStrings: TLanguageStrings;
 
 implementation
 
-// ´´½¨Ä¬ÈÏµÄÓïÑÔ×Ö·û´®
+// åˆ›å»ºé»˜è®¤çš„è¯­è¨€å­—ç¬¦ä¸²
 function CreateDefaultLanguageStrings: TLanguageStrings;
 begin
-  // ³õÊ¼»¯ÎªÓ¢Óï½çÃæ
+  // åˆå§‹åŒ–ä¸ºè‹±è¯­ç•Œé¢
   Result.WindowTitle := 'UTF-8 BOM Encoding Converter';
   Result.BtnConvert := 'Convert All';
   Result.BtnSingleFile := 'Single File';
@@ -231,7 +248,7 @@ begin
   Result.ChkIncludeSubdirs := 'Include Subdirectories';
   Result.LblDepth := 'Depth';
 
-  // µ¯´°ÏûÏ¢
+  // å¼¹çª—æ¶ˆæ¯
   Result.MsgSelectTargetEncoding := 'Please select a target encoding.';
   Result.MsgSelectFiles := 'Please select at least one file for conversion.';
   Result.MsgNoMatchingFiles := 'No matching files found in the current directory.';
@@ -248,26 +265,43 @@ begin
   Result.MsgSubdirEnabled := 'Subdirectory search enabled. This may increase file list loading time, especially for folders with many subdirectories.';
   Result.MsgConversionSuccess := 'Conversion successful!';
 
-  // ½ø¶ÈÌáÊ¾ÎÄ±¾
+  // è¿›åº¦æç¤ºæ–‡æœ¬
   Result.ProgressSearchingFiles := 'Searching files...';
   Result.ProgressDetectingEncoding := 'Detecting encoding: 0/%d';
   Result.ProgressDetecting := 'Detecting: %d/%d (%.0f%%)';
   Result.ProgressComplete := 'Complete: %d files';
   Result.ProgressCompleteFiles := 'Complete: %d files';
 
-  // ÈÕÖ¾ÏûÏ¢
+  // æ—¥å¿—æ¶ˆæ¯
   Result.LogDetectionComplete := 'Detection complete: %d files';
   Result.LogFilesFound := 'Found %d files, starting encoding detection...';
+  Result.LogBatchConversionStart := 'Starting batch conversion of %d files to %s...';
+  Result.LogRefreshDirectory := 'Refresh directory: ';
+  Result.LogStartSearching := 'Start searching files: %s, include subdirectories: %s';
+  Result.LogRefreshingFileList := 'Refreshing file list to update encoding info...';
+  Result.LogFileListRefreshed := 'File list refreshed';
+  Result.LogWarningInvalidLanguage := 'Warning: Invalid language index';
+  Result.LogUserSelectedLanguage := 'User selected language: ';
+  Result.LogSwitchToLanguage := 'Switch to language: ';
+  Result.LogRootDirectory := 'Root directory: ';
+  Result.LogIniDirectory := 'INI directory: ';
+  Result.LogUserCancelled := 'User cancelled';
+  Result.LogConversionSkipped := 'Conversion skipped';
+  Result.MsgSelectValidFolder := 'Please select a valid folder';
+  Result.ChkInstantScan := 'Instant Scan';
+  Result.BtnScanDir := 'Scan Dir';
+  Result.LogInstantScanOn := 'Instant scan enabled';
+  Result.LogInstantScanOff := 'Instant scan disabled - use Scan Dir button';
 
-  // ±àÂë·ÖÀà±êÌâ
+  // ç¼–ç åˆ†ç±»æ ‡é¢˜
   Result.EncCategoryUnicode := 'Unicode';
   Result.EncCategoryAsian := 'Asian';
   Result.EncCategoryEuropean := 'European';
   Result.EncCategoryOther := 'Other';
-  Result.EncCategoryLatinAmerican := 'Latin American';  // ĞÂÔö£ºÀ­¶¡ÃÀÖŞ±àÂë·ÖÀà
-  Result.EncCategoryAfrican := 'African';              // ĞÂÔö£º·ÇÖŞ±àÂë·ÖÀà
+  Result.EncCategoryLatinAmerican := 'Latin American';  // æ–°å¢ï¼šæ‹‰ä¸ç¾æ´²ç¼–ç åˆ†ç±»
+  Result.EncCategoryAfrican := 'African';              // æ–°å¢ï¼šéæ´²ç¼–ç åˆ†ç±»
 
-  // Unicode±àÂëÃèÊö
+  // Unicodeç¼–ç æè¿°
   Result.EncUTF8Desc := 'Universal Unicode encoding, compatible with ASCII';
   Result.EncUTF8BOMDesc := 'UTF-8 with Byte Order Mark';
   Result.EncUTF16LEDesc := 'Unicode encoding with little-endian byte order';
@@ -281,7 +315,7 @@ begin
   Result.EncUCS4LEDesc := '32-bit Unicode encoding with little-endian byte order';
   Result.EncUCS4BEDesc := '32-bit Unicode encoding with big-endian byte order';
   
-  // ÑÇÖŞ±àÂëÃèÊö
+  // äºšæ´²ç¼–ç æè¿°
   Result.EncGB2312Desc := 'Chinese character encoding for mainland China';
   Result.EncGBKDesc := 'Extended Chinese character encoding';
   Result.EncGB18030Desc := 'Chinese national standard encoding, compatible with GBK';
@@ -293,7 +327,7 @@ begin
   Result.EncISO2022JP2Desc := 'Extended version of Japanese character encoding';
   Result.EncEUCKRDesc := 'Korean character encoding';
   
-  // Å·ÖŞ±àÂëÃèÊö
+  // æ¬§æ´²ç¼–ç æè¿°
   Result.EncISO8859_1Desc := 'ISO-8859-1 Latin Alphabet No. 1';
   Result.EncISO8859_2Desc := 'ISO-8859-2 Central European';
   Result.EncISO8859_3Desc := 'ISO-8859-3 Latin Alphabet No. 3';
@@ -309,14 +343,14 @@ begin
   Result.EncIBM850Desc := 'IBM Code Page 850';
   Result.EncDOSLatinUSDesc := 'DOS Latin US';
   
-  // À­¶¡ÃÀÖŞ±àÂëÃèÊö£¨ĞÂÔö£©
+  // æ‹‰ä¸ç¾æ´²ç¼–ç æè¿°ï¼ˆæ–°å¢ï¼‰
   Result.EncQuechuaDesc := 'Quechua encoding for indigenous Andean languages';
   Result.EncAymaraDesc := 'Aymara encoding for Bolivia and Peru indigenous language';
-  Result.EncGuaraniDesc := 'Guaran¨ª encoding for Paraguay and Argentina indigenous language';
+  Result.EncGuaraniDesc := 'GuaranÃ­ encoding for Paraguay and Argentina indigenous language';
   Result.EncMayaDesc := 'Maya encoding for Central American indigenous languages';
   Result.EncNahuatlDesc := 'Nahuatl encoding for Aztec descendant language';
   
-  // ·ÇÖŞ±àÂëÃèÊö£¨ĞÂÔö£©
+  // éæ´²ç¼–ç æè¿°ï¼ˆæ–°å¢ï¼‰
   Result.EncSwahiliDesc := 'Swahili encoding for East African lingua franca';
   Result.EncHausaDesc := 'Hausa encoding for West African language (Nigeria, Niger)';
   Result.EncYorubaDesc := 'Yoruba encoding for West African language (Nigeria, Benin)';

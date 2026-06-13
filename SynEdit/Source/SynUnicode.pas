@@ -8,7 +8,7 @@ Software distributed under the License is distributed on an "AS IS" basis,
 WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
 the specific language governing rights and limitations under the License.
 
-The Original Code is SynUnicode.pas by Ma�l H�rz, released 2004-05-30.
+The Original Code is SynUnicode.pas by Maël Hörz, released 2004-05-30.
 All Rights Reserved.
 
 Contributors to the SynEdit and mwEdit projects are listed in the

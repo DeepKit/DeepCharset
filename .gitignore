@@ -1,24 +1,33 @@
-﻿# Delphi 忽略文件
-*.dsk
-*.local
+# ============================================================
+# DeepCharset — Open Source Encoding Detection & Conversion Tool
+# ============================================================
+
+# -----------------------------------------------------------
+# Build output directories (Win64)
+# -----------------------------------------------------------
+Win64/
+Bin/
+bin/
+
+# -----------------------------------------------------------
+# IDE & editor artifacts
+# -----------------------------------------------------------
 *.identcache
 *.tvsconfig
 *.groupproj.local
 *.grouplocal
-*.desktop
-*.deploy
-*.deploy.local
-*.exe
-*.dll
-*.obj
-*.res
+*.dproj.*.bak
 *.dcu
+*.dsk
+*.local
+*.res
 *.map
 *.tds
 *.ilc
 *.compiled
-*.~
-*~*.bak
+*.~*
+*~
+*.bak
 *.backup
 *.tmp
 *.temp
@@ -33,27 +42,16 @@
 *.drc
 *.opt
 *.mad
-
-# SQL Server 数据库文件
-*.mdf
-*.idf
-*.ldf
-*.ndf
-
-# Delphi 编译器生成的文件
 *.int
 *.lst
 *.mak
 *.mk
 *.mem
 *.plg
-
-# Visual Basic 项目文件（可能出现在 Delphi 项目中）
-*.vbp
-*.vbw
-*.vcd
-
-# Delphi IDE 相关文件
+*.rc
+*.rc2
+*.resx
+*.suo
 *.vcl
 *.vcp
 *.vcw
@@ -70,8 +68,53 @@
 *.vdk
 *.vdn
 *.vdo
+*.swp
+*.swo
+*.swn
+*.ses
+__history/
+__recovery/
 
-# Python 忽略文件
+# -----------------------------------------------------------
+# Test artifacts and temporary output
+# -----------------------------------------------------------
+tmp_tests/
+test_results/
+test_data/
+tests/output/
+*.testresults
+autofix-output/
+
+# -----------------------------------------------------------
+# Logs
+# -----------------------------------------------------------
+Logs/
+logs/
+*.log
+
+# -----------------------------------------------------------
+# OS-generated files
+# -----------------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+ehthumbs.db
+
+# -----------------------------------------------------------
+# IDE project files (not the project itself)
+# -----------------------------------------------------------
+.idea/
+.vscode/
+
+# -----------------------------------------------------------
+# DeepBase — local development dependency (not published)
+# Adjust path if your DeepBase checkout is elsewhere
+# -----------------------------------------------------------
+# ../DeepBase/     # uncomment if DeepBase lives one level above
+
+# -----------------------------------------------------------
+# Python / misc
+# -----------------------------------------------------------
 __pycache__/
 *.pyc
 *.pyo
@@ -88,45 +131,31 @@ pip-log.txt
 pip-delete-this-directory.txt
 .Python
 .mypy_cache/
-.pytest_cache/
+*.pytest_cache/
 .nox/
 .coverage
 .coverage.*
 *.cover
 .hypothesis/
 
-# 通用忽略文件
-Thumbs.db
-desktop.ini
+# -----------------------------------------------------------
+# Internal tooling / AI agent state
+# -----------------------------------------------------------
+.deepspec/
+docs/.deepspec/
+.kiro/
+.cursor/
+boundary.json
 
-# Delphi 和 Python 项目中常见的忽略文件类型
-# 操作系统生成的文件
-.DS_Store  # macOS 系统生成的文件
-ehthumbs.db  # Windows 系统中某些应用程序生成的文件
-
-# 临时文件和编辑器备份文件
-*.swp  # Vim 编辑器生成的临时文件
-*.swo
-*.swn
-*.ses
-*.tmp
-*.temp
-
-# IDE 和编辑器配置文件
-.idea/  # IntelliJ IDEA 项目配置文件
-.vscode/  # Visual Studio Code 工作区设置文件
-
-# 测试报告和临时文件
-/tests/output/  # 测试生成的报告文件和临时文件
-*.testresults
-
-# 日志文件和缓存文件
-*.log
-*.cache
-
-# 其他可能不需要跟踪的文件
-*.rc
-*.rc2
-*.resx
-*.settings
-*.suo
+# -----------------------------------------------------------
+# Misc development scratch files
+# -----------------------------------------------------------
+*.md.backup
+root.txt
+**/root.txt
+tmp_tests/
+tmp_tests/
+TestFiles/huge.txt
+Win64/Debug/
+*.rsm
+*.sync-conflict*

@@ -12,6 +12,7 @@ const
   INI_KEY_LAST_ADD_BOM = 'LastAddBOM';
   INI_KEY_INCLUDE_SUBDIRS = 'IncludeSubdirs';
   INI_KEY_LAST_LANGUAGE = 'LastLanguage';
+  INI_KEY_INSTANT_SCAN = 'InstantScan';
 
 type
   // ת�����ýṹ��
@@ -33,6 +34,7 @@ type
     FLastAddBOM: Boolean;
     FIncludeSubdirs: Boolean;
     FLastLanguage: string;
+    FInstantScan: Boolean;
     FSavedConfigs: TArray<TConversionConfig>;
 
     procedure LoadSavedConfigs;
@@ -54,6 +56,7 @@ type
     property LastAddBOM: Boolean read FLastAddBOM write FLastAddBOM;
     property IncludeSubdirs: Boolean read FIncludeSubdirs write FIncludeSubdirs;
     property LastLanguage: string read FLastLanguage write FLastLanguage;
+    property InstantScan: Boolean read FInstantScan write FInstantScan;
     property SavedConfigs: TArray<TConversionConfig> read FSavedConfigs;
     property IniFile: TIniFile read FIniFile;
   end;
@@ -242,6 +245,7 @@ begin
   FLastAddBOM := FIniFile.ReadBool(INI_SECTION_GENERAL, INI_KEY_LAST_ADD_BOM, True);
   FIncludeSubdirs := FIniFile.ReadBool(INI_SECTION_GENERAL, INI_KEY_INCLUDE_SUBDIRS, False);
   FLastLanguage := FIniFile.ReadString(INI_SECTION_GENERAL, INI_KEY_LAST_LANGUAGE, 'zh-CN');
+  FInstantScan := FIniFile.ReadBool(INI_SECTION_GENERAL, INI_KEY_INSTANT_SCAN, True);
 
   LoadSavedConfigs;
 end;
@@ -254,6 +258,7 @@ begin
   FIniFile.WriteBool(INI_SECTION_GENERAL, INI_KEY_LAST_ADD_BOM, FLastAddBOM);
   FIniFile.WriteBool(INI_SECTION_GENERAL, INI_KEY_INCLUDE_SUBDIRS, FIncludeSubdirs);
   FIniFile.WriteString(INI_SECTION_GENERAL, INI_KEY_LAST_LANGUAGE, FLastLanguage);
+  FIniFile.WriteBool(INI_SECTION_GENERAL, INI_KEY_INSTANT_SCAN, FInstantScan);
 
   // ���������б�
   SaveConfigsToIni;

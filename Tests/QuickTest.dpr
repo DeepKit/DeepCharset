@@ -4,7 +4,8 @@ program QuickTest;
 
 uses
   System.SysUtils,
-  System.Classes;
+  System.Classes,
+  DeepBase.AIErrorHandler.Bootstrap;
 
 procedure TestGBKBytes;
 var
@@ -13,7 +14,7 @@ var
   UTF8Str: string;
   UTF8Bytes: TBytes;
 begin
-  // GBK 字节�?这是"
+  // GBK 字节�?这是"
   SetLength(GBKBytes, 4);
   GBKBytes[0] := $D5;
   GBKBytes[1] := $E2;
@@ -53,5 +54,6 @@ begin
 end;
 
 begin
+  InstallAIErrorHandlerForTests;
   TestGBKBytes;
 end.

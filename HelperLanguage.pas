@@ -1,4 +1,4 @@
-unit HelperLanguage;
+﻿unit HelperLanguage;
 
 interface
 
@@ -7,7 +7,7 @@ uses
   System.IOUtils, Winapi.Windows, Vcl.Forms, ModelLanguage, UtilsTypes, System.Rtti, System.TypInfo;
 
 type
-  // ���Թ�������
+
   TLanguageManager = class
   private
     FCurrentLanguage: string;
@@ -42,7 +42,7 @@ type
 var
   LanguageManager: TLanguageManager;
 
-// ��ȡ�����ַ����е�ָ����ֵ
+
 function GetString(const Key: string): string;
 
 implementation
@@ -53,11 +53,11 @@ constructor TLanguageManager.Create;
 begin
   inherited Create;
 
-  // ��ʼ����Ա����
+
   FLanguages := TDictionary<string, TLanguageStrings>.Create;
   FLanguageInfoList := TList<TLanguageInfo>.Create;
 
-  // ���������ļ�·��
+
   if IniDir <> '' then
     FLanguagePath := IniDir
   else
@@ -71,7 +71,7 @@ begin
     OutputDebugString(PChar('Created language directory: ' + FLanguagePath));
   end;
 
-  // Ĭ��ʹ��Ӣ��
+
   FCurrentLanguage := 'en-US';
 end;
 
@@ -84,13 +84,13 @@ end;
 
 procedure TLanguageManager.Initialize;
 begin
-  // ���������б�
+
   LoadLanguageList;
 
-  // ���ؿ�������
+
   LoadAvailableLanguages;
 
-  // ���Լ����û���ѡ���Ի�ϵͳ����
+
   FCurrentLanguage := GetDefaultLanguage;
 end;
 
@@ -98,10 +98,10 @@ function TLanguageManager.GetDefaultLanguage: string;
 var
   ConfigFile: string;
 begin
-  // �����ļ�·��
+
   ConfigFile := ExtractFilePath(Application.ExeName) + 'config\language.cfg';
 
-  // ����Ƿ�����û���ѡ��������
+
   if FileExists(ConfigFile) then
   begin
     try
@@ -109,18 +109,18 @@ begin
       if FLanguages.ContainsKey(Result) then
         Exit;
     except
-      // ���Զ�ȡ����
+
     end;
   end;
 
-  // ����ʹ��ϵͳ����
+
   Result := GetSystemLanguage;
 
-  // ���ϵͳ���Բ����ã�ʹ��Ӣ��
+
   if not FLanguages.ContainsKey(Result) then
     Result := 'en-US';
 
-  // ���Ӣ�ﲻ���ã�ʹ�õ�һ����������
+
   if not FLanguages.ContainsKey(Result) and (FLanguages.Count > 0) then
   begin
     var Enumerator := FLanguages.Keys.GetEnumerator;
@@ -133,13 +133,13 @@ function TLanguageManager.GetLanguageInfo(const LangCode: string): TLanguageInfo
 var
   i: Integer;
 begin
-  // ��ʼ��Ϊ�ռ�¼
+
   Result.Code := '';
   Result.Name := '';
   Result.NativeName := '';
   Result.FileName := '';
 
-  // ����������Ϣ
+
   for i := 0 to FLanguageInfoList.Count - 1 do
   begin
     if FLanguageInfoList[i].Code = LangCode then
@@ -160,9 +160,9 @@ end;
 
 function TLanguageManager.GetLanguageNameByCode(const LangCode: string): string;
 begin
-  // 13.1 syntax: inline var + ternary
+  // Inline var + 标准 if-else
   var LangInfo := GetLanguageInfo(LangCode);
-  Result := if LangInfo.Name <> '' then LangInfo.Name else LangCode;
+  if LangInfo.Name <> '' then Result := LangInfo.Name else Result := LangCode;
 end;
 
 function TLanguageManager.GetLanguageStrings(const LangCode: string): TLanguageStrings;
@@ -170,7 +170,7 @@ var
   LangInfo: TLanguageInfo;
   LangFile: string;
 begin
-  // ������������ڴ��У�ֱ�ӷ���
+
   if FLanguages.TryGetValue(LangCode, Result) then
   begin
     OutputDebugString(PChar('Language strings found in memory for: ' + LangCode));
@@ -179,13 +179,13 @@ begin
 
   OutputDebugString(PChar('Language strings not found in memory for: ' + LangCode + ', trying to load from file...'));
 
-  // ���Բ���������Ϣ
+
   LangInfo := GetLanguageInfo(LangCode);
 
-  // ����ҵ�������Ϣ�����Դ��ļ�����
+
   if LangInfo.Code <> '' then
   begin
-    // ʹ��ȫ�ֱ���IniDir����FLanguagePath
+
     if IniDir <> '' then
       LangFile := IniDir + PathDelim + LangInfo.FileName
     else
@@ -193,15 +193,15 @@ begin
 
     OutputDebugString(PChar('Trying to load language file: ' + LangFile));
 
-    // ����ļ��Ƿ����
+
     if FileExists(LangFile) then
     begin
       OutputDebugString(PChar('Language file exists, loading...'));
 
-      // ���ļ����������ַ���
+
       Result := LoadFromIniFile(LangFile);
 
-      // �����ص������ַ������ӵ��ֵ���
+
       FLanguages.Add(LangCode, Result);
       OutputDebugString(PChar('Language strings loaded and added to dictionary: ' + LangCode));
       Exit;
@@ -212,7 +212,7 @@ begin
   else
     OutputDebugString(PChar('Language info not found for: ' + LangCode));
 
-  // ����޷����أ�����Ĭ���ַ���
+
   OutputDebugString(PChar('Returning default language strings for: ' + LangCode));
   Result := CreateDefaultLanguageStrings;
 end;
@@ -224,24 +224,24 @@ var
   Buffer: array[0..255] of Char;
   BufferLen: Integer;
 begin
-  // Ĭ��ΪӢ��
+
   Result := 'en-US';
 
-  // ��ȡϵͳ����ID
+
   LangID := GetUserDefaultLCID;
 
-  // ��ȡ���Դ���
+
   BufferLen := GetLocaleInfo(LangID, LOCALE_SISO639LANGNAME, Buffer, Length(Buffer));
   if BufferLen > 0 then
   begin
     LangCode := Buffer;
 
-    // ��ȡ����/��������
+
     BufferLen := GetLocaleInfo(LangID, LOCALE_SISO3166CTRYNAME, Buffer, Length(Buffer));
     if BufferLen > 0 then
       LangCode := LangCode + '-' + Buffer;
 
-    // ת��Ϊ��д����/��������
+
     Result := LangCode;
   end;
 end;
@@ -250,37 +250,40 @@ procedure TLanguageManager.LoadAvailableLanguages;
 var
   LangStrings: TLanguageStrings;
 begin
-  // ��������ֵ�
+
   FLanguages.Clear;
 
-  // ���������Ϣ
+
   OutputDebugString(PChar('Loading available languages, language list count: ' + IntToStr(FLanguageInfoList.Count)));
 
-  // ��������������Ϣ
+
   for var i := 0 to FLanguageInfoList.Count - 1 do
   begin
     var LangInfo := FLanguageInfoList[i];
 
-    // ���������Ϣ
+
     OutputDebugString(PChar('Processing language: ' + LangInfo.Code + ', file: ' + LangInfo.FileName));
 
-    // 13.1 syntax: inline var + ternary for path resolution
-    var LangFile := if IniDir <> '' then IniDir + PathDelim + LangInfo.FileName
-                    else FLanguagePath + PathDelim + LangInfo.FileName;
+    // Inline var + 标准 if-else for path resolution
+    var LangFile: string;
+    if IniDir <> '' then
+      LangFile := IniDir + PathDelim + LangInfo.FileName
+    else
+      LangFile := FLanguagePath + PathDelim + LangInfo.FileName;
 
     if FileExists(LangFile) then
     begin
-      // ���������Ϣ
+
       OutputDebugString(PChar('Language file exists: ' + LangFile));
 
       try
-        // ���������ļ�
+
         LangStrings := LoadFromIniFile(LangFile);
 
-        // ���ӵ������ֵ�
+
         FLanguages.Add(LangInfo.Code, LangStrings);
 
-        // ���������Ϣ
+
         OutputDebugString(PChar('Added language to dictionary: ' + LangInfo.Code));
       except
         on E: Exception do
@@ -291,15 +294,15 @@ begin
     end
     else
     begin
-      // ���������Ϣ
+
       OutputDebugString(PChar('Language file does not exist: ' + LangFile));
     end;
   end;
 
-  // ȷ��������һ�����Կ���
+
   if FLanguages.Count = 0 then
   begin
-    // ����Ĭ��Ӣ���ַ���
+
     LangStrings := CreateDefaultLanguageStrings;
     FLanguages.Add('en-US', LangStrings);
   end;
@@ -313,10 +316,10 @@ var
   FilePath: string;
   FindResult: Integer;
 begin
-  // ��������б�
+
   FLanguageInfoList.Clear;
 
-  // ʹ��ȫ�ֱ���IniDir����FLanguagePath
+
   if IniDir <> '' then
   begin
     OutputDebugString(PChar('Searching for language files in: ' + IniDir));
@@ -330,28 +333,33 @@ begin
   try
     while FindResult = 0 do
     begin
-      // ʹ��ȫ�ֱ���IniDir����FLanguagePath
+
       if IniDir <> '' then
         FilePath := IniDir + PathDelim + SearchRec.Name
       else
         FilePath := FLanguagePath + PathDelim + SearchRec.Name;
 
-      // ���������Ϣ
+
       OutputDebugString(PChar('Found language file: ' + FilePath));
 
-      // ʹ��TMemIniFile��ȡ������Ϣ
-      IniFile := TMemIniFile.Create(FilePath, TEncoding.UTF8);
+
       try
-        // ��ȡ����Ԫ����
+        IniFile := TMemIniFile.Create(FilePath, TEncoding.UTF8);
+      except
+        on EEncodingError do
+          IniFile := TMemIniFile.Create(FilePath, TEncoding.Default);
+      end;
+      try
+
         LangInfo.Code := IniFile.ReadString('Meta', 'LanguageCode', '');
         LangInfo.Name := IniFile.ReadString('Meta', 'LanguageName', '');
         LangInfo.NativeName := IniFile.ReadString('Meta', 'NativeName', '');
         LangInfo.FileName := SearchRec.Name;
 
-        // ���������Ϣ
+
         OutputDebugString(PChar('Language info: Code=' + LangInfo.Code + ', Name=' + LangInfo.Name + ', NativeName=' + LangInfo.NativeName));
 
-        // �������Ч�����Դ��룬���ӵ��б�
+
         if LangInfo.Code <> '' then
         begin
           FLanguageInfoList.Add(LangInfo);
@@ -363,14 +371,14 @@ begin
         IniFile.Free;
       end;
 
-      // ������һ���ļ�
+
       FindResult := FindNext(SearchRec);
     end;
   finally
     System.SysUtils.FindClose(SearchRec);
   end;
 
-  // ���û���ҵ��κ������ļ�������Ĭ������
+
   if FLanguageInfoList.Count = 0 then
   begin
     LangInfo.Code := 'en-US';
@@ -399,18 +407,18 @@ var
     begin
       TempLine := Trim(Lines[j]);
       
-      // �������к�ע��
+
       if (TempLine = '') or (TempLine.StartsWith('#')) or (TempLine.StartsWith(';')) then
         Continue;
       
-      // ����Ƿ��ǽڱ���
+
       if TempLine.StartsWith('[') and TempLine.EndsWith(']') then
       begin
         InSection := SameText(Copy(TempLine, 2, Length(TempLine) - 2), Section);
         Continue;
       end;
       
-      // �����Ŀ����У����Ҽ�ֵ
+
       if InSection then
       begin
         EqualPos := Pos('=', TempLine);
@@ -428,16 +436,28 @@ var
   end;
   
 begin
-  // ��ʼ��ΪĬ���ַ���
+
   Result := CreateDefaultLanguageStrings;
 
   try
-    // ʹ��TStringListֱ�Ӷ�ȡUTF-8�ļ�
+
     Lines := TStringList.Create;
     try
-      Lines.LoadFromFile(FileName, TEncoding.UTF8);
+      try
+        Lines.LoadFromFile(FileName, TEncoding.UTF8);
+      except
+        on EEncodingError do
+        begin
+          // UTF-8 loading failed, try with default encoding as fallback
+          try
+            Lines.LoadFromFile(FileName, TEncoding.Default);
+          except
+            // If default also fails, use empty list
+          end;
+        end;
+      end;
       
-      // ��ȡ�ַ�������
+
       Result.WindowTitle := GetValue('Strings', 'WindowTitle');
       Result.BtnConvert := GetValue('Strings', 'BtnConvert');
       Result.BtnSingleFile := GetValue('Strings', 'BtnSingleFile');
@@ -461,7 +481,7 @@ begin
       Result.BtnCheckContent := GetValue('Strings', 'BtnCheckContent');
       Result.ChkIncludeSubdirs := GetValue('Strings', 'ChkIncludeSubdirs');
 
-      // ������Ϣ
+
       Result.MsgSelectTargetEncoding := GetValue('Messages', 'MsgSelectTargetEncoding');
       Result.MsgSelectFiles := GetValue('Messages', 'MsgSelectFiles');
       Result.MsgNoMatchingFiles := GetValue('Messages', 'MsgNoMatchingFiles');
@@ -478,22 +498,39 @@ begin
       Result.MsgSubdirEnabled := GetValue('Messages', 'MsgSubdirEnabled');
       Result.MsgConversionSuccess := GetValue('Messages', 'MsgConversionSuccess');
       
-      // ������ʾ�ı�
+
       Result.ProgressSearchingFiles := GetValue('Progress', 'ProgressSearchingFiles');
       Result.ProgressDetectingEncoding := GetValue('Progress', 'ProgressDetectingEncoding');
       Result.ProgressDetecting := GetValue('Progress', 'ProgressDetecting');
       Result.ProgressComplete := GetValue('Progress', 'ProgressComplete');
       Result.ProgressCompleteFiles := GetValue('Progress', 'ProgressCompleteFiles');
       
-      // ��־��Ϣ
+
       Result.LogDetectionComplete := GetValue('Logs', 'LogDetectionComplete');
       Result.LogFilesFound := GetValue('Logs', 'LogFilesFound');
       Result.LogDeselectAllFileTypes := GetValue('Logs', 'LogDeselectAllFileTypes');
       Result.LogSelectAllFileTypes := GetValue('Logs', 'LogSelectAllFileTypes');
       Result.LogForceUpdateFileList := GetValue('Logs', 'LogForceUpdateFileList');
       Result.LogAsyncScanComplete := GetValue('Logs', 'LogAsyncScanComplete');
-      
-      // UI��̬�ı�
+      Result.LogBatchConversionStart := GetValue('Logs', 'LogBatchConversionStart');
+      Result.LogRefreshDirectory := GetValue('Logs', 'LogRefreshDirectory');
+      Result.LogStartSearching := GetValue('Logs', 'LogStartSearching');
+      Result.LogRefreshingFileList := GetValue('Logs', 'LogRefreshingFileList');
+      Result.LogFileListRefreshed := GetValue('Logs', 'LogFileListRefreshed');
+      Result.LogWarningInvalidLanguage := GetValue('Logs', 'LogWarningInvalidLanguage');
+      Result.LogUserSelectedLanguage := GetValue('Logs', 'LogUserSelectedLanguage');
+      Result.LogSwitchToLanguage := GetValue('Logs', 'LogSwitchToLanguage');
+      Result.LogRootDirectory := GetValue('Logs', 'LogRootDirectory');
+      Result.LogIniDirectory := GetValue('Logs', 'LogIniDirectory');
+      Result.LogUserCancelled := GetValue('Logs', 'LogUserCancelled');
+      Result.LogConversionSkipped := GetValue('Logs', 'LogConversionSkipped');
+      Result.MsgSelectValidFolder := GetValue('Logs', 'MsgSelectValidFolder');
+      Result.ChkInstantScan := GetValue('Logs', 'ChkInstantScan');
+      Result.BtnScanDir := GetValue('Logs', 'BtnScanDir');
+      Result.LogInstantScanOn := GetValue('Logs', 'LogInstantScanOn');
+      Result.LogInstantScanOff := GetValue('Logs', 'LogInstantScanOff');
+
+
       Result.BtnSelectAllFileTypes := GetValue('UI', 'BtnSelectAllFileTypes');
       Result.BtnDeselectAllFileTypes := GetValue('UI', 'BtnDeselectAllFileTypes');
       Result.WindowTitleDefault := GetValue('UI', 'WindowTitleDefault');
@@ -516,15 +553,15 @@ var
   ConfigFile: string;
   ConfigDir: string;
 begin
-  // ��������Ŀ¼
+
   ConfigDir := ExtractFilePath(Application.ExeName) + 'config';
   if not DirectoryExists(ConfigDir) then
     ForceDirectories(ConfigDir);
 
-  // �����ļ�·��
+
   ConfigFile := ConfigDir + PathDelim + 'language.cfg';
 
-  // ��������ѡ��
+
   try
     TFile.WriteAllText(ConfigFile, LangCode, TEncoding.UTF8);
   except
@@ -537,21 +574,21 @@ end;
 
 procedure TLanguageManager.SetLanguage(const LangCode: string);
 begin
-  // �������û�б仯��ֱ�ӷ���
+
   if FCurrentLanguage = LangCode then
     Exit;
 
-  // ��������Ƿ����
+
   if not FLanguages.ContainsKey(LangCode) then
     Exit;
 
-  // ���õ�ǰ����
+
   FCurrentLanguage := LangCode;
 
-  // �����û���ѡ����
+
   SaveUserPreference(LangCode);
 
-  // �������Ա���¼�
+
   if Assigned(FOnLanguageChange) then
     FOnLanguageChange(LangCode);
 end;
@@ -564,13 +601,13 @@ var
   Context: TRttiContext;
   StringsType: TRttiType;
 begin
-  // Ĭ�Ϸ��ؿ��ַ���
+
   Result := '';
 
-  // ��ȡ��ǰ���Ե��ַ���
+
   Strings := GetLanguageStrings(FCurrentLanguage);
 
-  // ʹ��RTTI��ȡ�ֶ�ֵ
+
   Context := TRttiContext.Create;
   try
     StringsType := Context.GetType(TypeInfo(TLanguageStrings));
@@ -589,7 +626,7 @@ begin
   end;
 end;
 
-// ȫ��GetString����ʵ��
+
 function GetString(const Key: string): string;
 begin
   if Assigned(LanguageManager) then

@@ -167,6 +167,29 @@ object Form1: TForm1
       TabOrder = 6
       OnClick = btnCloseClick
     end
+    object chkInstantScan: TCheckBox
+      Left = 634
+      Top = 36
+      Width = 120
+      Height = 17
+      Anchors = [akTop, akRight]
+      Caption = 'Instant Scan'
+      Checked = True
+      State = cbChecked
+      TabOrder = 7
+      OnClick = chkInstantScanClick
+    end
+    object btnScanDir: TButton
+      Left = 786
+      Top = 35
+      Width = 98
+      Height = 22
+      Anchors = [akTop, akRight]
+      Caption = 'Scan Dir'
+      TabOrder = 8
+      Visible = False
+      OnClick = btnScanDirClick
+    end
   end
   object Panel3: TPanel
     Left = 0
@@ -175,34 +198,42 @@ object Form1: TForm1
     Height = 521
     Align = alLeft
     TabOrder = 2
-    object DriveComboBox1: TDriveComboBox
+    object vstDir: TVirtualExplorerTreeview
       AlignWithMargins = True
       Left = 11
       Top = 11
       Width = 203
-      Height = 21
+      Height = 499
       Margins.Left = 10
       Margins.Top = 10
       Margins.Right = 10
       Margins.Bottom = 10
-      Align = alTop
-      TabOrder = 0
-      OnChange = DriveComboBox1Change
-    end
-    object DirectoryListBox1: TDirectoryListBox
-      AlignWithMargins = True
-      Left = 11
-      Top = 62
-      Width = 203
-      Height = 448
-      Margins.Left = 10
-      Margins.Top = 20
-      Margins.Right = 10
-      Margins.Bottom = 10
+      Active = False
       Align = alClient
-      TabOrder = 1
-      OnChange = DirectoryListBox1Change
-      OnMouseDown = DirectoryListBox1MouseDown
+      ColumnDetails = cdUser
+      DefaultNodeHeight = 33
+      DragHeight = 250
+      DragWidth = 150
+      FileObjects = [foFolders, foHidden, foEnableAsync]
+      FileSizeFormat = fsfExplorer
+      FileSort = fsFileType
+      Header.AutoSizeIndex = 0
+      Header.Height = 15
+      Header.MainColumn = -1
+      HintMode = hmHint
+      ParentColor = False
+      RootFolder = rfDesktop
+      TabOrder = 0
+      TabStop = True
+      TreeOptions.AutoOptions = [toAutoScroll, toAutoChangeScale]
+      TreeOptions.MiscOptions = [toAcceptOLEDrop, toEditable, toToggleOnDblClick]
+      TreeOptions.PaintOptions = [toHideSelection, toShowButtons, toShowTreeLines, toThemeAware, toUseBlendedImages, toGhostedIfUnfocused]
+      TreeOptions.SelectionOptions = [toLevelSelectConstraint]
+      TreeOptions.VETShellOptions = [toContextMenus]
+      TreeOptions.VETSyncOptions = [toCollapseTargetFirst, toExpandTarget, toSelectTarget]
+      TreeOptions.VETMiscOptions = [toBrowseExecuteFolder, toBrowseExecuteFolderShortcut, toBrowseExecuteZipFolder, toChangeNotifierThread, toRemoveContextMenuShortCut]
+      TreeOptions.VETImageOptions = [toImages, toThreadedImages, toMarkCutAndCopy]
+      Columns = <>
     end
   end
   object Panel4: TPanel
@@ -375,7 +406,7 @@ object Form1: TForm1
       Height = 72
       Align = alBottom
       Lines.Strings = (
-        'MemLog')
+        '')
       ScrollBars = ssVertical
       TabOrder = 3
     end

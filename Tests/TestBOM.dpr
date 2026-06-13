@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.Classes,
   System.Math,
+  DeepBase.AIErrorHandler.Bootstrap,
   EncodingConverter_Improved in '..\EncodingConverter_Improved.pas';
 
 var
@@ -14,10 +15,11 @@ var
   Result: TEncodingConversionResult;
   I: Integer;
 begin
+  InstallAIErrorHandlerForTests;
   // 创建 GBK 编码的测试数据："这是"
   SetLength(SourceBytes, 4);
-  SourceBytes[0] := $D5; // �?  SourceBytes[1] := $E2;
-  SourceBytes[2] := $CA; // �?  SourceBytes[3] := $C7;
+  SourceBytes[0] := $D5; // �?  SourceBytes[1] := $E2;
+  SourceBytes[2] := $CA; // �?  SourceBytes[3] := $C7;
 
   Writeln('Source bytes (GBK): ', Length(SourceBytes));
   Write('Hex: ');
@@ -28,7 +30,7 @@ begin
   // 设置选项
   Options := TEncodingConverter_Improved.CreateDefaultOptions;
   Options.AddBOM := True;
-  Options.DetectSourceEncoding := False; // 禁用自动检测，强制使用指定�?GBK
+  Options.DetectSourceEncoding := False; // 禁用自动检测，强制使用指定�?GBK
 
   // 转换
   Result := TEncodingConverter_Improved.ConvertBuffer(SourceBytes, 'GBK', 'UTF-8 with BOM', Options);
